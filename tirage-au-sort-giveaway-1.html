@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tirage au sort — Giveaway</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" crossorigin></script>
+
+<style>
+  html, body { margin: 0; padding: 0; background: #FAF6EF; }
+  #root { min-height: 100vh; }
+
+  .gp-root {
+    --cream: #FAF6EF;
+    --ink: #1A1A1A;
+    --accent: #E8472A;
+    --gold: #F2B544;
+    --green: #2F6B4F;
+    --line: #E3DCCB;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  .gp-root * { box-sizing: border-box; }
+
+  .gp-header {
+    border-bottom: 2px solid var(--ink);
+    background: var(--cream);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .gp-header-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .gp-brand { display: flex; align-items: center; gap: 14px; }
+  .gp-brand-mark { font-size: 30px; line-height: 1; }
+  .gp-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .gp-subtitle { margin: 2px 0 0; font-size: 13px; color: #6B6455; }
+  .gp-header-stat {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12.5px; color: #6B6455;
+    background: #fff; border: 1px solid var(--line); border-radius: 99px;
+    padding: 6px 12px;
+  }
+
+  .gp-main {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+    display: grid;
+    grid-template-columns: 340px 1fr 280px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .gp-panel {
+    background: #fff;
+    border: 1.5px solid var(--ink);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .gp-panel-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 20px 32px;
+  }
+
+  .gp-panel-section { margin-bottom: 16px; }
+  .gp-panel-section:last-child { margin-bottom: 0; }
+
+  .gp-section-head {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .gp-entries-section .gp-section-head { justify-content: space-between; }
+  .gp-entries-section .gp-section-head span { flex: 1; }
+
+  .gp-input {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13.5px;
+    font-family: inherit;
+    background: var(--cream);
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .gp-input:focus { border-color: var(--accent); }
+  .gp-input-narrow { width: 70px; }
+
+  .gp-hint {
+    font-size: 11.5px;
+    color: #8A8270;
+    margin: 6px 0 0;
+    line-height: 1.4;
+  }
+
+  .gp-tabs {
+    display: flex; gap: 6px;
+    margin-bottom: 16px;
+    background: var(--cream);
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .gp-tab {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    border: none; background: transparent;
+    padding: 8px 10px; border-radius: 7px;
+    font-size: 12.5px; font-weight: 600; color: #6B6455;
+    cursor: pointer; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .gp-tab-active { background: var(--ink); color: var(--cream); }
+
+  .gp-textarea {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    outline: none;
+    resize: vertical;
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .gp-textarea:focus { border-color: var(--accent); }
+
+  .gp-dropzone {
+    border: 2px dashed var(--line);
+    border-radius: 10px;
+    padding: 28px 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer; color: #6B6455;
+    font-size: 13px; font-weight: 500;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .gp-dropzone:hover { border-color: var(--accent); background: #FFF8F0; }
+
+  .gp-btn {
+    border: 1.5px solid var(--ink);
+    border-radius: 9px;
+    padding: 10px 16px;
+    font-size: 13.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    transition: transform 0.1s, box-shadow 0.15s;
+  }
+  .gp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .gp-btn-secondary {
+    background: var(--cream);
+    color: var(--ink);
+    width: 100%;
+  }
+  .gp-btn-secondary:not(:disabled):hover { background: #fff; box-shadow: 2px 2px 0 var(--ink); }
+  .gp-btn-primary {
+    background: var(--accent);
+    color: var(--cream);
+    border-color: var(--ink);
+    font-size: 15px;
+    padding: 13px 28px;
+  }
+  .gp-btn-primary:not(:disabled):hover { transform: translateY(-1px); box-shadow: 3px 3px 0 var(--ink); }
+  .gp-btn-primary:not(:disabled):active { transform: translateY(0); box-shadow: 1px 1px 0 var(--ink); }
+
+  .gp-divider { height: 1.5px; background: var(--line); margin: 18px 0; }
+
+  .gp-checkbox-row {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 13.5px; margin-bottom: 12px; cursor: pointer;
+    user-select: none;
+  }
+  .gp-checkbox-row input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+  .gp-field-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px; gap: 10px;
+  }
+  .gp-field-row-stack { flex-direction: column; align-items: stretch; }
+  .gp-field-row-stack .gp-field-label { margin-bottom: 6px; }
+  .gp-field-label { font-size: 13px; color: #4A4536; }
+
+  .gp-entries-list {
+    max-height: 280px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .gp-entry-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--cream);
+    font-size: 12.5px;
+  }
+  .gp-entry-name { flex: 1; font-weight: 500; }
+  .gp-entry-badge {
+    font-size: 10.5px; font-weight: 700;
+    background: var(--gold); color: var(--ink);
+    border-radius: 99px; padding: 1px 6px;
+  }
+  .gp-icon-btn-sm {
+    border: none; background: transparent; color: #8A8270;
+    cursor: pointer; padding: 2px; display: flex; border-radius: 4px;
+  }
+  .gp-icon-btn-sm:hover { color: var(--accent); }
+  .gp-clear-all { margin-left: auto; }
+
+  .gp-stats-row {
+    display: flex; gap: 28px;
+    margin-bottom: 22px;
+  }
+  .gp-stat { display: flex; flex-direction: column; align-items: center; }
+  .gp-stat-value {
+    font-family: 'Fraunces', serif;
+    font-size: 26px; font-weight: 600; line-height: 1;
+  }
+  .gp-stat-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: #8A8270; margin-top: 4px;
+  }
+
+  .gp-wheel-wrap {
+    position: relative;
+    width: 420px;
+    max-width: 100%;
+    margin-bottom: 24px;
+  }
+  .gp-canvas { width: 100%; height: auto; display: block; filter: drop-shadow(0 6px 0 rgba(26,26,26,0.08)); }
+  .gp-pointer {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 13px solid transparent;
+    border-right: 13px solid transparent;
+    border-top: 22px solid var(--ink);
+    z-index: 5;
+    filter: drop-shadow(0 2px 0 rgba(0,0,0,0.15));
+  }
+
+  .gp-spin-btn { width: 100%; max-width: 320px; }
+
+  .gp-winner-ticket {
+    margin-top: 26px;
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--ink);
+    color: var(--cream);
+    border-radius: 12px;
+    padding: 16px 18px;
+    position: relative;
+    animation: gp-pop 0.4s ease-out;
+  }
+  @keyframes gp-pop {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .gp-winner-stub {
+    width: 44px; height: 44px;
+    background: var(--gold); color: var(--ink);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+  }
+  .gp-winner-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .gp-winner-eyebrow { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: #B8B0A0; }
+  .gp-winner-name { font-family: 'Fraunces', serif; font-size: 19px; font-weight: 600; }
+  .gp-winner-link { font-size: 11.5px; color: var(--gold); text-decoration: underline; margin-top: 2px; }
+  .gp-icon-btn {
+    border: 1px solid #4A4536; background: transparent; color: var(--cream);
+    border-radius: 7px; padding: 7px; cursor: pointer; flex: 0 0 auto;
+    display: flex; align-items: center;
+  }
+  .gp-icon-btn:hover { background: #2A2A2A; }
+
+  .gp-empty-state { font-size: 12.5px; color: #8A8270; line-height: 1.5; }
+
+  .gp-history-list { display: flex; flex-direction: column; gap: 8px; }
+  .gp-history-item {
+    display: flex; flex-direction: column;
+    padding: 9px 10px;
+    border-radius: 8px;
+    background: var(--cream);
+    border-left: 3px solid var(--gold);
+  }
+  .gp-history-name { font-size: 13px; font-weight: 600; }
+  .gp-history-meta { font-size: 10.5px; color: #8A8270; margin-top: 2px; }
+
+  @media (max-width: 980px) {
+    .gp-main { grid-template-columns: 1fr; }
+    .gp-panel-right { order: 3; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gp-winner-ticket { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useCallback, useMemo, useEffect } = React;
+const { Upload, Users, Filter, X, Trophy, RotateCcw, Sparkles, Link2, ListPlus, Trash2, Clock, Copy, Check } = lucide;
+
+function LucideIcon({ icon: Icon, size }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.innerHTML = "";
+      const svg = Icon.toSvg({ width: size, height: size });
+      ref.current.innerHTML = svg;
+    }
+  }, [Icon, size]);
+  return React.createElement("span", { ref: ref, style: { display: "inline-flex", lineHeight: 0 } });
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+
+function parseRawInput(raw) {
+  return raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function extractNameFromCommentLine(line) {
+  const atMatch = line.match(/^@?([a-zA-Z0-9._]{2,30})/);
+  return atMatch ? atMatch[1] : line.slice(0, 24);
+}
+
+function dedupeByName(entries) {
+  const seen = new Set();
+  return entries.filter((e) => {
+    const key = e.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function countMentions(text) {
+  const matches = text.match(/@[a-zA-Z0-9._]{2,30}/g);
+  return matches ? matches.length : 0;
+}
+
+const WHEEL_COLORS = ["#FAF6EF", "#1A1A1A"];
+
+function wrapText(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let truncated = text;
+  while (ctx.measureText(truncated + "…").width > maxWidth && truncated.length > 1) {
+    truncated = truncated.slice(0, -1);
+  }
+  return truncated + "…";
+}
+
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
+
+function TicketStat({ label, value }) {
+  return (
+    <div className="gp-stat">
+      <span className="gp-stat-value">{value}</span>
+      <span className="gp-stat-label">{label}</span>
+    </div>
+  );
+}
+
+function EntryRow({ entry, onRemove }) {
+  return (
+    <div className="gp-entry-row">
+      <span className="gp-entry-name">@{entry.name}</span>
+      {entry.mentions > 0 && (
+        <span className="gp-entry-badge" title={`${entry.mentions} mention(s)`}>
+          +{entry.mentions}
+        </span>
+      )}
+      <button className="gp-icon-btn-sm" onClick={() => onRemove(entry.id)} aria-label={`Retirer ${entry.name}`}>
+        <LucideIcon icon={X} size={13} />
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+
+function GiveawayPicker() {
+  const [rawText, setRawText] = useState("");
+  const [postLink, setPostLink] = useState("");
+  const [entries, setEntries] = useState([]);
+  const [removeDuplicates, setRemoveDuplicates] = useState(true);
+  const [minMentions, setMinMentions] = useState(0);
+  const [excludeKeyword, setExcludeKeyword] = useState("");
+  const [activeTab, setActiveTab] = useState("paste");
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [winner, setWinner] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [rotation, setRotation] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [csvFileName, setCsvFileName] = useState("");
+
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const spinFrameRef = useRef(null);
+
+  const handleParseEntries = useCallback(() => {
+    const lines = parseRawInput(rawText);
+    const parsed = lines.map((line, idx) => ({
+      id: `${Date.now()}-${idx}`,
+      name: extractNameFromCommentLine(line),
+      raw: line,
+      mentions: countMentions(line),
+    }));
+    setEntries(parsed);
+  }, [rawText]);
+
+  const handleCsvUpload = useCallback((e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setCsvFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = String(evt.target.result || "");
+      const lines = parseRawInput(text);
+      const parsed = lines.map((line, idx) => {
+        const cols = line.split(",");
+        const name = cols[0].replace(/"/g, "").trim();
+        return {
+          id: `csv-${Date.now()}-${idx}`,
+          name: name.replace(/^@/, ""),
+          raw: line,
+          mentions: countMentions(line),
+        };
+      });
+      setEntries(parsed);
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const removeEntry = useCallback((id) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setEntries([]);
+    setRawText("");
+    setWinner(null);
+    setCsvFileName("");
+  }, []);
+
+  const duplicateCount = useMemo(() => {
+    const total = entries.length;
+    const unique = new Set(entries.map((e) => e.name.toLowerCase())).size;
+    return Math.max(0, total - unique);
+  }, [entries]);
+
+  const filteredEntries = useMemo(() => {
+    let result = [...entries];
+    if (removeDuplicates) result = dedupeByName(result);
+    if (minMentions > 0) result = result.filter((e) => e.mentions >= minMentions);
+    if (excludeKeyword.trim()) {
+      const kw = excludeKeyword.trim().toLowerCase();
+      result = result.filter((e) => !e.raw.toLowerCase().includes(kw));
+    }
+    return result;
+  }, [entries, removeDuplicates, minMentions, excludeKeyword]);
+
+  const drawWheel = useCallback((currentRotation, highlightIndex, list) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const size = canvas.width;
+    const radius = size / 2 - 8;
+    const cx = size / 2;
+    const cy = size / 2;
+
+    ctx.clearRect(0, 0, size, size);
+
+    const segments = list && list.length > 0 ? list : [{ id: "placeholder", name: "ajoute des participants", mentions: 0 }];
+    const segAngle = (2 * Math.PI) / segments.length;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(currentRotation);
+
+    segments.forEach((entry, i) => {
+      const startAngle = i * segAngle;
+      const endAngle = startAngle + segAngle;
+      const isHighlight = highlightIndex === i;
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius, startAngle, endAngle);
+      ctx.closePath();
+      ctx.fillStyle = isHighlight ? "#F2B544" : WHEEL_COLORS[i % 2];
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#1A1A1A";
+      ctx.stroke();
+
+      ctx.save();
+      ctx.rotate(startAngle + segAngle / 2);
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = WHEEL_COLORS[i % 2] === "#1A1A1A" ? "#FAF6EF" : "#1A1A1A";
+      ctx.font = `600 ${segments.length > 24 ? 10 : segments.length > 12 ? 13 : 15}px Inter, sans-serif`;
+      const maxLabelWidth = radius - 36;
+      const label = wrapText(ctx, "@" + entry.name, maxLabelWidth);
+      ctx.fillText(label, radius - 14, 0);
+      ctx.restore();
+    });
+
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+    ctx.fillStyle = "#E8472A";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#1A1A1A";
+    ctx.stroke();
+    ctx.fillStyle = "#FAF6EF";
+    ctx.font = "700 11px Inter, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("GO", cx, cy);
+  }, []);
+
+  useEffect(() => {
+    drawWheel(rotation, null, filteredEntries);
+  }, [drawWheel, rotation, filteredEntries]);
+
+  useEffect(() => {
+    return () => {
+      if (spinFrameRef.current) cancelAnimationFrame(spinFrameRef.current);
+    };
+  }, []);
+
+  const handleSpin = useCallback(() => {
+    if (filteredEntries.length === 0 || isSpinning) return;
+    setWinner(null);
+    setIsSpinning(true);
+
+    const pool = filteredEntries;
+    const winnerIndex = Math.floor(Math.random() * pool.length);
+    const segAngle = (2 * Math.PI) / pool.length;
+    const targetSegmentCenter = winnerIndex * segAngle + segAngle / 2;
+    const fullSpins = 5 + Math.random() * 2;
+    const finalRotation = -(Math.PI / 2) - targetSegmentCenter + fullSpins * 2 * Math.PI;
+
+    const duration = 4200;
+    const startTime = performance.now();
+    const startRotation = rotation % (2 * Math.PI);
+
+    function animate(now) {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 4);
+      const current = startRotation + (finalRotation - startRotation) * eased;
+      setRotation(current);
+      drawWheel(current, null, pool);
+
+      if (t < 1) {
+        spinFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        setIsSpinning(false);
+        const winnerEntry = pool[winnerIndex];
+        setWinner(winnerEntry);
+        drawWheel(current, winnerIndex, pool);
+        setHistory((prev) =>
+          [
+            { id: Date.now(), name: winnerEntry.name, date: new Date().toLocaleString("fr-FR"), poolSize: pool.length },
+            ...prev,
+          ].slice(0, 20)
+        );
+      }
+    }
+    spinFrameRef.current = requestAnimationFrame(animate);
+  }, [filteredEntries, isSpinning, rotation, drawWheel]);
+
+  const handleCopyWinner = useCallback(() => {
+    if (!winner) return;
+    if (navigator.clipboard) navigator.clipboard.writeText(`@${winner.name}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }, [winner]);
+
+  const samplePlaceholder = `Colle ici les commentaires, un par ligne. Exemple :
+@clara.martin Trop hâte ! 🎉 @lea.dubois
+@thomas_94 j'en rêve depuis longtemps
+@julie.b @marc.petit on tente notre chance !
+@kevin.lp Bonne chance à tous 🍀
+@sophie_design @clara.martin
+@nico.78`;
+
+  return (
+    <div className="gp-root">
+      <header className="gp-header">
+        <div className="gp-header-inner">
+          <div className="gp-brand">
+            <div className="gp-brand-mark">🎟️</div>
+            <div>
+              <h1 className="gp-title">Tirage&nbsp;au&nbsp;sort</h1>
+              <p className="gp-subtitle">Désigne ton gagnant, sans tricher.</p>
+            </div>
+          </div>
+          {history.length > 0 && (
+            <div className="gp-header-stat">
+              <LucideIcon icon={Clock} size={14} />
+              <span>
+                {history.length} tirage{history.length > 1 ? "s" : ""} effectué{history.length > 1 ? "s" : ""}
+              </span>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <main className="gp-main">
+        <section className="gp-panel gp-panel-left">
+          <div className="gp-panel-section">
+            <div className="gp-section-head">
+              <LucideIcon icon={Link2} size={15} />
+              <span>Post Instagram (optionnel)</span>
+            </div>
+            <input
+              type="text"
+              className="gp-input"
+              placeholder="https://instagram.com/p/..."
+              value={postLink}
+              onChange={(e) => setPostLink(e.target.value)}
+            />
+            <p className="gp-hint">
+              Affiché comme preuve sur le ticket gagnant — l'import automatique des commentaires Instagram arrive dans une prochaine version.
+            </p>
+          </div>
+
+          <div className="gp-tabs">
+            <button className={`gp-tab ${activeTab === "paste" ? "gp-tab-active" : ""}`} onClick={() => setActiveTab("paste")}>
+              <LucideIcon icon={ListPlus} size={14} /> Coller une liste
+            </button>
+            <button className={`gp-tab ${activeTab === "csv" ? "gp-tab-active" : ""}`} onClick={() => setActiveTab("csv")}>
+              <LucideIcon icon={Upload} size={14} /> Importer un CSV
+            </button>
+          </div>
+
+          {activeTab === "paste" ? (
+            <div className="gp-panel-section">
+              <textarea
+                className="gp-textarea"
+                placeholder={samplePlaceholder}
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                rows={7}
+              />
+              <button className="gp-btn gp-btn-secondary" onClick={handleParseEntries} disabled={!rawText.trim()}>
+                Extraire les participants
+              </button>
+            </div>
+          ) : (
+            <div className="gp-panel-section">
+              <div className="gp-dropzone" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
+                <LucideIcon icon={Upload} size={20} />
+                <span>{csvFileName || "Choisir un fichier .csv"}</span>
+                <span className="gp-hint" style={{ margin: 0 }}>
+                  Une colonne avec les noms d'utilisateur
+                </span>
+              </div>
+              <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleCsvUpload} style={{ display: "none" }} />
+            </div>
+          )}
+
+          <div className="gp-divider" />
+
+          <div className="gp-panel-section">
+            <div className="gp-section-head">
+              <LucideIcon icon={Filter} size={15} />
+              <span>Filtres</span>
+            </div>
+
+            <label className="gp-checkbox-row">
+              <input type="checkbox" checked={removeDuplicates} onChange={(e) => setRemoveDuplicates(e.target.checked)} />
+              <span>Retirer les doublons</span>
+            </label>
+
+            <div className="gp-field-row">
+              <label className="gp-field-label">Mentions minimum</label>
+              <input
+                type="number"
+                min={0}
+                className="gp-input gp-input-narrow"
+                value={minMentions}
+                onChange={(e) => setMinMentions(Math.max(0, Number(e.target.value) || 0))}
+              />
+            </div>
+
+            <div className="gp-field-row gp-field-row-stack">
+              <label className="gp-field-label">Exclure un mot-clé</label>
+              <input
+                type="text"
+                className="gp-input"
+                placeholder="ex : giveaway-bot"
+                value={excludeKeyword}
+                onChange={(e) => setExcludeKeyword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {entries.length > 0 && (
+            <>
+              <div className="gp-divider" />
+              <div className="gp-panel-section gp-entries-section">
+                <div className="gp-section-head">
+                  <LucideIcon icon={Users} size={15} />
+                  <span>Participants ({filteredEntries.length})</span>
+                  <button className="gp-icon-btn-sm gp-clear-all" onClick={clearAll} title="Tout effacer">
+                    <LucideIcon icon={Trash2} size={13} />
+                  </button>
+                </div>
+                <div className="gp-entries-list">
+                  {filteredEntries.map((entry) => (
+                    <EntryRow key={entry.id} entry={entry} onRemove={removeEntry} />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="gp-panel gp-panel-center">
+          <div className="gp-stats-row">
+            <TicketStat label="Participants" value={filteredEntries.length} />
+            <TicketStat label="Total mentions" value={filteredEntries.reduce((s, e) => s + e.mentions, 0)} />
+            <TicketStat label="Doublons retirés" value={removeDuplicates ? duplicateCount : 0} />
+          </div>
+
+          <div className="gp-wheel-wrap">
+            <div className="gp-pointer" aria-hidden="true" />
+            <canvas ref={canvasRef} width={420} height={420} className="gp-canvas" />
+          </div>
+
+          <button className="gp-btn gp-btn-primary gp-spin-btn" onClick={handleSpin} disabled={filteredEntries.length === 0 || isSpinning}>
+            <LucideIcon icon={Sparkles} size={16} />
+            {isSpinning ? "Tirage en cours…" : "Lancer le tirage"}
+          </button>
+
+          {winner && !isSpinning && (
+            <div className="gp-winner-ticket">
+              <div className="gp-winner-stub">
+                <LucideIcon icon={Trophy} size={26} />
+              </div>
+              <div className="gp-winner-body">
+                <span className="gp-winner-eyebrow">Gagnant désigné</span>
+                <span className="gp-winner-name">@{winner.name}</span>
+                {postLink && (
+                  <a href={postLink} target="_blank" rel="noopener noreferrer" className="gp-winner-link">
+                    Voir le post d'origine
+                  </a>
+                )}
+              </div>
+              <button className="gp-icon-btn" onClick={handleCopyWinner} title="Copier le pseudo">
+                <LucideIcon icon={copied ? Check : Copy} size={16} />
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="gp-panel gp-panel-right">
+          <div className="gp-section-head">
+            <LucideIcon icon={RotateCcw} size={15} />
+            <span>Historique</span>
+          </div>
+          {history.length === 0 ? (
+            <p className="gp-empty-state">Les tirages effectués apparaîtront ici. Rien à montrer pour l'instant.</p>
+          ) : (
+            <div className="gp-history-list">
+              {history.map((h) => (
+                <div key={h.id} className="gp-history-item">
+                  <span className="gp-history-name">@{h.name}</span>
+                  <span className="gp-history-meta">
+                    {h.date} · {h.poolSize} participants
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<GiveawayPicker />);
+</script>
+
+</body>
+</html>
