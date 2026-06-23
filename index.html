@@ -411,6 +411,20 @@ button { font-family: inherit; }
 .profile-email { font-size: 13px; color: var(--muted); }
 
 .avatar-picker { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.image-upload-zone {
+  width: 100%; height: 140px; border: 1.5px dashed var(--line); border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  position: relative; overflow: hidden; transition: border-color 0.15s, background 0.15s;
+  background: #F8F8FB;
+}
+.image-upload-zone:hover { border-color: var(--accent); background: var(--accent-soft); }
+.image-upload-zone img { width: 100%; height: 100%; object-fit: cover; }
+#imageUploadPlaceholder { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.image-remove-btn {
+  position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(15,17,23,0.7); color: #fff; border: none; cursor: pointer; font-size: 13px;
+}
 .avatar-picker-option {
   width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -449,11 +463,14 @@ button { font-family: inherit; }
 .giveaways-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 
 .giveaway-card {
-  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 18px; cursor: pointer; box-shadow: var(--shadow-sm);
+  background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--line); border-radius: var(--radius);
+  padding: 18px; padding-bottom: 38px; cursor: pointer; box-shadow: var(--shadow-sm);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
+  overflow: hidden; position: relative;
 }
 .giveaway-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: #D7D9FF; }
+.giveaway-card-image { width: calc(100% + 36px); margin: -18px -18px 12px; height: 110px; object-fit: cover; display: block; }
+.draw-giveaway-image { width: 100%; max-height: 180px; object-fit: cover; border-radius: var(--radius); margin-bottom: 14px; }
 .giveaway-card-title { font-size: 15px; font-weight: 700; margin: 0 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .giveaway-card-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
 .giveaway-card-badge { background: var(--accent-soft); color: var(--accent-dark); font-weight: 700; padding: 2px 8px; border-radius: 99px; font-size: 11px; }
@@ -563,6 +580,14 @@ button { font-family: inherit; }
 .mode-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-dark); }
 
 .review-card { background: #F8F8FB; border-radius: var(--radius); padding: 18px; margin-bottom: 4px; }
+
+.wizard-preview-card {
+  background: #fff; border: 1px solid var(--line); border-top: 3px solid var(--accent);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 18px; overflow: hidden;
+}
+.wizard-preview-image { width: calc(100% + 32px); margin: -16px -16px 12px; height: 120px; object-fit: cover; display: block; }
+.wizard-preview-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.wizard-preview-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
 .review-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
 .review-row:last-child { border-bottom: none; }
 .review-row-label { color: var(--muted); }
@@ -675,7 +700,6 @@ button { font-family: inherit; }
 .btn-danger { background: var(--red); color: #fff; }
 .btn-danger:not(:disabled):hover { background: #DC2626; }
 
-.giveaway-card { position: relative; padding-bottom: 38px; }
 .giveaway-card-delete {
   position: absolute; bottom: 12px; right: 14px; background: none; border: none;
   color: #C4C7D4; padding: 5px; border-radius: 6px; cursor: pointer; transition: all 0.15s;
@@ -1343,6 +1367,24 @@ button { font-family: inherit; }
           <p class="hint">Purement informatif — affiché sur la carte du tirage, le tirage reste à lancer manuellement quand tu es prêt.</p>
         </div>
 
+        <div class="form-field">
+          <label class="form-label">Image / logo du tirage (optionnel)</label>
+          <div class="image-upload-zone" id="imageUploadZone" onclick="document.getElementById('wizardImageInput').click()">
+            <img id="imagePreview" style="display:none;" />
+            <div id="imageUploadPlaceholder">
+              <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><circle cx="7" cy="8" r="1.5"/><path d="M3 14l4-3.5 3 2.5 3-3 4 4"/></svg>
+              <span>Choisir une image</span>
+            </div>
+            <button type="button" class="image-remove-btn" id="imageRemoveBtn" onclick="event.stopPropagation(); removeWizardImage();" style="display:none;">✕</button>
+          </div>
+          <input type="file" id="wizardImageInput" accept="image/*" style="display:none;" />
+        </div>
+
+        <div class="form-field">
+          <label class="form-label">Couleur du tirage</label>
+          <div class="avatar-picker" id="wizardColorPicker"></div>
+        </div>
+
         <button class="btn btn-primary btn-block" onclick="wizardNext(1)">Continuer</button>
       </div>
 
@@ -1426,8 +1468,8 @@ button { font-family: inherit; }
             <label class="form-label" style="margin:0;">Durée de l'animation</label>
             <span class="duration-value" id="wizardDurationValue">4 s</span>
           </div>
-          <input type="range" id="wizardDuration" class="range-slider" min="2" max="10" step="0.5" value="4" oninput="updateDurationLabel()" />
-          <div class="range-slider-marks"><span>2 s</span><span>10 s</span></div>
+          <input type="range" id="wizardDuration" class="range-slider" min="2" max="300" step="1" value="4" oninput="updateDurationLabel()" />
+          <div class="range-slider-marks"><span>2 s</span><span>5 min</span></div>
         </div>
 
         <div class="wizard-actions">
@@ -1457,6 +1499,7 @@ button { font-family: inherit; }
   <div id="drawScreen" class="screen" style="display:none;">
     <div class="page-container page-container-narrow">
       <button class="back-btn" onclick="goBackToMainScreen()">← Retour</button>
+      <img id="drawGiveawayImage" class="draw-giveaway-image" style="display:none;" alt="" />
       <h1 class="page-title" id="drawGiveawayTitle">Tirage</h1>
 
       <div class="card card-center">
@@ -1585,6 +1628,8 @@ var wizardData = {
   igLink: '',
   ytLink: '',
   endDate: '',
+  imageFile: null,
+  accentColor: '#5B5BF6',
   participants: [], // [{name, raw, mentions}]
   removeDuplicates: true,
   minMentions: 0,
@@ -1599,6 +1644,7 @@ var wizardStepIndex = 1;
 var activeGiveaway = null; // the giveaway currently open on the draw screen
 var activeParticipants = [];
 var rotation = 0;
+var currentDrawAccentColor = '#5B5BF6';
 var isSpinning = false;
 var winner = null;
 var spinFrame = null;
@@ -2241,7 +2287,12 @@ function renderGiveawaysScreen() {
       var endDateHtml = g.end_date
         ? '<span class="giveaway-card-deadline">📅 ' + new Date(g.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</span>'
         : '';
+      var imageHtml = g.image_url
+        ? '<img src="' + g.image_url + '" class="giveaway-card-image" alt="" />'
+        : '';
+      card.style.borderTopColor = g.accent_color || 'var(--line)';
       card.innerHTML =
+        imageHtml +
         '<div class="giveaway-card-top">' +
         '<div class="giveaway-card-title">' + escapeHtml(g.title) + '</div>' +
         '<span class="status-pill status-pill-' + status + '">' + (status === 'done' ? 'Terminé' : 'Actif') + '</span>' +
@@ -2448,12 +2499,14 @@ function escapeHtml(str) {
 // WIZARD
 // ============================================================
 function startWizard() {
-  wizardData = { title: '', igLink: '', ytLink: '', participants: [], removeDuplicates: true, minMentions: 0, requiredKeyword: '', excludeKeyword: '', mode: 'wheel', duration: 4, winnerCount: 1 };
+  wizardData = { title: '', igLink: '', ytLink: '', endDate: '', imageFile: null, accentColor: '#5B5BF6', participants: [], removeDuplicates: true, minMentions: 0, requiredKeyword: '', excludeKeyword: '', mode: 'wheel', duration: 4, winnerCount: 1 };
   wizardStepIndex = 1;
   document.getElementById('wizardTitle').value = '';
   document.getElementById('wizardIgLink').value = '';
   document.getElementById('wizardYtLink').value = '';
   document.getElementById('wizardEndDate').value = '';
+  removeWizardImage();
+  renderWizardColorPicker('#5B5BF6');
   document.getElementById('wizardRawText').value = '';
   document.getElementById('wizardRemoveDup').checked = true;
   document.getElementById('wizardMinMentions').value = 0;
@@ -2523,6 +2576,66 @@ function wizardSwitchTab(tab) {
   document.getElementById('wizCsvPanel').style.display = tab === 'csv' ? 'block' : 'none';
 }
 
+function handleWizardImageSelect(evt) {
+  var file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  if (file.size > 4 * 1024 * 1024) {
+    showToast('Image trop lourde (max 4 Mo)', 'error');
+    return;
+  }
+  wizardData.imageFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var preview = document.getElementById('imagePreview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('imageUploadPlaceholder').style.display = 'none';
+    document.getElementById('imageRemoveBtn').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeWizardImage() {
+  wizardData.imageFile = null;
+  document.getElementById('wizardImageInput').value = '';
+  document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('imagePreview').src = '';
+  document.getElementById('imageUploadPlaceholder').style.display = 'flex';
+  document.getElementById('imageRemoveBtn').style.display = 'none';
+}
+
+function renderWizardColorPicker(selectedColor) {
+  var picker = document.getElementById('wizardColorPicker');
+  picker.innerHTML = '';
+  AVATAR_COLORS.forEach(function(color) {
+    var opt = document.createElement('button');
+    opt.type = 'button';
+    opt.className = 'avatar-picker-option' + (color === selectedColor ? ' selected' : '');
+    opt.style.background = color;
+    opt.setAttribute('aria-label', 'Choisir cette couleur');
+    opt.onclick = function() {
+      wizardData.accentColor = color;
+      renderWizardColorPicker(color);
+    };
+    picker.appendChild(opt);
+  });
+}
+
+async function uploadWizardImage() {
+  if (!wizardData.imageFile) return null;
+  var file = wizardData.imageFile;
+  var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  var path = currentUser.id + '/' + Date.now() + '.' + ext;
+
+  var { error } = await supabaseClient.storage.from('giveaway-images').upload(path, file);
+  if (error) {
+    showToast('Erreur lors de l\'upload de l\'image', 'error');
+    return null;
+  }
+  var { data } = supabaseClient.storage.from('giveaway-images').getPublicUrl(path);
+  return data ? data.publicUrl : null;
+}
+
 function parseCsvLines(raw) {
   return raw.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
 }
@@ -2556,15 +2669,40 @@ function wizardSetMode(mode) {
   });
 }
 
+function formatDuration(seconds) {
+  if (seconds < 60) return seconds + ' s';
+  var minutes = Math.floor(seconds / 60);
+  var remainder = seconds % 60;
+  return remainder > 0 ? minutes + ' min ' + remainder + ' s' : minutes + ' min';
+}
+
 function updateDurationLabel() {
   var val = parseFloat(document.getElementById('wizardDuration').value);
-  document.getElementById('wizardDurationValue').textContent = val + ' s';
+  document.getElementById('wizardDurationValue').textContent = formatDuration(val);
 }
 
 function renderWizardReview() {
   var filtered = applyFilters(wizardData.participants, wizardData.removeDuplicates, wizardData.minMentions, wizardData.excludeKeyword, wizardData.requiredKeyword);
   var review = document.getElementById('wizardReview');
+
+  var previewImageHtml = '';
+  if (wizardData.imageFile) {
+    var tempUrl = URL.createObjectURL(wizardData.imageFile);
+    previewImageHtml = '<img src="' + tempUrl + '" class="wizard-preview-image" alt="" />';
+  }
+
+  var previewHtml =
+    '<div class="wizard-preview-card" style="border-top-color:' + wizardData.accentColor + ';">' +
+    previewImageHtml +
+    '<div class="wizard-preview-title">' + escapeHtml(wizardData.title) + '</div>' +
+    '<div class="wizard-preview-meta">' +
+    '<span class="giveaway-card-badge">' + MODE_LABELS[wizardData.mode] + '</span>' +
+    '<span>' + filtered.length + ' participant' + (filtered.length !== 1 ? 's' : '') + '</span>' +
+    '</div>' +
+    '</div>';
+
   review.innerHTML =
+    previewHtml +
     reviewRow('Titre', wizardData.title) +
     reviewRow('Participants', filtered.length + ' (sur ' + wizardData.participants.length + ' importés)') +
     reviewRow('Nombre de gagnants', wizardData.winnerCount) +
@@ -2583,6 +2721,8 @@ async function wizardCreate() {
   var btn = document.getElementById('wizardCreateBtn');
   setBtnLoading(btn, true);
 
+  var imageUrl = await uploadWizardImage();
+
   var { data: giveaway, error: gErr } = await supabaseClient
     .from('giveaways')
     .insert({
@@ -2597,7 +2737,9 @@ async function wizardCreate() {
       exclude_keyword: wizardData.excludeKeyword,
       duration_seconds: wizardData.duration,
       winner_count: wizardData.winnerCount,
-      end_date: wizardData.endDate || null
+      end_date: wizardData.endDate || null,
+      image_url: imageUrl,
+      accent_color: wizardData.accentColor
     })
     .select()
     .single();
@@ -2655,6 +2797,19 @@ async function openGiveaway(giveawayId, prefetched) {
   winner = null;
   document.getElementById('winnerTicket').style.display = 'none';
   resetSessionWinners();
+
+  var imageEl = document.getElementById('drawGiveawayImage');
+  if (giveaway.image_url) {
+    imageEl.src = giveaway.image_url;
+    imageEl.style.display = 'block';
+  } else {
+    imageEl.style.display = 'none';
+  }
+
+  currentDrawAccentColor = giveaway.accent_color || '#5B5BF6';
+  var spinBtn = document.getElementById('drawSpinBtn');
+  spinBtn.style.background = currentDrawAccentColor;
+  spinBtn.style.boxShadow = '0 4px 16px ' + currentDrawAccentColor + '52';
 
   ['Wheel', 'Instant', 'Slot'].forEach(function(m) {
     document.getElementById('drawStage' + m).style.display = m.toLowerCase() === drawMode ? 'block' : 'none';
@@ -2845,7 +3000,7 @@ function drawWheel(currentRotation, highlightIndex, list) {
     ctx.moveTo(0, 0);
     ctx.arc(0, 0, radius, startAngle, endAngle);
     ctx.closePath();
-    ctx.fillStyle = isHighlight ? '#F5A524' : WHEEL_COLORS[i % 2];
+    ctx.fillStyle = isHighlight ? '#F5A524' : (i % 2 === 0 ? '#FFFFFF' : currentDrawAccentColor);
     ctx.fill();
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = '#FFFFFF';
@@ -2891,7 +3046,10 @@ function drawWheel(currentRotation, highlightIndex, list) {
 function spinWheelMode(pool, winnerIndex, durationSeconds, onDone) {
   var segAngle = (2 * Math.PI) / pool.length;
   var targetCenter = winnerIndex * segAngle + segAngle / 2;
-  var fullSpins = 5 + Math.random() * 2;
+  // fullSpins MUST be a whole number of full rotations — any fractional
+  // part shifts the final resting angle away from the intended segment,
+  // which is exactly what caused the wheel to land on the wrong name.
+  var fullSpins = 5 + Math.floor(Math.random() * 3); // 5, 6, or 7 full turns
   var finalRotation = -(Math.PI / 2) - targetCenter + fullSpins * 2 * Math.PI;
 
   var duration = (durationSeconds || 4.2) * 1000;
@@ -3207,15 +3365,28 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
   isSpinning = true;
   var btn = document.getElementById('drawSpinBtn');
   btn.disabled = true;
-  var label = totalWinnersWanted > 1
-    ? 'Tirage en cours… (' + roundNumber + '/' + totalWinnersWanted + ')'
-    : 'Tirage en cours…';
-  btn.querySelector('.btn-label').textContent = label;
 
   var winnerIndex = Math.floor(Math.random() * remainingPool.length);
   var durationSeconds = (activeGiveaway && activeGiveaway.duration_seconds) || 4;
 
+  var baseLabel = totalWinnersWanted > 1
+    ? 'Tirage en cours… (' + roundNumber + '/' + totalWinnersWanted + ')'
+    : 'Tirage en cours…';
+  btn.querySelector('.btn-label').textContent = baseLabel;
+
+  // For longer animations, show a live countdown so the button doesn't
+  // look frozen — purely cosmetic, doesn't affect the actual timing.
+  var countdownIntervalId = null;
+  if (durationSeconds >= 8) {
+    var spinStart = performance.now();
+    countdownIntervalId = setInterval(function() {
+      var remaining = Math.max(0, durationSeconds - (performance.now() - spinStart) / 1000);
+      btn.querySelector('.btn-label').textContent = baseLabel + ' — ' + formatDuration(Math.ceil(remaining));
+    }, 500);
+  }
+
   async function onDone() {
+    if (countdownIntervalId) clearInterval(countdownIntervalId);
     winner = remainingPool[winnerIndex];
 
     sessionWinners.unshift({ name: winner.name, time: new Date().toLocaleTimeString('fr-FR') });
@@ -3361,6 +3532,7 @@ function initApp() {
   document.getElementById('forgotForm').addEventListener('submit', handleForgotSubmit);
   document.getElementById('updateNameForm').addEventListener('submit', handleUpdateNameSubmit);
   document.getElementById('wizardCsvInput').addEventListener('change', handleWizardCsvChange);
+  document.getElementById('wizardImageInput').addEventListener('change', handleWizardImageSelect);
   document.getElementById('wizardRawText').addEventListener('input', handleWizardRawTextInput);
   document.addEventListener('click', handleGlobalClickForUserMenu);
 
