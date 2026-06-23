@@ -457,6 +457,16 @@ button { font-family: inherit; }
 .giveaway-card-title { font-size: 15px; font-weight: 700; margin: 0 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .giveaway-card-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
 .giveaway-card-badge { background: var(--accent-soft); color: var(--accent-dark); font-weight: 700; padding: 2px 8px; border-radius: 99px; font-size: 11px; }
+.giveaway-card-deadline { color: var(--muted); font-size: 11.5px; }
+
+.schedule-block { width: 100%; max-width: 320px; margin-top: 12px; text-align: center; }
+.schedule-toggle { font-size: 12.5px; }
+.schedule-form { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.schedule-active {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 13px; font-weight: 600; color: var(--accent-dark);
+  background: var(--accent-soft); padding: 9px 14px; border-radius: 10px; margin-top: 10px;
+}
 
 .empty-block { text-align: center; padding: 48px 20px; background: #fff; border: 1.5px dashed var(--line); border-radius: var(--radius); }
 .empty-block-icon { font-size: 32px; margin-bottom: 10px; }
@@ -625,8 +635,10 @@ button { font-family: inherit; }
 .winner-name-pro { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; color: #fff; margin: 4px 0 10px; word-break: break-all; position: relative; z-index: 1; }
 .winner-links-pro { display: flex; gap: 14px; margin-bottom: 16px; position: relative; z-index: 1; }
 .winner-link-pro { font-size: 12px; color: #C7C9FF; text-decoration: underline; }
-.winner-ticket-pro .btn-secondary { position: relative; z-index: 1; background: rgba(255,255,255,0.1); color: #fff; }
+.winner-ticket-pro .btn-secondary { position: relative; z-index: 1; background: rgba(255,255,255,0.1); color: #fff; font-size: 12.5px; padding: 9px 12px; }
 .winner-ticket-pro .btn-secondary:hover { background: rgba(255,255,255,0.18); }
+.winner-ticket-actions { display: flex; gap: 8px; width: 100%; }
+.winner-ticket-actions .btn { flex: 1; white-space: nowrap; }
 
 .session-winners-list { width: 100%; max-width: 380px; margin-top: 16px; }
 .session-winners-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 8px; }
@@ -1325,6 +1337,12 @@ button { font-family: inherit; }
           <input type="text" id="wizardYtLink" class="form-input" placeholder="https://youtube.com/watch?v=..." />
         </div>
 
+        <div class="form-field">
+          <label class="form-label">Date de fin (optionnel)</label>
+          <input type="datetime-local" id="wizardEndDate" class="form-input" />
+          <p class="hint">Purement informatif — affiché sur la carte du tirage, le tirage reste à lancer manuellement quand tu es prêt.</p>
+        </div>
+
         <button class="btn btn-primary btn-block" onclick="wizardNext(1)">Continuer</button>
       </div>
 
@@ -1361,6 +1379,14 @@ button { font-family: inherit; }
       <div class="wizard-step" id="wizardStep3" style="display:none;">
         <h2 class="wizard-step-title">Règles du tirage</h2>
         <p class="wizard-step-subtitle">Filtre les participants avant de lancer le tirage.</p>
+
+        <div class="form-field">
+          <div class="field-row" style="margin-bottom: 8px;">
+            <label class="form-label" style="margin:0;">Nombre de gagnants</label>
+          </div>
+          <input type="number" id="wizardWinnerCount" class="form-input" value="1" min="1" max="50" />
+          <p class="hint">Si tu mets plus de 1, le tirage désignera plusieurs gagnants distincts d'un coup.</p>
+        </div>
 
         <div class="form-field">
           <label class="form-label">Mot-clé requis pour participer</label>
@@ -1474,6 +1500,19 @@ button { font-family: inherit; }
           <span class="btn-label">Lancer le tirage</span>
         </button>
 
+        <div class="schedule-block" id="scheduleBlock">
+          <button class="link-btn schedule-toggle" onclick="toggleScheduleForm()">⏱️ Programmer ce tirage</button>
+          <div id="scheduleForm" class="schedule-form" style="display:none;">
+            <input type="datetime-local" id="scheduleDateInput" class="form-input" />
+            <button class="btn btn-secondary" onclick="confirmSchedule()">Programmer</button>
+            <p class="hint">⚠️ Cette page doit rester ouverte dans ton navigateur jusqu'à l'heure choisie — il n'y a pas (encore) de déclenchement automatique côté serveur.</p>
+          </div>
+          <div id="scheduleActive" class="schedule-active" style="display:none;">
+            <span id="scheduleCountdown"></span>
+            <button class="link-btn" onclick="cancelSchedule()">Annuler</button>
+          </div>
+        </div>
+
         <div id="winnerTicket" class="winner-ticket-pro" style="display:none;">
           <div class="winner-confetti-canvas-wrap">
             <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
@@ -1485,7 +1524,10 @@ button { font-family: inherit; }
             <a id="winnerIgLink" class="winner-link-pro" href="#" target="_blank" style="display:none;">Voir le post Instagram</a>
             <a id="winnerYtLink" class="winner-link-pro" href="#" target="_blank" style="display:none;">Voir la vidéo YouTube</a>
           </div>
-          <button class="btn btn-secondary" onclick="copyWinner()" id="copyBtn">Copier le pseudo</button>
+          <div class="winner-ticket-actions">
+            <button class="btn btn-secondary" onclick="copyWinner()" id="copyBtn">Copier le pseudo</button>
+            <button class="btn btn-secondary" onclick="downloadCertificate()">Télécharger le certificat</button>
+          </div>
         </div>
 
         <div id="sessionWinnersList" class="session-winners-list" style="display:none;">
@@ -1542,13 +1584,15 @@ var wizardData = {
   title: '',
   igLink: '',
   ytLink: '',
+  endDate: '',
   participants: [], // [{name, raw, mentions}]
   removeDuplicates: true,
   minMentions: 0,
   requiredKeyword: '',
   excludeKeyword: '',
   mode: 'wheel',
-  duration: 4
+  duration: 4,
+  winnerCount: 1
 };
 var wizardStepIndex = 1;
 
@@ -2194,6 +2238,9 @@ function renderGiveawaysScreen() {
       var card = document.createElement('div');
       card.className = 'giveaway-card';
       card.onclick = function() { openGiveaway(g.id); };
+      var endDateHtml = g.end_date
+        ? '<span class="giveaway-card-deadline">📅 ' + new Date(g.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</span>'
+        : '';
       card.innerHTML =
         '<div class="giveaway-card-top">' +
         '<div class="giveaway-card-title">' + escapeHtml(g.title) + '</div>' +
@@ -2202,6 +2249,7 @@ function renderGiveawaysScreen() {
         '<div class="giveaway-card-meta">' +
         '<span class="giveaway-card-badge">' + MODE_LABELS[g.draw_mode] + '</span>' +
         '<span>' + count + ' participant' + (count !== 1 ? 's' : '') + '</span>' +
+        endDateHtml +
         '</div>' +
         '<button class="giveaway-card-delete" title="Supprimer ce tirage" aria-label="Supprimer ce tirage">' +
         '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h12M8 6V4.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6M6 6l.6 10a1 1 0 0 0 1 1h4.8a1 1 0 0 0 1-1L14 6"/></svg>' +
@@ -2400,14 +2448,16 @@ function escapeHtml(str) {
 // WIZARD
 // ============================================================
 function startWizard() {
-  wizardData = { title: '', igLink: '', ytLink: '', participants: [], removeDuplicates: true, minMentions: 0, requiredKeyword: '', excludeKeyword: '', mode: 'wheel', duration: 4 };
+  wizardData = { title: '', igLink: '', ytLink: '', participants: [], removeDuplicates: true, minMentions: 0, requiredKeyword: '', excludeKeyword: '', mode: 'wheel', duration: 4, winnerCount: 1 };
   wizardStepIndex = 1;
   document.getElementById('wizardTitle').value = '';
   document.getElementById('wizardIgLink').value = '';
   document.getElementById('wizardYtLink').value = '';
+  document.getElementById('wizardEndDate').value = '';
   document.getElementById('wizardRawText').value = '';
   document.getElementById('wizardRemoveDup').checked = true;
   document.getElementById('wizardMinMentions').value = 0;
+  document.getElementById('wizardWinnerCount').value = 1;
   document.getElementById('wizardRequiredKeyword').value = '';
   document.getElementById('wizardExcludeKeyword').value = '';
   document.getElementById('wizardDuration').value = 4;
@@ -2437,6 +2487,7 @@ function wizardNext(fromStep) {
     wizardData.title = document.getElementById('wizardTitle').value.trim() || 'Tirage sans titre';
     wizardData.igLink = document.getElementById('wizardIgLink').value.trim();
     wizardData.ytLink = document.getElementById('wizardYtLink').value.trim();
+    wizardData.endDate = document.getElementById('wizardEndDate').value;
   }
   if (fromStep === 2) {
     var raw = document.getElementById('wizardRawText').value;
@@ -2456,6 +2507,7 @@ function wizardNext(fromStep) {
     wizardData.requiredKeyword = document.getElementById('wizardRequiredKeyword').value.trim();
     wizardData.excludeKeyword = document.getElementById('wizardExcludeKeyword').value.trim();
     wizardData.duration = parseFloat(document.getElementById('wizardDuration').value) || 4;
+    wizardData.winnerCount = Math.max(1, parseInt(document.getElementById('wizardWinnerCount').value, 10) || 1);
   }
   goToWizardStep(fromStep + 1);
 }
@@ -2515,6 +2567,7 @@ function renderWizardReview() {
   review.innerHTML =
     reviewRow('Titre', wizardData.title) +
     reviewRow('Participants', filtered.length + ' (sur ' + wizardData.participants.length + ' importés)') +
+    reviewRow('Nombre de gagnants', wizardData.winnerCount) +
     reviewRow('Mode de tirage', MODE_LABELS[wizardData.mode]) +
     reviewRow('Doublons retirés', wizardData.removeDuplicates ? 'Oui' : 'Non') +
     (wizardData.minMentions > 0 ? reviewRow('Mentions minimum', wizardData.minMentions) : '') +
@@ -2542,7 +2595,9 @@ async function wizardCreate() {
       min_mentions: wizardData.minMentions,
       required_keyword: wizardData.requiredKeyword,
       exclude_keyword: wizardData.excludeKeyword,
-      duration_seconds: wizardData.duration
+      duration_seconds: wizardData.duration,
+      winner_count: wizardData.winnerCount,
+      end_date: wizardData.endDate || null
     })
     .select()
     .single();
@@ -3030,12 +3085,90 @@ function launchConfetti() {
 }
 
 // ============================================================
+// CLIENT-SIDE SCHEDULING
+// Runs only while this browser tab stays open — there is no backend
+// cron job behind this. We make that limitation explicit in the UI
+// rather than implying a real server-side schedule.
+// ============================================================
+var scheduleTimeoutId = null;
+var scheduleIntervalId = null;
+
+function toggleScheduleForm() {
+  var form = document.getElementById('scheduleForm');
+  form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+}
+
+function confirmSchedule() {
+  var input = document.getElementById('scheduleDateInput');
+  var value = input.value;
+  if (!value) {
+    showToast('Choisis une date et une heure', 'error');
+    return;
+  }
+  var targetTime = new Date(value).getTime();
+  if (targetTime <= Date.now()) {
+    showToast('Choisis une heure dans le futur', 'error');
+    return;
+  }
+
+  clearSchedule();
+  document.getElementById('scheduleForm').style.display = 'none';
+  document.getElementById('scheduleActive').style.display = 'flex';
+
+  scheduleIntervalId = setInterval(function() { updateScheduleCountdown(targetTime); }, 1000);
+  updateScheduleCountdown(targetTime);
+
+  scheduleTimeoutId = setTimeout(function() {
+    clearSchedule();
+    document.getElementById('scheduleActive').style.display = 'none';
+    if (!isSpinning) runDraw();
+  }, targetTime - Date.now());
+
+  showToast('Tirage programmé — garde cette page ouverte', 'success');
+}
+
+function updateScheduleCountdown(targetTime) {
+  var remaining = targetTime - Date.now();
+  var el = document.getElementById('scheduleCountdown');
+  if (remaining <= 0) {
+    el.textContent = 'Lancement…';
+    return;
+  }
+  var totalSeconds = Math.floor(remaining / 1000);
+  var h = Math.floor(totalSeconds / 3600);
+  var m = Math.floor((totalSeconds % 3600) / 60);
+  var s = totalSeconds % 60;
+  var parts = [];
+  if (h > 0) parts.push(h + 'h');
+  parts.push((m < 10 && h > 0 ? '0' : '') + m + 'm');
+  parts.push((s < 10 ? '0' : '') + s + 's');
+  el.textContent = '⏱️ Tirage dans ' + parts.join(' ');
+}
+
+function clearSchedule() {
+  if (scheduleTimeoutId) clearTimeout(scheduleTimeoutId);
+  if (scheduleIntervalId) clearInterval(scheduleIntervalId);
+  scheduleTimeoutId = null;
+  scheduleIntervalId = null;
+}
+
+function cancelSchedule() {
+  clearSchedule();
+  document.getElementById('scheduleActive').style.display = 'none';
+  document.getElementById('scheduleDateInput').value = '';
+  showToast('Programmation annulée', 'success');
+}
+
+// ============================================================
 // MAIN DRAW DISPATCH
 // ============================================================
 var sessionWinners = []; // winners drawn during this visit to the draw screen, most recent first
 
 function resetSessionWinners() {
   sessionWinners = [];
+  clearSchedule();
+  document.getElementById('scheduleActive').style.display = 'none';
+  document.getElementById('scheduleForm').style.display = 'none';
   document.getElementById('sessionWinnersList').style.display = 'none';
   document.getElementById('sessionWinnersItems').innerHTML = '';
 }
@@ -3065,23 +3198,28 @@ function runDraw() {
   var pool = getDrawFilteredEntries();
   if (pool.length === 0 || isSpinning) return;
 
+  var totalWinnersWanted = Math.min((activeGiveaway && activeGiveaway.winner_count) || 1, pool.length);
+  runDrawRound(pool, 1, totalWinnersWanted);
+}
+
+function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
   winner = null;
   isSpinning = true;
   var btn = document.getElementById('drawSpinBtn');
   btn.disabled = true;
-  btn.querySelector('.btn-label').textContent = 'Tirage en cours…';
+  var label = totalWinnersWanted > 1
+    ? 'Tirage en cours… (' + roundNumber + '/' + totalWinnersWanted + ')'
+    : 'Tirage en cours…';
+  btn.querySelector('.btn-label').textContent = label;
 
-  var winnerIndex = Math.floor(Math.random() * pool.length);
+  var winnerIndex = Math.floor(Math.random() * remainingPool.length);
   var durationSeconds = (activeGiveaway && activeGiveaway.duration_seconds) || 4;
 
   async function onDone() {
-    isSpinning = false;
-    btn.querySelector('.btn-label').textContent = 'Lancer le tirage';
-    btn.disabled = false;
-    winner = pool[winnerIndex];
+    winner = remainingPool[winnerIndex];
 
     sessionWinners.unshift({ name: winner.name, time: new Date().toLocaleTimeString('fr-FR') });
-    showWinner(winner);
+    showWinner(winner, roundNumber, totalWinnersWanted);
     renderSessionWinners();
     launchConfetti();
 
@@ -3089,18 +3227,39 @@ function runDraw() {
       giveaway_id: activeGiveaway.id,
       user_id: currentUser.id,
       winner_name: winner.name,
-      pool_size: pool.length,
+      pool_size: remainingPool.length,
       draw_mode: drawMode
     });
+
+    var nextPool = remainingPool.filter(function(_, i) { return i !== winnerIndex; });
+
+    if (roundNumber < totalWinnersWanted && nextPool.length > 0) {
+      // Brief pause so the current winner is clearly readable before the
+      // next round starts automatically.
+      setTimeout(function() {
+        runDrawRound(nextPool, roundNumber + 1, totalWinnersWanted);
+      }, 1400);
+    } else {
+      isSpinning = false;
+      btn.querySelector('.btn-label').textContent = 'Lancer le tirage';
+      btn.disabled = false;
+    }
   }
 
-  if (drawMode === 'wheel') spinWheelMode(pool, winnerIndex, durationSeconds, onDone);
-  else if (drawMode === 'instant') spinInstantMode(pool, winnerIndex, durationSeconds, onDone);
-  else if (drawMode === 'slot') spinSlotMode(pool, winnerIndex, durationSeconds, onDone);
+  if (drawMode === 'wheel') spinWheelMode(remainingPool, winnerIndex, durationSeconds, onDone);
+  else if (drawMode === 'instant') spinInstantMode(remainingPool, winnerIndex, durationSeconds, onDone);
+  else if (drawMode === 'slot') spinSlotMode(remainingPool, winnerIndex, durationSeconds, onDone);
 }
 
-function showWinner(w) {
+function showWinner(w, roundNumber, totalWinnersWanted) {
   document.getElementById('winnerName').textContent = '@' + w.name;
+
+  var eyebrow = document.querySelector('.winner-eyebrow-pro');
+  if (eyebrow) {
+    eyebrow.textContent = totalWinnersWanted > 1
+      ? 'Gagnant ' + roundNumber + ' / ' + totalWinnersWanted
+      : 'Gagnant désigné';
+  }
 
   var igLink = (activeGiveaway && activeGiveaway._igLink) || '';
   var igEl = document.getElementById('winnerIgLink');
@@ -3121,6 +3280,69 @@ function copyWinner() {
   var original = btn.textContent;
   btn.textContent = 'Copié !';
   setTimeout(function() { btn.textContent = original; }, 1600);
+}
+
+function downloadCertificate() {
+  if (!winner) return;
+
+  var canvas = document.createElement('canvas');
+  canvas.width = 1000;
+  canvas.height = 700;
+  var ctx = canvas.getContext('2d');
+
+  // Background
+  var bgGrad = ctx.createLinearGradient(0, 0, 1000, 700);
+  bgGrad.addColorStop(0, '#16181D');
+  bgGrad.addColorStop(1, '#2A1D52');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, 1000, 700);
+
+  // Decorative border
+  ctx.strokeStyle = '#F5A524';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(30, 30, 940, 640);
+  ctx.strokeStyle = 'rgba(245,165,36,0.4)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(46, 46, 908, 608);
+
+  // Trophy
+  ctx.font = '64px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🏆', 500, 200);
+
+  // Eyebrow
+  ctx.fillStyle = '#9CA3AF';
+  ctx.font = '700 16px -apple-system, sans-serif';
+  ctx.fillText('CERTIFICAT DE GAGNANT', 500, 250);
+
+  // Winner name
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '800 52px -apple-system, sans-serif';
+  ctx.fillText('@' + winner.name, 500, 330);
+
+  // Giveaway title
+  ctx.fillStyle = '#C7C9FF';
+  ctx.font = '600 22px -apple-system, sans-serif';
+  var title = (activeGiveaway && activeGiveaway.title) || 'Tirage au sort';
+  ctx.fillText('a remporté « ' + title + ' »', 500, 390);
+
+  // Date
+  ctx.fillStyle = '#9CA3AF';
+  ctx.font = '15px -apple-system, sans-serif';
+  ctx.fillText(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), 500, 460);
+
+  // Footer brand
+  ctx.fillStyle = '#5B5BF6';
+  ctx.font = '700 18px -apple-system, sans-serif';
+  ctx.fillText('🎯 RerePickWinn', 500, 600);
+
+  var link = document.createElement('a');
+  link.download = 'certificat-' + winner.name.replace(/[^a-zA-Z0-9._-]/g, '') + '.png';
+  link.href = canvas.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('Certificat téléchargé', 'success');
 }
 
 // ============================================================
