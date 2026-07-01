@@ -1406,6 +1406,7 @@ button { font-family: inherit; }
         <div class="tabs">
           <button class="tab active" id="wizTabPaste" onclick="wizardSwitchTab('paste')">Coller une liste</button>
           <button class="tab" id="wizTabCsv" onclick="wizardSwitchTab('csv')">Importer un CSV</button>
+          <button class="tab" id="wizTabYoutube" onclick="wizardSwitchTab('youtube')">YouTube</button>
         </div>
 
         <div id="wizPastePanel" class="form-field">
@@ -1413,10 +1414,31 @@ button { font-family: inherit; }
 @clara.martin Trop hâte ! @lea.dubois
 @thomas_94 j'en rêve depuis longtemps
 @julie.b @marc.petit on tente notre chance !"></textarea>
+          <p class="hint">Fonctionne avec un copier-coller direct depuis Instagram ou YouTube (le bruit comme les dates, likes et "Répondre" est filtré automatiquement), ou avec une liste simple comme dans l'exemple ci-dessus.</p>
         </div>
 
         <div id="wizCsvPanel" class="form-field" style="display:none;">
           <input type="file" id="wizardCsvInput" accept=".csv,text/csv" class="form-input" />
+        </div>
+
+        <div id="wizYoutubePanel" class="form-field" style="display:none;">
+          <label class="form-label">Lien de la vidéo ou du live YouTube</label>
+          <input type="text" id="wizardYoutubeUrl" class="form-input" placeholder="https://youtube.com/watch?v=..." />
+
+          <div class="field-row-stack" style="margin-top:14px;">
+            <label class="form-label">Mot-clé requis (optionnel)</label>
+            <input type="text" id="wizardYoutubeKeyword" class="form-input" placeholder="ex : GIVEAWAY" />
+            <p class="hint">Seuls les commentaires contenant ce mot seront importés. Laisse vide pour tout importer.</p>
+          </div>
+
+          <button type="button" class="btn btn-secondary" id="wizardYoutubeFetchBtn" onclick="fetchYoutubeComments()" style="margin-top:14px;">
+            <span class="btn-label">Récupérer les commentaires</span>
+          </button>
+          <p class="hint" id="wizardYoutubeStatus" style="display:none;"></p>
+          <p class="hint-box">
+            💡 Pour un live en cours, colle le lien pendant que le direct tourne — l'outil lira le tchat en temps réel.
+            Pour une vidéo déjà publiée, ça lit les commentaires classiques.
+          </p>
         </div>
 
         <div class="wizard-participant-count" id="wizardParticipantPreview"></div>
@@ -1617,6 +1639,7 @@ button { font-family: inherit; }
 // The publishable/anon key is safe to expose publicly.
 // ----------------------------------------------------------------
 var SUPABASE_URL = 'https://lrrtzslhlljsvcnlvthn.supabase.co';
+var YOUTUBE_API_KEY = 'AIzaSyDlRhuuogNNXPwkfNhlSMLFjXKQHY393QA';
 var SUPABASE_ANON_KEY = 'sb_publishable_gh0VQ7QG23J0Zx67b528iQ_UjRtUWWY';
 
 var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -2582,8 +2605,10 @@ function wizardBack(fromStep) {
 function wizardSwitchTab(tab) {
   document.getElementById('wizTabPaste').classList.toggle('active', tab === 'paste');
   document.getElementById('wizTabCsv').classList.toggle('active', tab === 'csv');
+  document.getElementById('wizTabYoutube').classList.toggle('active', tab === 'youtube');
   document.getElementById('wizPastePanel').style.display = tab === 'paste' ? 'block' : 'none';
   document.getElementById('wizCsvPanel').style.display = tab === 'csv' ? 'block' : 'none';
+  document.getElementById('wizYoutubePanel').style.display = tab === 'youtube' ? 'block' : 'none';
 }
 
 function handleWizardImageSelect(evt) {
@@ -2720,6 +2745,149 @@ function handleWizardCsvChange(evt) {
 function handleWizardRawTextInput() {
   var lines = parseRawInput(document.getElementById('wizardRawText').value);
   document.getElementById('wizardParticipantPreview').textContent = lines.length > 0 ? lines.length + ' ligne(s) détectée(s)' : '';
+}
+
+// ============================================================
+// YOUTUBE AUTO-IMPORT
+// Reads comments from a regular video, or live chat messages from an
+// active livestream, via the YouTube Data API v3. Both work with a
+// plain API key — no OAuth needed, since we're only reading public data.
+// ============================================================
+function extractYoutubeVideoId(url) {
+  if (!url) return null;
+  var trimmed = url.trim();
+  var patterns = [
+    /(?:youtube\.com\/watch\?v=|youtube\.com\/live\/|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/ // the ID typed directly, with nothing else
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    var m = trimmed.match(patterns[i]);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function setYoutubeFetchStatus(message, isError) {
+  var el = document.getElementById('wizardYoutubeStatus');
+  el.textContent = message;
+  el.style.color = isError ? 'var(--red)' : 'var(--muted)';
+  el.style.display = message ? 'block' : 'none';
+}
+
+async function fetchYoutubeComments() {
+  var urlInput = document.getElementById('wizardYoutubeUrl').value;
+  var keyword = document.getElementById('wizardYoutubeKeyword').value.trim().toLowerCase();
+  var videoId = extractYoutubeVideoId(urlInput);
+  var btn = document.getElementById('wizardYoutubeFetchBtn');
+
+  if (!videoId) {
+    showToast('Lien YouTube invalide — colle l\'URL complète de la vidéo', 'error');
+    return;
+  }
+
+  setBtnLoading(btn, true);
+  setYoutubeFetchStatus('Vérification de la vidéo…', false);
+
+  try {
+    // Step 1: check whether this video is an active livestream — that
+    // changes which endpoint we need to read comments from.
+    var videoInfoUrl = 'https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=' + videoId + '&key=' + YOUTUBE_API_KEY;
+    var videoResp = await fetch(videoInfoUrl);
+    var videoData = await videoResp.json();
+
+    if (videoData.error) {
+      throw new Error(videoData.error.message || 'Erreur API YouTube');
+    }
+    if (!videoData.items || videoData.items.length === 0) {
+      throw new Error('Vidéo introuvable — vérifie le lien');
+    }
+
+    var videoInfo = videoData.items[0];
+    var liveChatId = videoInfo.liveStreamingDetails && videoInfo.liveStreamingDetails.activeLiveChatId;
+
+    var rawEntries;
+    if (liveChatId) {
+      setYoutubeFetchStatus('Live détecté — lecture du tchat en direct…', false);
+      rawEntries = await fetchYoutubeLiveChat(liveChatId);
+    } else {
+      setYoutubeFetchStatus('Récupération des commentaires…', false);
+      rawEntries = await fetchYoutubeVideoComments(videoId);
+    }
+
+    if (keyword) {
+      rawEntries = rawEntries.filter(function(e) { return e.raw.toLowerCase().indexOf(keyword) !== -1; });
+    }
+
+    if (rawEntries.length === 0) {
+      setYoutubeFetchStatus('Aucun commentaire trouvé' + (keyword ? ' avec ce mot-clé' : ''), true);
+      setBtnLoading(btn, false);
+      return;
+    }
+
+    wizardData.participants = rawEntries;
+    setYoutubeFetchStatus('✓ ' + rawEntries.length + ' participant(s) importé(s)', false);
+    document.getElementById('wizardYoutubeStatus').style.color = 'var(--green)';
+    showToast(rawEntries.length + ' participants importés depuis YouTube', 'success');
+  } catch (err) {
+    console.error('YouTube fetch error:', err);
+    setYoutubeFetchStatus('Erreur : ' + err.message, true);
+    showToast('Erreur YouTube : ' + err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+async function fetchYoutubeVideoComments(videoId) {
+  var entries = [];
+  var pageToken = '';
+  var maxPages = 10; // up to ~1000 comments — plenty for a giveaway, keeps quota usage sane
+
+  for (var page = 0; page < maxPages; page++) {
+    var url = 'https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=' + videoId +
+      '&maxResults=100&order=time&key=' + YOUTUBE_API_KEY + (pageToken ? '&pageToken=' + pageToken : '');
+    var resp = await fetch(url);
+    var data = await resp.json();
+
+    if (data.error) {
+      // Comments disabled on the video is a common, specific case — surface it clearly.
+      var msg = data.error.message || 'Erreur API YouTube';
+      if (/comments.*disabled/i.test(msg)) msg = 'Les commentaires sont désactivés sur cette vidéo';
+      throw new Error(msg);
+    }
+
+    (data.items || []).forEach(function(item) {
+      var top = item.snippet.topLevelComment.snippet;
+      var name = (top.authorDisplayName || '').replace(/^@/, '');
+      if (!name) return;
+      entries.push({ name: name, raw: top.textDisplay || '', mentions: countMentions(top.textDisplay || '') });
+    });
+
+    if (!data.nextPageToken) break;
+    pageToken = data.nextPageToken;
+  }
+  return entries;
+}
+
+async function fetchYoutubeLiveChat(liveChatId) {
+  var entries = [];
+  var url = 'https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId=' + liveChatId +
+    '&part=snippet,authorDetails&maxResults=2000&key=' + YOUTUBE_API_KEY;
+  var resp = await fetch(url);
+  var data = await resp.json();
+
+  if (data.error) {
+    throw new Error(data.error.message || 'Erreur API YouTube (tchat en direct)');
+  }
+
+  (data.items || []).forEach(function(item) {
+    if (!item.snippet || item.snippet.type !== 'textMessageEvent') return;
+    var name = (item.authorDetails && item.authorDetails.displayName) || '';
+    if (!name) return;
+    var text = item.snippet.displayMessage || '';
+    entries.push({ name: name, raw: text, mentions: countMentions(text) });
+  });
+
+  return entries;
 }
 
 function wizardSetMode(mode) {
@@ -2932,12 +3100,20 @@ function renderDrawStats() {
 // ----------------------------------------------------------------
 
 var NOISE_LINE_PATTERNS = [
-  /^\d+\s*(s|sem|j|h|min|sec|w|d|m|y)$/i,         // "2j", "5h", "3w" — relative time
+  /^\d+\s*(s|sem|j|h|min|sec|w|d|m|y)$/i,         // "2j", "5h", "3w" — relative time, short form
+  /^\d+\s*(seconds?|minutes?|hours?|days?|weeks?|months?|years?)\s*(ago)?$/i, // YouTube English: "2 weeks", "3 days ago"
   /^il y a /i,                                      // "il y a 2 jours"
-  /^\d+\s*(j'aime|jaime|like|likes|réponse|reponse|réponses|reponses)s?$/i,
+  /^\d+\s*(j'aime|jaime|like|likes|réponse|reponse|réponses|reponses|reply|replies)s?$/i,
   /^répondre$/i, /^reply$/i, /^voir les réponses/i, /^voir la traduction/i,
+  /^view (\d+ )?repl(y|ies)/i,                      // YouTube: "View 3 replies"
+  /^show (\d+ )?repl(y|ies)/i,
+  /^translate$/i,
   /^\.{1,3}$/,                                      // stray "..." lines
   /^—+$/,                                           // separators
+  /^(épinglé|pinned|épinglé par|pinned by)/i,       // pinned comment markers
+  /^(modifié|edited)$/i,                            // "edited" tag
+  /^\d{1,7}$/,                                      // standalone number — YouTube's like count often
+                                                      // appears alone on its own line with no unit word
 ];
 
 function isNoiseLine(line) {
@@ -3051,11 +3227,33 @@ function wrapText(ctx, text, maxWidth) {
 var WHEEL_COLORS = ['#FFFFFF', '#5B5BF6'];
 var WHEEL_TEXT_COLORS = ['#16181D', '#FFFFFF'];
 
+var wheelCanvasConfigured = false;
+var WHEEL_LOGICAL_SIZE = 320; // logical drawing size in CSS pixels — all angle/position math stays based on this
+
+function ensureWheelCanvasResolution(canvas) {
+  // Canvas pixel buffers default to a 1:1 mapping with CSS pixels. On
+  // high-density mobile screens (devicePixelRatio 2-3x, which is most
+  // phones today) that produces a visibly blurry upscaled image once the
+  // canvas is stretched to its CSS width. Sizing the actual pixel buffer
+  // to match the screen's real pixel density — while keeping the CSS
+  // display size and all drawing math the same — fixes that without
+  // touching any of the rotation/angle logic below.
+  var dpr = window.devicePixelRatio || 1;
+  var targetSize = WHEEL_LOGICAL_SIZE * dpr;
+  if (canvas.width !== targetSize) {
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+  }
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
+
 function drawWheel(currentRotation, highlightIndex, list) {
   var canvas = document.getElementById('wheelCanvas');
   if (!canvas || !canvas.getContext) return;
-  var ctx = canvas.getContext('2d');
-  var size = canvas.width;
+  var ctx = ensureWheelCanvasResolution(canvas);
+  var size = WHEEL_LOGICAL_SIZE;
   var radius = size / 2 - 6;
   var cx = size / 2;
   var cy = size / 2;
@@ -3124,13 +3322,23 @@ function drawWheel(currentRotation, highlightIndex, list) {
 function spinWheelMode(pool, winnerIndex, durationSeconds, onDone) {
   var segAngle = (2 * Math.PI) / pool.length;
   var targetCenter = winnerIndex * segAngle + segAngle / 2;
-  // fullSpins MUST be a whole number of full rotations — any fractional
-  // part shifts the final resting angle away from the intended segment,
-  // which is exactly what caused the wheel to land on the wrong name.
-  var fullSpins = 5 + Math.floor(Math.random() * 3); // 5, 6, or 7 full turns
-  var finalRotation = -(Math.PI / 2) - targetCenter + fullSpins * 2 * Math.PI;
 
   var duration = (durationSeconds || 4.2) * 1000;
+
+  // The number of full turns scales with the chosen duration so the wheel
+  // keeps a believable, energetic spinning speed throughout — a longer
+  // duration means more suspense (more turns), not the same few turns
+  // played back in slow motion. Roughly 1.5 turns per second, capped at
+  // a sane maximum so very long durations don't spin absurdly fast either.
+  var turnsPerSecond = 1.5;
+  var computedTurns = Math.round((duration / 1000) * turnsPerSecond);
+  var fullSpins = Math.max(5, Math.min(computedTurns, 200)); // fullSpins MUST stay a whole number —
+  // any fractional part shifts the final resting angle away from the
+  // intended segment, which is exactly what caused the wheel to land on
+  // the wrong name before this was fixed.
+
+  var finalRotation = -(Math.PI / 2) - targetCenter + fullSpins * 2 * Math.PI;
+
   var startTime = performance.now();
   var startRotation = rotation % (2 * Math.PI);
 
@@ -3514,13 +3722,51 @@ function showWinner(w, roundNumber, totalWinnersWanted) {
 }
 
 function copyWinner() {
-  if (!winner) return;
+  if (!winner) {
+    showToast('Aucun gagnant à copier pour le moment', 'error');
+    return;
+  }
   var text = '@' + winner.name;
-  if (navigator.clipboard) navigator.clipboard.writeText(text);
   var btn = document.getElementById('copyBtn');
-  var original = btn.textContent;
-  btn.textContent = 'Copié !';
-  setTimeout(function() { btn.textContent = original; }, 1600);
+  var originalLabel = 'Copier le pseudo';
+
+  function flashCopied() {
+    btn.textContent = 'Copié !';
+    setTimeout(function() { btn.textContent = originalLabel; }, 1600);
+  }
+
+  function fallbackCopy() {
+    // Works even when navigator.clipboard is unavailable or blocked
+    // (older mobile browsers, non-HTTPS contexts, missing permissions).
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    var success = false;
+    try { success = document.execCommand('copy'); } catch (e) { success = false; }
+    document.body.removeChild(textarea);
+    return success;
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      flashCopied();
+    }).catch(function() {
+      if (fallbackCopy()) {
+        flashCopied();
+      } else {
+        showToast('Impossible de copier — pseudo : ' + text, 'error');
+      }
+    });
+  } else if (fallbackCopy()) {
+    flashCopied();
+  } else {
+    showToast('Impossible de copier — pseudo : ' + text, 'error');
+  }
 }
 
 function downloadCertificate() {
