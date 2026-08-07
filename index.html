@@ -1,3 +1,371 @@
+<!--
+============================================================
+CONFIGURATION SERVEUR À FAIRE (une seule fois par bloc)
+Tout est regroupé ici pour que tu n'aies qu'un seul fichier à
+ouvrir. Rien dans ce commentaire ne s'exécute dans le
+navigateur — copie chaque bloc au bon endroit dans Supabase.
+============================================================
+
+--- BLOC A — INSTAGRAM (si pas déjà fait) ---
+A1. SQL Editor → colle et Run :
+-- Table stockant le compte Instagram Business connecté par chaque
+-- utilisateur de RerePickWinn. Un seul compte Instagram par utilisateur
+-- (contrainte unique sur user_id) — suffisant pour l'usage actuel.
+create table if not exists instagram_accounts (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  ig_user_id text not null,
+  ig_username text not null,
+  access_token text not null,
+  token_expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table instagram_accounts enable row level security;
+
+-- Chaque utilisateur ne peut voir/modifier que sa propre connexion Instagram.
+create policy "select_own_instagram_account"
+  on instagram_accounts for select
+  using (auth.uid() = user_id);
+
+create policy "insert_own_instagram_account"
+  on instagram_accounts for insert
+  with check (auth.uid() = user_id);
+
+create policy "update_own_instagram_account"
+  on instagram_accounts for update
+  using (auth.uid() = user_id);
+
+create policy "delete_own_instagram_account"
+  on instagram_accounts for delete
+  using (auth.uid() = user_id);
+
+A2. Edge Functions → crée "instagram-oauth-exchange" → colle :
+// Supabase Edge Function : instagram-oauth-exchange
+//
+// Reçoit le "code" renvoyé par Instagram après que l'utilisateur ait
+// autorisé l'app, et fait tout le travail qui doit rester côté serveur
+// (le App Secret Instagram ne doit JAMAIS être exposé dans le JS du
+// navigateur) :
+//   1. échange le code contre un token courte durée
+//   2. échange ce token contre un token longue durée (~60 jours)
+//   3. récupère le username Instagram associé
+//   4. enregistre (ou met à jour) la ligne dans la table instagram_accounts
+//
+// Variables d'environnement à configurer sur le projet Supabase
+// (Dashboard → Edge Functions → instagram-oauth-exchange → Secrets) :
+//   IG_APP_ID       = 27253784150966344
+//   IG_APP_SECRET   = <secret de l'app Instagram, jamais dans le front>
+//   IG_REDIRECT_URI = https://h84-web.github.io/giveaway-app/
+//
+// Déploiement : supabase functions deploy instagram-oauth-exchange
+
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const IG_APP_ID = Deno.env.get("IG_APP_ID")!;
+const IG_APP_SECRET = Deno.env.get("IG_APP_SECRET")!;
+const IG_REDIRECT_URI = Deno.env.get("IG_REDIRECT_URI")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    // The caller must be a logged-in RerePickWinn user — we read their
+    // identity from the Supabase auth JWT sent in the Authorization header,
+    // exactly like any other authenticated call to this project.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return json({ error: "Non authentifié" }, 401);
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const jwt = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
+    if (userErr || !userData.user) {
+      return json({ error: "Session invalide" }, 401);
+    }
+    const userId = userData.user.id;
+
+    const { code } = await req.json();
+    if (!code) {
+      return json({ error: "Code manquant" }, 400);
+    }
+    // Instagram appends "#_" to the redirect in some flows — strip it if present.
+    const cleanCode = code.replace(/#_$/, "");
+
+    // Step 1 — short-lived token
+    const shortLivedForm = new URLSearchParams({
+      client_id: IG_APP_ID,
+      client_secret: IG_APP_SECRET,
+      grant_type: "authorization_code",
+      redirect_uri: IG_REDIRECT_URI,
+      code: cleanCode,
+    });
+    const shortResp = await fetch("https://api.instagram.com/oauth/access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: shortLivedForm,
+    });
+    const shortData = await shortResp.json();
+    if (!shortResp.ok || !shortData.access_token) {
+      return json({ error: "Échange du code Instagram échoué", details: shortData }, 400);
+    }
+
+    // Step 2 — exchange for a long-lived token (~60 days)
+    const longUrl = "https://graph.instagram.com/access_token" +
+      "?grant_type=ig_exchange_token" +
+      "&client_secret=" + encodeURIComponent(IG_APP_SECRET) +
+      "&access_token=" + encodeURIComponent(shortData.access_token);
+    const longResp = await fetch(longUrl);
+    const longData = await longResp.json();
+    if (!longResp.ok || !longData.access_token) {
+      return json({ error: "Échange longue durée échoué", details: longData }, 400);
+    }
+
+    // Step 3 — fetch the connected Instagram username
+    const meUrl = "https://graph.instagram.com/me?fields=id,username&access_token=" +
+      encodeURIComponent(longData.access_token);
+    const meResp = await fetch(meUrl);
+    const meData = await meResp.json();
+    if (!meResp.ok || !meData.id) {
+      return json({ error: "Impossible de récupérer le profil Instagram", details: meData }, 400);
+    }
+
+    // Step 4 — store it, tied to the RerePickWinn user
+    const expiresAt = new Date(Date.now() + (longData.expires_in || 5184000) * 1000).toISOString();
+    const { error: upsertErr } = await supabase.from("instagram_accounts").upsert({
+      user_id: userId,
+      ig_user_id: meData.id,
+      ig_username: meData.username,
+      access_token: longData.access_token,
+      token_expires_at: expiresAt,
+      updated_at: new Date().toISOString(),
+    });
+    if (upsertErr) {
+      return json({ error: "Erreur d'enregistrement", details: upsertErr.message }, 500);
+    }
+
+    return json({ success: true, username: meData.username, expires_at: expiresAt });
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : "Erreur inconnue" }, 500);
+  }
+});
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+A3. Secrets : IG_APP_ID=27253784150966344, IG_APP_SECRET=<ton secret>,
+    IG_REDIRECT_URI=https://h84-web.github.io/giveaway-app/
+A4. Côté Meta : ajoute cette URI en redirection OAuth + ton compte
+    comme testeur Instagram.
+
+============================================================
+
+--- BLOC B — SUPPRESSION DE COMPTE (RGPD) ---
+B1. Edge Functions → crée "delete-account" → colle :
+// Supabase Edge Function : delete-account
+//
+// Permanently deletes the calling user's account and every row tied to
+// it (giveaways, participants, draw_results, instagram_accounts), then
+// deletes the auth user itself. Deleting the auth user requires the
+// service role key, which must never be exposed to the browser — that's
+// why this has to run server-side, exactly like instagram-oauth-exchange.
+//
+// No extra secrets to configure: it only needs SUPABASE_URL and
+// SUPABASE_SERVICE_ROLE_KEY, which Supabase provides to every Edge
+// Function automatically.
+//
+// Déploiement : supabase functions deploy delete-account
+
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return json({ error: "Non authentifié" }, 401);
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const jwt = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
+    if (userErr || !userData.user) {
+      return json({ error: "Session invalide" }, 401);
+    }
+    const userId = userData.user.id;
+
+    // Delete in dependency order in case any foreign keys aren't set to
+    // CASCADE. Adjust the table/column names here if your schema differs.
+    const { data: giveaways } = await supabase.from("giveaways").select("id").eq("user_id", userId);
+    const giveawayIds = (giveaways || []).map((g: { id: string }) => g.id);
+
+    if (giveawayIds.length > 0) {
+      await supabase.from("draw_results").delete().in("giveaway_id", giveawayIds);
+      await supabase.from("participants").delete().in("giveaway_id", giveawayIds);
+      await supabase.from("giveaways").delete().eq("user_id", userId);
+    }
+    await supabase.from("instagram_accounts").delete().eq("user_id", userId);
+
+    const { error: deleteUserErr } = await supabase.auth.admin.deleteUser(userId);
+    if (deleteUserErr) {
+      return json({ error: "Suppression du compte échouée : " + deleteUserErr.message }, 500);
+    }
+
+    return json({ success: true });
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : "Erreur inconnue" }, 500);
+  }
+});
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+B2. Aucun secret à ajouter.
+
+============================================================
+
+--- BLOC D — EMAIL AU GAGNANT (nouveau) ---
+D1. Va sur resend.com → crée un compte gratuit (pas de CB requise)
+D2. Dans leur dashboard → "API Keys" → crée une clé, copie-la
+D3. Edge Functions (Supabase) → crée "notify-winner" → colle :
+// Supabase Edge Function : notify-winner
+//
+// Sends a confirmation email to the giveaway organizer (the logged-in
+// user themselves — participants aren't collected with an email
+// address, only a pseudo, so they can't be emailed directly) each time
+// a winner is drawn. Only called from the front-end when the person has
+// turned the setting on (Paramètres → Notifications par email).
+//
+// Uses Resend (resend.com) — a simple transactional email API with a
+// generous free tier (100 emails/day) and no card required to start.
+//
+// Secrets to configure (Edge Functions → notify-winner → Secrets):
+//   RESEND_API_KEY  = <ta clé API Resend>
+//   RESEND_FROM     = ex: "RerePickWinn <onboarding@resend.dev>"
+//                     (le domaine par défaut de Resend marche tout de
+//                     suite pour tester ; pour un vrai domaine à toi,
+//                     il faudra le vérifier dans leur dashboard)
+//
+// Déploiement : supabase functions deploy notify-winner
+
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
+const RESEND_FROM = Deno.env.get("RESEND_FROM")!;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return json({ error: "Non authentifié" }, 401);
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const jwt = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
+    if (userErr || !userData.user || !userData.user.email) {
+      return json({ error: "Session invalide" }, 401);
+    }
+
+    const { giveawayTitle, winnerName, drawMode, poolSize } = await req.json();
+    if (!winnerName) return json({ error: "winnerName manquant" }, 400);
+
+    const resp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + RESEND_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM,
+        to: userData.user.email,
+        subject: "🏆 Gagnant désigné : @" + winnerName,
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+            <h2>Un gagnant vient d'être désigné !</h2>
+            <p><strong>@${escapeHtml(winnerName)}</strong> a été tiré au sort${giveawayTitle ? ` pour "${escapeHtml(giveawayTitle)}"` : ""}.</p>
+            <p style="color:#666;font-size:13px;">
+              ${drawMode ? `Mode de tirage : ${escapeHtml(drawMode)}<br>` : ""}
+              ${poolSize ? `Participants : ${poolSize}<br>` : ""}
+            </p>
+            <p style="color:#999;font-size:11px;margin-top:24px;">
+              Envoyé automatiquement par RerePickWinn suite à l'activation des notifications par email dans tes Paramètres.
+            </p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return json({ error: "Échec d'envoi Resend : " + errText }, 500);
+    }
+
+    return json({ success: true });
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : "Erreur inconnue" }, 500);
+  }
+});
+
+function escapeHtml(s: string) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+D4. Secrets de cette fonction :
+    RESEND_API_KEY = <la clé copiée à l'étape D2>
+    RESEND_FROM    = RerePickWinn <onboarding@resend.dev>
+    (ce domaine par défaut marche tout de suite pour tester ; pour
+    envoyer depuis ton propre domaine, il faudra le vérifier dans
+    le dashboard Resend — étape à faire plus tard si besoin)
+D5. Dans l'app : Paramètres → active "Recevoir un email quand un
+    gagnant est désigné"
+============================================================
+-->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -171,6 +539,9 @@ button { font-family: inherit; }
 .auth-subtitle { font-size: 14px; color: var(--muted); margin: 0 0 24px; line-height: 1.4; }
 
 .auth-form { display: flex; flex-direction: column; gap: 16px; }
+.checkbox-row { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--muted); line-height: 1.4; cursor: pointer; }
+.checkbox-row input[type="checkbox"] { margin-top: 2px; flex: 0 0 auto; width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+.checkbox-row a { color: var(--accent-dark); text-decoration: underline; }
 .form-field { margin-bottom: 0; }
 .form-label { font-size: 13px; font-weight: 600; color: var(--ink); display: block; margin-bottom: 6px; }
 
@@ -255,13 +626,20 @@ button { font-family: inherit; }
   box-shadow: 0 4px 16px rgba(91,91,246,0.32);
 }
 .btn-primary:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(91,91,246,0.4); }
-.btn-primary:not(:disabled):active { transform: translateY(0); }
+.btn-primary:not(:disabled):active { transform: translateY(0) scale(0.98); }
+.btn:not(:disabled):active { transform: scale(0.98); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tab:focus-visible, .filter-pill:focus-visible, .theme-switch-btn:focus-visible { outline-offset: -2px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 .btn-secondary { background: #F2F3F7; color: var(--ink); }
 .btn-secondary:not(:disabled):hover { background: #E9EAF0; }
 
 .btn-oauth {
-  flex: 1; background: #fff; color: var(--ink); border: 1.5px solid var(--line);
+  flex: 1; background: var(--card); color: var(--ink); border: 1.5px solid var(--line);
   padding: 11px 14px; font-size: 13.5px; font-weight: 600; border-radius: 11px;
 }
 .btn-oauth:hover { border-color: #C7CAD6; background: #FAFAFD; box-shadow: 0 2px 8px rgba(15,17,23,0.06); }
@@ -321,7 +699,12 @@ button { font-family: inherit; }
 .nav-icon-group { position: relative; }
 .nav-icon-btn { position: relative; color: var(--muted); padding: 6px; border-radius: 8px; transition: background 0.15s, color 0.15s; }
 .nav-icon-btn:hover { background: #F2F3F7; color: var(--ink); }
-.notif-badge { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--red); border: 1.5px solid #fff; }
+.notif-badge {
+  position: absolute; top: 2px; right: 2px; min-width: 15px; height: 15px; padding: 0 3px;
+  border-radius: 99px; background: var(--red); border: 1.5px solid #fff;
+  color: #fff; font-size: 9.5px; font-weight: 700; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
 
 .avatar {
   width: 36px; height: 36px; border-radius: 50%;
@@ -339,6 +722,12 @@ button { font-family: inherit; }
 }
 @keyframes menuIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 .dropdown-menu-title { font-size: 13px; font-weight: 700; padding: 6px 10px 2px; }
+.notif-menu-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.notif-mark-all-btn {
+  background: none; border: none; color: var(--accent); font-size: 11.5px; font-weight: 700;
+  cursor: pointer; padding: 2px 4px; white-space: nowrap;
+}
+.notif-mark-all-btn:hover { text-decoration: underline; }
 .dropdown-menu-divider { height: 1px; background: var(--line); margin: 6px 0; }
 
 .user-menu-email { font-size: 12.5px; color: var(--muted); padding: 8px 10px; word-break: break-all; }
@@ -353,11 +742,14 @@ button { font-family: inherit; }
 
 .notif-menu { min-width: 280px; max-height: 360px; overflow-y: auto; }
 .notif-list { display: flex; flex-direction: column; gap: 2px; }
-.notif-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 10px; border-radius: 8px; }
+.notif-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; position: relative; }
 .notif-item:hover { background: #F8F8FB; }
 .notif-item-icon { font-size: 16px; flex: 0 0 auto; }
 .notif-item-text { font-size: 13px; font-weight: 600; line-height: 1.3; }
 .notif-item-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.notif-item-unread { background: var(--accent-soft); }
+.notif-item-unread:hover { background: #E4E4FF; }
+.notif-item-dot { position: absolute; top: 13px; right: 10px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
 
 .nav-mobile-toggle { display: none; }
 .nav-mobile-menu {
@@ -404,13 +796,46 @@ button { font-family: inherit; }
   transition: box-shadow 0.2s, transform 0.2s;
 }
 .card-center { display: flex; flex-direction: column; align-items: center; padding: 28px 20px 32px; }
-.card-section-title { font-size: 14px; font-weight: 700; margin: 0 0 14px; }
+
+/* Shared header + frame across all 5 draw-mode games, so switching
+   modes feels like one consistent product instead of 5 different UIs. */
+.draw-mode-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.draw-mode-icon { font-size: 16px; }
+.draw-stage { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.card-section-title { font-size: 12px; font-weight: 700; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 
 .profile-avatar-row { display: flex; align-items: center; gap: 14px; }
 .profile-name { font-size: 16px; font-weight: 700; }
 .profile-email { font-size: 13px; color: var(--muted); }
 
 .avatar-picker { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.youtube-loading {
+  margin-top: 14px; padding: 16px; background: #F8F8FB; border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+.youtube-loading-header { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 14px; }
+.youtube-spinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2.5px solid var(--line); border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite; flex: 0 0 auto;
+}
+.youtube-skeleton-row { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+.youtube-skeleton-row:last-child { margin-bottom: 0; }
+.youtube-skeleton-avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex: 0 0 auto;
+  background: linear-gradient(90deg, #E8E9F0 25%, #F2F3F7 50%, #E8E9F0 75%);
+  background-size: 200% 100%; animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+.youtube-skeleton-line {
+  height: 11px; border-radius: 6px;
+  background: linear-gradient(90deg, #E8E9F0 25%, #F2F3F7 50%, #E8E9F0 75%);
+  background-size: 200% 100%; animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+@keyframes skeletonShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 .image-upload-zone {
   width: 100%; height: 140px; border: 1.5px dashed var(--line); border-radius: var(--radius);
@@ -494,7 +919,7 @@ button { font-family: inherit; }
   background: var(--accent-soft); padding: 9px 14px; border-radius: 10px; margin-top: 10px;
 }
 
-.empty-block { text-align: center; padding: 48px 20px; background: #fff; border: 1.5px dashed var(--line); border-radius: var(--radius); }
+.empty-block { text-align: center; padding: 48px 20px; background: var(--card); border: 1.5px dashed var(--line); border-radius: var(--radius); }
 .empty-block-icon { font-size: 32px; margin-bottom: 10px; }
 .empty-block-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
 .empty-block-text { font-size: 13.5px; color: var(--muted); margin: 0 0 18px; }
@@ -518,7 +943,7 @@ button { font-family: inherit; }
 .textarea {
   width: 100%; border: 1.5px solid var(--line); border-radius: var(--radius-sm);
   padding: 11px 13px; font-size: 13.5px; font-family: inherit;
-  background: #fff; color: var(--ink); outline: none; resize: vertical; line-height: 1.5;
+  background: var(--card); color: var(--ink); outline: none; resize: vertical; line-height: 1.5;
 }
 .textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
@@ -577,10 +1002,28 @@ button { font-family: inherit; }
 .wizard-actions .btn { flex: 1; }
 .wizard-participant-count { font-size: 13px; color: var(--accent-dark); font-weight: 600; margin-top: -4px; margin-bottom: 4px; }
 
-.mode-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+/* Mode selector — 2×2 grid of rich cards */
+.mode-selector { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .mode-selector-wizard { max-width: none; }
+
+.mode-card {
+  border: 2px solid var(--line); background: var(--card); border-radius: 14px;
+  padding: 16px 12px; cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; gap: 6px; text-align: center;
+  transition: border-color 0.15s, background 0.15s, transform 0.12s, box-shadow 0.15s;
+  font-family: inherit;
+}
+.mode-card:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(91,91,246,0.12); }
+.mode-card.active { border-color: var(--accent); background: var(--accent-soft); }
+.mode-card-icon { font-size: 28px; line-height: 1; }
+.mode-card-name { font-size: 13px; font-weight: 700; color: var(--ink); }
+.mode-card-desc { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.mode-card.active .mode-card-name { color: var(--accent-dark); }
+.mode-card.active .mode-card-desc { color: var(--accent-dark); opacity: 0.75; }
+
+/* Legacy mode-btn kept for any leftover references */
 .mode-btn {
-  border: 1.5px solid var(--line); background: #fff; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--line); background: var(--card); border-radius: var(--radius-sm);
   padding: 12px 6px; font-size: 11px; font-weight: 700; color: var(--muted);
   cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px;
   transition: all 0.15s;
@@ -588,10 +1031,27 @@ button { font-family: inherit; }
 .mode-btn .mode-icon { font-size: 20px; }
 .mode-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-dark); }
 
-.review-card { background: #F8F8FB; border-radius: var(--radius); padding: 18px; margin-bottom: 4px; }
+/* ============================================================
+   DUCK RACE — canvas-based, all drawing done in JS.
+   Width/height are set dynamically by initDuckCanvas() so the
+   race fills the available card width and scales with the
+   number of ducks; this just handles the frame/shadow.
+   ============================================================ */
+.duck-canvas {
+  width: 100%; border-radius: 16px; display: block;
+  box-shadow: 0 4px 20px rgba(30,143,187,0.25);
+}
+.duck-sound-toggle {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  width: 34px; height: 34px; border: none; border-radius: 50%;
+  background: rgba(255,255,255,0.85); font-size: 16px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18); display: flex; align-items: center; justify-content: center;
+}
+
+.review-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 4px; }
 
 .wizard-preview-card {
-  background: #fff; border: 1px solid var(--line); border-top: 3px solid var(--accent);
+  background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--accent);
   border-radius: var(--radius); padding: 16px; margin-bottom: 18px; overflow: hidden;
 }
 .wizard-preview-image { width: calc(100% + 32px); margin: -16px -16px 12px; height: 120px; object-fit: cover; display: block; }
@@ -613,30 +1073,30 @@ button { font-family: inherit; }
 .wheel-wrap { position: relative; width: 100%; max-width: 320px; margin-bottom: 8px; }
 .wheel-canvas { width: 100%; height: auto; display: block; filter: drop-shadow(0 8px 20px rgba(16,24,40,0.12)); }
 
-.instant-stage { width: 100%; max-width: 320px; min-height: 220px; display: flex; align-items: center; justify-content: center; background: #F8F8FB; border-radius: var(--radius); margin-bottom: 8px; }
-.instant-card { background: #fff; border-radius: var(--radius-sm); padding: 24px 20px; box-shadow: var(--shadow-md); text-align: center; border: 2px solid var(--line); }
-.instant-card .instant-name { font-size: 18px; font-weight: 800; }
+.instant-stage { width: 100%; max-width: 320px; min-height: 220px; display: flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 8px; }
+.instant-card { background: var(--card); color: var(--ink); border-radius: var(--radius-sm); padding: 30px 24px; box-shadow: var(--shadow-lg); text-align: center; border: 2px solid var(--line); transition: transform 0.15s; }
+.instant-card .instant-name { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
 .instant-card.shuffling { animation: shake 0.08s infinite; border-color: var(--accent); }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px) rotate(-1deg); } 75% { transform: translateX(3px) rotate(1deg); } }
 
-.slot-stage { width: 100%; max-width: 320px; background: linear-gradient(160deg, #2A1D52, #16181D); border-radius: 20px; padding: 18px 16px 22px; margin-bottom: 8px; position: relative; box-shadow: 0 10px 30px rgba(91,91,246,0.25), inset 0 0 0 2px #3A2D6E; }
-.slot-lights { display: flex; justify-content: space-between; padding: 0 4px 14px; }
-.slot-lights .bulb { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px 1px var(--gold); }
+.slot-stage { width: 100%; background: linear-gradient(160deg, #2A1D52, #16181D); border-radius: 20px; padding: 22px 20px 28px; margin-bottom: 8px; position: relative; box-shadow: 0 10px 30px rgba(91,91,246,0.25), inset 0 0 0 2px #3A2D6E; }
+.slot-lights { display: flex; justify-content: space-between; padding: 0 4px 16px; }
+.slot-lights .bulb { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px 1px var(--gold); }
 .slot-lights .bulb.dim { opacity: 0.25; box-shadow: none; }
 .slot-lights.spinning .bulb { animation: bulbBlink 0.5s infinite; }
 .slot-lights.spinning .bulb.dim { animation-delay: 0.25s; }
 @keyframes bulbBlink { 0%, 100% { opacity: 1; box-shadow: 0 0 6px 1px var(--gold); } 50% { opacity: 0.2; box-shadow: none; } }
-.slot-reels { display: flex; gap: 8px; }
-.slot-window { flex: 1; background: #fff; border-radius: var(--radius-sm); height: 68px; overflow: hidden; position: relative; box-shadow: inset 0 0 0 3px var(--gold), 0 2px 6px rgba(0,0,0,0.3); }
+.slot-reels { display: flex; gap: 12px; }
+.slot-window { flex: 1; background: #fff; border-radius: var(--radius-sm); height: 112px; overflow: hidden; position: relative; box-shadow: inset 0 0 0 3px var(--gold), 0 2px 6px rgba(0,0,0,0.3); }
 .slot-strip { position: absolute; width: 100%; left: 0; top: 0; }
-.slot-item { height: 68px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; padding: 0 4px; text-align: center; line-height: 1.2; }
-.slot-shade-top, .slot-shade-bottom { position: absolute; left: 0; width: 100%; height: 16px; z-index: 2; pointer-events: none; }
+.slot-item { height: 112px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; padding: 0 6px; text-align: center; line-height: 1.2; color: #1E1E28; }
+.slot-shade-top, .slot-shade-bottom { position: absolute; left: 0; width: 100%; height: 22px; z-index: 2; pointer-events: none; }
 .slot-shade-top { top: 0; background: linear-gradient(180deg, #fff, rgba(255,255,255,0)); }
 .slot-shade-bottom { bottom: 0; background: linear-gradient(0deg, #fff, rgba(255,255,255,0)); }
 .slot-window.flash { animation: slotFlash 0.4s ease-in-out 3; }
 @keyframes slotFlash { 0%, 100% { box-shadow: inset 0 0 0 3px var(--gold), 0 2px 6px rgba(0,0,0,0.3); } 50% { box-shadow: inset 0 0 0 4px #FFF066, 0 0 16px 4px rgba(245,165,36,0.7); } }
-.slot-lever { position: absolute; right: -14px; top: 30px; width: 10px; height: 70px; background: linear-gradient(90deg, #C7282B, #E8472A); border-radius: 6px; transform-origin: top center; transition: transform 0.15s ease-out; }
-.slot-lever::after { content: ''; position: absolute; bottom: -10px; left: -7px; width: 24px; height: 24px; background: radial-gradient(circle at 35% 35%, #FF6B5C, #C7282B); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+.slot-lever { position: absolute; right: -14px; top: 36px; width: 12px; height: 100px; background: linear-gradient(90deg, #C7282B, #E8472A); border-radius: 6px; transform-origin: top center; transition: transform 0.15s ease-out; }
+.slot-lever::after { content: ''; position: absolute; bottom: -12px; left: -9px; width: 30px; height: 30px; background: radial-gradient(circle at 35% 35%, #FF6B5C, #C7282B); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
 .slot-lever.pulled { transform: rotate(28deg); }
 
 /* ============================================================
@@ -671,8 +1131,8 @@ button { font-family: inherit; }
 .winner-link-pro { font-size: 12px; color: #C7C9FF; text-decoration: underline; }
 .winner-ticket-pro .btn-secondary { position: relative; z-index: 1; background: rgba(255,255,255,0.1); color: #fff; font-size: 12.5px; padding: 9px 12px; }
 .winner-ticket-pro .btn-secondary:hover { background: rgba(255,255,255,0.18); }
-.winner-ticket-actions { display: flex; gap: 8px; width: 100%; }
-.winner-ticket-actions .btn { flex: 1; white-space: nowrap; }
+.winner-ticket-actions { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.winner-ticket-actions .btn { flex: 1 1 auto; min-width: 100px; white-space: nowrap; }
 
 .session-winners-list { width: 100%; max-width: 380px; margin-top: 16px; }
 .session-winners-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 8px; }
@@ -695,7 +1155,7 @@ button { font-family: inherit; }
 }
 @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal-card {
-  background: #fff; border-radius: var(--radius-lg); padding: 28px 26px;
+  background: var(--card); color: var(--ink); border-radius: var(--radius-lg); padding: 28px 26px;
   width: 100%; max-width: 380px; text-align: center;
   box-shadow: 0 24px 60px rgba(15,17,23,0.25);
   animation: cardEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -705,6 +1165,48 @@ button { font-family: inherit; }
 .modal-text { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0 0 22px; }
 .modal-actions { display: flex; gap: 10px; }
 .modal-actions .btn { flex: 1; }
+
+.legal-links-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.legal-link-btn {
+  background: none; border: 1.5px solid var(--line); border-radius: 99px; padding: 7px 14px;
+  font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer;
+}
+.legal-link-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+
+.switch-toggle { position: relative; display: inline-block; width: 40px; height: 23px; flex: 0 0 auto; }
+.switch-toggle input { opacity: 0; width: 0; height: 0; }
+.switch-toggle-slider {
+  position: absolute; cursor: pointer; inset: 0; background: var(--line);
+  border-radius: 99px; transition: background 0.15s;
+}
+.switch-toggle-slider::before {
+  content: ""; position: absolute; width: 17px; height: 17px; left: 3px; bottom: 3px;
+  background: #fff; border-radius: 50%; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.switch-toggle input:checked + .switch-toggle-slider { background: var(--accent); }
+.switch-toggle input:checked + .switch-toggle-slider::before { transform: translateX(17px); }
+
+.card-danger-zone { border-color: rgba(239,68,68,0.3); }
+.card-danger-zone .card-section-title { color: var(--red); }
+
+.legal-overlay {
+  position: fixed; inset: 0; z-index: 500; background: rgba(15,17,23,0.55);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  animation: modalFadeIn 0.2s ease-out;
+}
+.legal-panel {
+  background: var(--card); border-radius: var(--radius-lg); width: 100%; max-width: 560px;
+  max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-lg);
+}
+.legal-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+.legal-tabs { display: flex; gap: 4px; }
+.legal-tab { background: none; border: none; padding: 7px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.legal-tab.active { background: var(--accent-soft); color: var(--accent-dark); }
+.legal-panel-body { padding: 20px 22px 28px; overflow-y: auto; }
+.legal-section h2 { font-size: 19px; margin: 0 0 4px; }
+.legal-section h3 { font-size: 14px; margin: 20px 0 6px; }
+.legal-section p { font-size: 13px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 4px; }
+.legal-updated { font-size: 11.5px; color: var(--muted); margin-bottom: 18px !important; }
 
 .btn-danger { background: var(--red); color: #fff; }
 .btn-danger:not(:disabled):hover { background: #DC2626; }
@@ -816,12 +1318,25 @@ button { font-family: inherit; }
 [data-theme="dark"] .data-table th,
 [data-theme="dark"] .data-table td,
 [data-theme="dark"] .tabs,
-[data-theme="dark"] .theme-switch { background: #20222F; border-color: var(--line); }
+[data-theme="dark"] .theme-switch,
+[data-theme="dark"] .auth-security-note,
+[data-theme="dark"] .youtube-loading,
+[data-theme="dark"] .image-upload-zone,
+[data-theme="dark"] .wizard-step-dot,
+[data-theme="dark"] .session-winner-row,
+[data-theme="dark"] .status-pill-done { background: #20222F; border-color: var(--line); }
 [data-theme="dark"] .data-table tbody tr:hover { background: #20222F; }
 [data-theme="dark"] .tab.active,
 [data-theme="dark"] .theme-switch-btn.active { background: #2D3040; color: var(--ink); }
 [data-theme="dark"] .filter-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 [data-theme="dark"] .nav-link:not(.active) { color: var(--muted); }
+[data-theme="dark"] .nav-icon-btn:hover,
+[data-theme="dark"] .user-menu-item:hover,
+[data-theme="dark"] .notif-item:hover { background: #252836; }
+[data-theme="dark"] .notif-item-unread { background: rgba(91,91,246,0.22); }
+[data-theme="dark"] .notif-item-unread:hover { background: rgba(91,91,246,0.32); }
+[data-theme="dark"] .btn-secondary:not(:disabled):hover { background: #2D3040; }
+[data-theme="dark"] .btn-oauth:hover { background: #252836; border-color: var(--line); }
 
 /* ============================================================
    RESPONSIVE
@@ -988,6 +1503,13 @@ button { font-family: inherit; }
             </div>
           </div>
         </div>
+        <div class="form-field">
+          <label class="checkbox-row">
+            <input type="checkbox" id="signupAcceptTerms" />
+            <span>J'accepte les <a href="#" onclick="event.preventDefault(); openLegalScreen('terms');">CGU</a> et la <a href="#" onclick="event.preventDefault(); openLegalScreen('privacy');">politique de confidentialité</a>.</span>
+          </label>
+          <span class="field-error" id="signupAcceptTermsError"></span>
+        </div>
         <button type="submit" class="btn btn-primary btn-block btn-lg" id="signupSubmitBtn">
           <span class="btn-label">Créer mon compte</span>
         </button>
@@ -1042,10 +1564,10 @@ button { font-family: inherit; }
         </div>
 
         <div class="nav-links">
-          <button class="nav-link active" id="navLinkDashboard" onclick="navigateTo('dashboardScreen')">Tableau de bord</button>
-          <button class="nav-link" id="navLinkGiveaways" onclick="navigateTo('giveawaysScreen')">Mes tirages</button>
-          <button class="nav-link" id="navLinkParticipants" onclick="navigateTo('participantsScreen')">Participants</button>
-          <button class="nav-link" id="navLinkWinners" onclick="navigateTo('winnersScreen')">Gagnants</button>
+          <button class="nav-link active" id="navLinkDashboard" onclick="navigateTo('dashboardScreen')" data-i18n="nav_dashboard">Tableau de bord</button>
+          <button class="nav-link" id="navLinkGiveaways" onclick="navigateTo('giveawaysScreen')" data-i18n="nav_giveaways">Mes tirages</button>
+          <button class="nav-link" id="navLinkParticipants" onclick="navigateTo('participantsScreen')" data-i18n="nav_participants">Participants</button>
+          <button class="nav-link" id="navLinkWinners" onclick="navigateTo('winnersScreen')" data-i18n="nav_winners">Gagnants</button>
         </div>
       </div>
 
@@ -1060,7 +1582,10 @@ button { font-family: inherit; }
             <span class="notif-badge" id="notifBadge" style="display:none;"></span>
           </button>
           <div class="dropdown-menu notif-menu" id="notifMenu" style="display:none;">
-            <div class="dropdown-menu-title">Notifications</div>
+            <div class="dropdown-menu-title notif-menu-header">
+              <span>Notifications</span>
+              <button type="button" class="notif-mark-all-btn" id="notifMarkAllBtn" onclick="markAllNotificationsRead()" style="display:none;">Tout marquer comme lu</button>
+            </div>
             <div class="dropdown-menu-divider"></div>
             <div id="notifList" class="notif-list"></div>
             <p class="empty-state" id="notifEmpty" style="padding: 16px;">Rien de nouveau pour l'instant.</p>
@@ -1095,10 +1620,10 @@ button { font-family: inherit; }
     </div>
 
     <div class="nav-mobile-menu" id="navMobileMenu" style="display:none;">
-      <button class="nav-mobile-link" onclick="navigateTo('dashboardScreen')">Tableau de bord</button>
-      <button class="nav-mobile-link" onclick="navigateTo('giveawaysScreen')">Mes tirages</button>
-      <button class="nav-mobile-link" onclick="navigateTo('participantsScreen')">Participants</button>
-      <button class="nav-mobile-link" onclick="navigateTo('winnersScreen')">Gagnants</button>
+      <button class="nav-mobile-link" onclick="navigateTo('dashboardScreen')" data-i18n="nav_dashboard">Tableau de bord</button>
+      <button class="nav-mobile-link" onclick="navigateTo('giveawaysScreen')" data-i18n="nav_giveaways">Mes tirages</button>
+      <button class="nav-mobile-link" onclick="navigateTo('participantsScreen')" data-i18n="nav_participants">Participants</button>
+      <button class="nav-mobile-link" onclick="navigateTo('winnersScreen')" data-i18n="nav_winners">Gagnants</button>
     </div>
   </nav>
 
@@ -1182,8 +1707,8 @@ button { font-family: inherit; }
     <div class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Mes tirages</h1>
-          <p class="page-subtitle">Tous les giveaways que tu as créés.</p>
+          <h1 class="page-title" data-i18n="title_giveaways">Mes tirages</h1>
+          <p class="page-subtitle" data-i18n="subtitle_giveaways">Tous les giveaways que tu as créés.</p>
         </div>
         <button class="btn btn-primary" onclick="startWizard()">
           <span class="btn-label">+ Nouveau tirage</span>
@@ -1221,8 +1746,8 @@ button { font-family: inherit; }
     <div class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Participants</h1>
-          <p class="page-subtitle">Toutes les personnes inscrites à tes tirages.</p>
+          <h1 class="page-title" data-i18n="title_participants">Participants</h1>
+          <p class="page-subtitle" data-i18n="subtitle_participants">Toutes les personnes inscrites à tes tirages.</p>
         </div>
         <button class="btn btn-secondary" onclick="exportParticipantsCsv()">
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right:6px;"><path d="M10 3v10M6 9l4 4 4-4"/><path d="M3 16.5h14"/></svg>
@@ -1264,9 +1789,13 @@ button { font-family: inherit; }
     <div class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Gagnants</h1>
-          <p class="page-subtitle">L'historique complet de tous tes tirages.</p>
+          <h1 class="page-title" data-i18n="title_winners">Gagnants</h1>
+          <p class="page-subtitle" data-i18n="subtitle_winners">L'historique complet de tous tes tirages.</p>
         </div>
+        <button class="btn btn-secondary" onclick="exportWinnersCsv()">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right:6px;"><path d="M10 3v10M6 9l4 4 4-4"/><path d="M3 16.5h14"/></svg>
+          Exporter en CSV
+        </button>
       </div>
 
       <div class="history-list-pro" id="winnersFullList"></div>
@@ -1279,24 +1808,95 @@ button { font-family: inherit; }
   <!-- ============================================================ -->
   <div id="settingsScreen" class="screen" style="display:none;">
     <div class="page-container page-container-narrow">
-      <button class="back-btn" onclick="goBackToMainScreen()">← Retour</button>
-      <h1 class="page-title">Paramètres</h1>
+      <button class="back-btn" onclick="goBackToMainScreen()" data-i18n="back">← Retour</button>
+      <h1 class="page-title" data-i18n="title_settings">Paramètres</h1>
 
       <div class="card">
-        <h3 class="card-section-title">Apparence</h3>
+        <h3 class="card-section-title" data-i18n="settings_language">Langue</h3>
         <div class="theme-toggle-row">
-          <span class="form-label" style="margin:0;">Thème</span>
+          <span class="form-label" style="margin:0;" data-i18n="settings_language_label">Langue de l'application</span>
+          <select id="languageSelect" class="form-input filter-select" style="max-width:180px;" onchange="setLanguage(this.value)">
+            <option value="fr">🇫🇷 Français</option>
+            <option value="en">🇬🇧 English</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-section-title" data-i18n="settings_appearance">Apparence</h3>
+        <div class="theme-toggle-row">
+          <span class="form-label" style="margin:0;" data-i18n="settings_theme">Thème</span>
           <div class="theme-switch" id="themeSwitch">
-            <button class="theme-switch-btn active" data-theme="light" onclick="setTheme('light')">☀️ Clair</button>
-            <button class="theme-switch-btn" data-theme="dark" onclick="setTheme('dark')">🌙 Sombre</button>
+            <button class="theme-switch-btn active" data-theme="light" onclick="setTheme('light')" data-i18n="theme_light">☀️ Clair</button>
+            <button class="theme-switch-btn" data-theme="dark" onclick="setTheme('dark')" data-i18n="theme_dark">🌙 Sombre</button>
           </div>
         </div>
       </div>
 
       <div class="card">
-        <h3 class="card-section-title">Compte</h3>
-        <p class="empty-state" style="margin-bottom: 14px;">Gère ton nom et ta sécurité depuis ton profil.</p>
-        <button class="btn btn-secondary btn-block" onclick="showScreen('profileScreen')">Aller à mon profil</button>
+        <h3 class="card-section-title" data-i18n="settings_account">Compte</h3>
+        <p class="empty-state" style="margin-bottom: 14px;" data-i18n="settings_account_desc">Gère ton nom et ta sécurité depuis ton profil.</p>
+        <button class="btn btn-secondary btn-block" onclick="showScreen('profileScreen')" data-i18n="settings_account_btn">Aller à mon profil</button>
+      </div>
+
+      <div class="card">
+        <h3 class="card-section-title" data-i18n="settings_connected">Comptes connectés</h3>
+        <div id="settingsInstagramNotConnected">
+          <p class="hint" style="margin-bottom:14px;" data-i18n="settings_ig_desc">Connecte ton compte Instagram Business pour pouvoir importer les commentaires de tes posts lors des tirages.</p>
+          <button class="btn btn-secondary btn-block" onclick="connectInstagramAccount()" data-i18n="settings_ig_connect">Connecter Instagram</button>
+        </div>
+        <div id="settingsInstagramConnected" style="display:none;">
+          <div class="theme-toggle-row">
+            <span class="form-label" style="margin:0;">📸 Instagram : <strong id="settingsInstagramUsername"></strong></span>
+            <button class="btn btn-secondary" onclick="disconnectInstagramAccount()">Déconnecter</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-section-title">Notifications</h3>
+        <div class="theme-toggle-row">
+          <span class="form-label" style="margin:0;">Recevoir un email quand un gagnant est désigné</span>
+          <label class="switch-toggle">
+            <input type="checkbox" id="emailNotifToggle" onchange="setEmailNotifPref(this.checked)" />
+            <span class="switch-toggle-slider"></span>
+          </label>
+        </div>
+        <p class="hint" style="margin-top:8px;">L'email est envoyé à ton adresse de compte (les participants ne sont pas collectés avec un email).</p>
+      </div>
+
+      <div class="card">
+        <h3 class="card-section-title">Légal</h3>
+        <div class="legal-links-row">
+          <button type="button" class="legal-link-btn" onclick="openLegalScreen('terms')">CGU</button>
+          <button type="button" class="legal-link-btn" onclick="openLegalScreen('privacy')">Confidentialité</button>
+          <button type="button" class="legal-link-btn" onclick="openLegalScreen('notice')">Mentions légales</button>
+        </div>
+      </div>
+
+      <div class="card card-danger-zone">
+        <h3 class="card-section-title">Zone de danger</h3>
+        <p class="empty-state" style="margin-bottom: 14px;">Supprime définitivement ton compte et toutes tes données (tirages, participants, historique). Cette action est irréversible.</p>
+        <button class="btn btn-danger btn-block" onclick="openDeleteAccountConfirm()">Supprimer mon compte</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete account confirmation -->
+  <div id="deleteAccountModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <h3 class="modal-title">Supprimer ton compte ?</h3>
+      <p class="modal-text">Cette action est <strong>définitive</strong> : ton compte, tes tirages, tes listes de participants et ton historique seront supprimés sans possibilité de récupération.</p>
+      <div class="form-field">
+        <label class="form-label" for="deleteAccountPassword">Confirme avec ton mot de passe</label>
+        <input type="password" id="deleteAccountPassword" class="form-input" placeholder="Mot de passe" autocomplete="current-password" />
+        <span class="field-error" id="deleteAccountError"></span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeDeleteAccountConfirm()">Annuler</button>
+        <button class="btn btn-danger" id="deleteAccountBtn" onclick="executeDeleteAccount()">
+          <span class="btn-label">Supprimer définitivement</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1306,8 +1906,8 @@ button { font-family: inherit; }
   <!-- ============================================================ -->
   <div id="profileScreen" class="screen" style="display:none;">
     <div class="page-container page-container-narrow">
-      <button class="back-btn" onclick="goBackToMainScreen()">← Retour</button>
-      <h1 class="page-title">Mon profil</h1>
+      <button class="back-btn" onclick="goBackToMainScreen()" data-i18n="back">← Retour</button>
+      <h1 class="page-title" data-i18n="title_profile">Mon profil</h1>
 
       <div class="card">
         <div class="profile-avatar-row">
@@ -1407,6 +2007,7 @@ button { font-family: inherit; }
           <button class="tab active" id="wizTabPaste" onclick="wizardSwitchTab('paste')">Coller une liste</button>
           <button class="tab" id="wizTabCsv" onclick="wizardSwitchTab('csv')">Importer un CSV</button>
           <button class="tab" id="wizTabYoutube" onclick="wizardSwitchTab('youtube')">YouTube</button>
+          <button class="tab" id="wizTabInstagram" onclick="wizardSwitchTab('instagram')">Instagram</button>
         </div>
 
         <div id="wizPastePanel" class="form-field">
@@ -1434,11 +2035,63 @@ button { font-family: inherit; }
           <button type="button" class="btn btn-secondary" id="wizardYoutubeFetchBtn" onclick="fetchYoutubeComments()" style="margin-top:14px;">
             <span class="btn-label">Récupérer les commentaires</span>
           </button>
+
+          <div id="youtubeLoadingState" class="youtube-loading" style="display:none;">
+            <div class="youtube-loading-header">
+              <span class="youtube-spinner"></span>
+              <span id="youtubeLoadingText">Connexion à YouTube…</span>
+            </div>
+            <div class="youtube-skeleton-row"><span class="youtube-skeleton-avatar"></span><span class="youtube-skeleton-line" style="width:70%;"></span></div>
+            <div class="youtube-skeleton-row"><span class="youtube-skeleton-avatar"></span><span class="youtube-skeleton-line" style="width:85%;"></span></div>
+            <div class="youtube-skeleton-row"><span class="youtube-skeleton-avatar"></span><span class="youtube-skeleton-line" style="width:55%;"></span></div>
+          </div>
+
           <p class="hint" id="wizardYoutubeStatus" style="display:none;"></p>
           <p class="hint-box">
             💡 Pour un live en cours, colle le lien pendant que le direct tourne — l'outil lira le tchat en temps réel.
             Pour une vidéo déjà publiée, ça lit les commentaires classiques.
           </p>
+        </div>
+
+        <div id="wizInstagramPanel" class="form-field" style="display:none;">
+          <div id="wizInstagramNotConnected">
+            <p class="hint-box">
+              📸 Connecte ton compte Instagram Business pour importer les commentaires d'un post ou d'un reel.
+            </p>
+            <button type="button" class="btn btn-secondary btn-block" onclick="connectInstagramAccount()">Connecter mon compte Instagram</button>
+          </div>
+
+          <div id="wizInstagramConnected" style="display:none;">
+            <p class="hint" style="margin-bottom:14px;">Connecté en tant que <strong id="wizInstagramUsername"></strong></p>
+
+            <label class="form-label">Lien du post ou du reel Instagram</label>
+            <input type="text" id="wizardInstagramUrl" class="form-input" placeholder="https://www.instagram.com/p/..." />
+
+            <div class="field-row-stack" style="margin-top:14px;">
+              <label class="form-label">Mot-clé requis (optionnel)</label>
+              <input type="text" id="wizardInstagramKeyword" class="form-input" placeholder="ex : GIVEAWAY" />
+              <p class="hint">Seuls les commentaires contenant ce mot seront importés. Laisse vide pour tout importer.</p>
+            </div>
+
+            <button type="button" class="btn btn-secondary" id="wizardInstagramFetchBtn" onclick="fetchInstagramComments()" style="margin-top:14px;">
+              <span class="btn-label">Récupérer les commentaires</span>
+            </button>
+
+            <div id="instagramLoadingState" class="youtube-loading" style="display:none;">
+              <div class="youtube-loading-header">
+                <span class="youtube-spinner"></span>
+                <span id="instagramLoadingText">Connexion à Instagram…</span>
+              </div>
+              <div class="youtube-skeleton-row"><span class="youtube-skeleton-avatar"></span><span class="youtube-skeleton-line" style="width:70%;"></span></div>
+              <div class="youtube-skeleton-row"><span class="youtube-skeleton-avatar"></span><span class="youtube-skeleton-line" style="width:85%;"></span></div>
+              <div class="youtube-skeleton-row"><span class="youtube-skeleton-avatar"></span><span class="youtube-skeleton-line" style="width:55%;"></span></div>
+            </div>
+
+            <p class="hint" id="wizardInstagramStatus" style="display:none;"></p>
+            <p class="hint-box">
+              💡 L'API Instagram ne permet de lire les commentaires que sur les posts publiés par le compte connecté.
+            </p>
+          </div>
         </div>
 
         <div class="wizard-participant-count" id="wizardParticipantPreview"></div>
@@ -1489,9 +2142,36 @@ button { font-family: inherit; }
         <div class="form-field">
           <label class="form-label">Mode de tirage</label>
           <div class="mode-selector mode-selector-wizard">
-            <button class="mode-btn active" id="wizModeWheel" onclick="wizardSetMode('wheel')"><span class="mode-icon">🎡</span>Roue</button>
-            <button class="mode-btn" id="wizModeInstant" onclick="wizardSetMode('instant')"><span class="mode-icon">⚡</span>Instant</button>
-            <button class="mode-btn" id="wizModeSlot" onclick="wizardSetMode('slot')"><span class="mode-icon">🎰</span>Machine</button>
+            <button class="mode-card active" id="wizModeWheel" onclick="wizardSetMode('wheel')">
+              <span class="mode-card-icon">🎡</span>
+              <span class="mode-card-name">Roue</span>
+              <span class="mode-card-desc">Suspense classique</span>
+            </button>
+            <button class="mode-card" id="wizModeInstant" onclick="wizardSetMode('instant')">
+              <span class="mode-card-icon">⚡</span>
+              <span class="mode-card-name">Instant</span>
+              <span class="mode-card-desc">Résultat rapide</span>
+            </button>
+            <button class="mode-card" id="wizModeSlot" onclick="wizardSetMode('slot')">
+              <span class="mode-card-icon">🎰</span>
+              <span class="mode-card-name">Machine</span>
+              <span class="mode-card-desc">Style casino</span>
+            </button>
+            <button class="mode-card" id="wizModeDuck" onclick="wizardSetMode('duck')">
+              <span class="mode-card-icon">🦆</span>
+              <span class="mode-card-name">Course</span>
+              <span class="mode-card-desc">Canards en compétition</span>
+            </button>
+            <button class="mode-card" id="wizModePlinko" onclick="wizardSetMode('plinko')">
+              <span class="mode-card-icon">🔴</span>
+              <span class="mode-card-name">Plinko</span>
+              <span class="mode-card-desc">La bille décide</span>
+            </button>
+            <button class="mode-card" id="wizModeMarble" onclick="wizardSetMode('marble')">
+              <span class="mode-card-icon">🔵</span>
+              <span class="mode-card-name">Course de billes</span>
+              <span class="mode-card-desc">Trajet sinueux, coudes et lignes droites</span>
+            </button>
           </div>
         </div>
 
@@ -1530,11 +2210,16 @@ button { font-family: inherit; }
   <!-- ============================================================ -->
   <div id="drawScreen" class="screen" style="display:none;">
     <div class="page-container page-container-narrow">
-      <button class="back-btn" onclick="goBackToMainScreen()">← Retour</button>
+      <button class="back-btn" onclick="goBackToMainScreen()" data-i18n="back">← Retour</button>
       <img id="drawGiveawayImage" class="draw-giveaway-image" style="display:none;" alt="" />
       <h1 class="page-title" id="drawGiveawayTitle">Tirage</h1>
 
       <div class="card card-center">
+        <div class="draw-mode-header" id="drawModeHeader">
+          <span class="draw-mode-icon" id="drawModeIcon">🎡</span>
+          <span class="draw-mode-name" id="drawModeName">Roue</span>
+        </div>
+
         <div class="stats-row">
           <div class="stat"><span class="stat-value" id="drawStatParticipants">0</span><span class="stat-label">Participants</span></div>
           <div class="stat"><span class="stat-value" id="drawStatMentions">0</span><span class="stat-label">Mentions</span></div>
@@ -1571,8 +2256,26 @@ button { font-family: inherit; }
           </div>
         </div>
 
+        <!-- DUCK RACE MODE -->
+        <div id="drawStageDuck" class="draw-stage" style="display:none; position:relative;">
+          <button type="button" class="duck-sound-toggle" id="duckSoundToggle" onclick="toggleDuckSound()" title="Activer/désactiver le son">🔊</button>
+          <canvas id="duckCanvas" class="duck-canvas"></canvas>
+        </div>
+
+        <!-- PLINKO MODE -->
+        <div id="drawStagePlinko" class="draw-stage" style="display:none; position:relative;">
+          <button type="button" class="duck-sound-toggle" id="plinkoSoundToggle" onclick="togglePlinkoSound()" title="Activer/désactiver le son">🔊</button>
+          <canvas id="plinkoCanvas" class="duck-canvas"></canvas>
+        </div>
+
+        <!-- MARBLE RACE MODE -->
+        <div id="drawStageMarble" class="draw-stage" style="display:none; position:relative;">
+          <button type="button" class="duck-sound-toggle" id="marbleSoundToggle" onclick="toggleMarbleSound()" title="Activer/désactiver le son">🔊</button>
+          <canvas id="marbleCanvas" class="duck-canvas"></canvas>
+        </div>
+
         <button class="btn btn-primary" id="drawSpinBtn" onclick="runDraw()" style="margin-top:18px;">
-          <span class="btn-label">Lancer le tirage</span>
+          <span class="btn-label" data-i18n="draw_launch">Lancer le tirage</span>
         </button>
 
         <div class="schedule-block" id="scheduleBlock">
@@ -1597,6 +2300,7 @@ button { font-family: inherit; }
           <span class="winner-name-pro" id="winnerName">@</span>
           <div class="winner-ticket-actions">
             <button class="btn btn-secondary" onclick="copyWinner()" id="copyBtn">Copier le pseudo</button>
+            <button class="btn btn-secondary" onclick="shareWinner()">Partager</button>
             <button class="btn btn-secondary" onclick="downloadCertificate()">Télécharger le certificat</button>
           </div>
         </div>
@@ -1628,6 +2332,118 @@ button { font-family: inherit; }
 
 </div>
 
+<!-- ============================================================
+     LEGAL OVERLAY — CGU / Confidentialité / Mentions légales.
+     Deliberately OUTSIDE #authScreen and #appShell (and not part of
+     the normal screen/history system) so it can be opened from the
+     signup form before login just as easily as from Settings once
+     logged in.
+     ============================================================ -->
+<div id="legalOverlay" class="legal-overlay" style="display:none;">
+  <div class="legal-panel">
+    <div class="legal-panel-header">
+      <div class="legal-tabs">
+        <button class="legal-tab active" id="legalTabTerms" onclick="switchLegalTab('terms')">CGU</button>
+        <button class="legal-tab" id="legalTabPrivacy" onclick="switchLegalTab('privacy')">Confidentialité</button>
+        <button class="legal-tab" id="legalTabNotice" onclick="switchLegalTab('notice')">Mentions légales</button>
+      </div>
+      <button class="icon-btn" onclick="closeLegalScreen()" aria-label="Fermer">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 5l10 10M15 5L5 15"/></svg>
+      </button>
+    </div>
+    <div class="legal-panel-body">
+
+      <div id="legalSectionTerms" class="legal-section">
+        <h2>Conditions Générales d'Utilisation</h2>
+        <p class="legal-updated">Dernière mise à jour : [À COMPLÉTER : date]</p>
+
+        <h3>1. Objet</h3>
+        <p>RerePickWinn ("le Service") est une application permettant d'organiser et de réaliser des tirages au sort (giveaways) à partir de listes de participants importées manuellement ou depuis des plateformes tierces (YouTube, Instagram).</p>
+
+        <h3>2. Accès au service</h3>
+        <p>L'accès au Service nécessite la création d'un compte (email et mot de passe). Le Service est actuellement proposé [À COMPLÉTER : gratuitement / selon les conditions tarifaires en vigueur].</p>
+
+        <h3>3. Compte utilisateur</h3>
+        <p>L'utilisateur est seul responsable de la confidentialité de ses identifiants et de toute activité réalisée depuis son compte. Il s'engage à fournir des informations exactes lors de son inscription.</p>
+
+        <h3>4. Utilisation du service</h3>
+        <p>L'utilisateur s'engage à utiliser le Service conformément à la loi et aux conditions d'utilisation des plateformes tierces concernées (notamment les CGU d'Instagram et de YouTube lors de l'import de commentaires). Il est seul responsable de la légalité et de la loyauté des tirages qu'il organise (règlement du jeu, conditions de participation, remise effective des lots aux gagnants désignés).</p>
+        <p>Sont interdits : l'utilisation du Service à des fins illégales, l'import de données obtenues de manière non autorisée, et toute tentative de contournement des mesures de sécurité du Service.</p>
+
+        <h3>5. Propriété intellectuelle</h3>
+        <p>Le Service, son code et son interface restent la propriété de [À COMPLÉTER : ton nom / ta société]. Les données et listes de participants importées par l'utilisateur restent sa propriété.</p>
+
+        <h3>6. Disponibilité du service</h3>
+        <p>Le Service est fourni "en l'état", sans garantie de disponibilité continue. Des interruptions pour maintenance ou évolution peuvent survenir sans préavis.</p>
+
+        <h3>7. Responsabilité</h3>
+        <p>Le Service se limite à fournir un outil de tirage au sort et d'aide à l'organisation de giveaways. L'éditeur ne saurait être tenu responsable des litiges entre l'utilisateur organisateur et les participants ou gagnants d'un tirage, ni de l'usage fait des données importées.</p>
+
+        <h3>8. Résiliation</h3>
+        <p>L'utilisateur peut supprimer son compte à tout moment depuis son profil. L'éditeur se réserve le droit de suspendre ou supprimer un compte en cas de non-respect des présentes CGU.</p>
+
+        <h3>9. Modification des CGU</h3>
+        <p>Les présentes CGU peuvent être modifiées à tout moment. La version en vigueur est celle affichée dans l'application.</p>
+
+        <h3>10. Droit applicable</h3>
+        <p>Les présentes CGU sont soumises au droit [À COMPLÉTER : français]. Tout litige relève des tribunaux compétents.</p>
+
+        <h3>11. Contact</h3>
+        <p>[À COMPLÉTER : adresse email de contact]</p>
+      </div>
+
+      <div id="legalSectionPrivacy" class="legal-section" style="display:none;">
+        <h2>Politique de confidentialité</h2>
+        <p class="legal-updated">Dernière mise à jour : [À COMPLÉTER : date]</p>
+
+        <h3>1. Responsable du traitement</h3>
+        <p>[À COMPLÉTER : ton nom ou celui de ta société] — [À COMPLÉTER : email de contact]</p>
+
+        <h3>2. Données collectées</h3>
+        <p>Lors de l'utilisation du Service, sont collectées : ton nom et ton email (compte), les listes de participants que tu importes (pseudos, commentaires), et, si tu connectes ton compte Instagram, un jeton d'accès permettant de lire les commentaires de tes propres publications.</p>
+
+        <h3>3. Finalités</h3>
+        <p>Ces données sont utilisées uniquement pour faire fonctionner le Service : authentification, réalisation des tirages, affichage de ton historique.</p>
+
+        <h3>4. Destinataires des données</h3>
+        <p>Les données sont hébergées par Supabase (base de données et authentification) et le Service lui-même est hébergé par GitHub Pages. Lorsque tu utilises l'import YouTube ou Instagram, une requête est faite directement aux API de Google/YouTube et de Meta/Instagram avec les identifiants que tu as toi-même configurés.</p>
+
+        <h3>5. Durée de conservation</h3>
+        <p>Les données sont conservées tant que le compte existe. Elles sont supprimées lors de la suppression du compte (voir "Tes droits" ci-dessous).</p>
+
+        <h3>6. Cookies et stockage local</h3>
+        <p>Le Service n'utilise pas de cookies publicitaires ou de traceurs tiers. Il utilise le stockage local de ton navigateur (localStorage) pour mémoriser tes préférences (thème clair/sombre, langue, activation du son) et ta session de connexion — ces données restent sur ton appareil.</p>
+
+        <h3>7. Tes droits</h3>
+        <p>Conformément au RGPD, tu disposes d'un droit d'accès, de rectification, d'effacement et de portabilité de tes données. Tu peux supprimer ton compte et toutes les données associées à tout moment depuis ton profil, ou nous contacter à [À COMPLÉTER : email de contact].</p>
+
+        <h3>8. Sécurité</h3>
+        <p>Les mots de passe sont gérés et chiffrés par Supabase Auth ; le Service n'y a jamais accès en clair.</p>
+
+        <h3>9. Réclamation</h3>
+        <p>Tu peux introduire une réclamation auprès de la CNIL (cnil.fr) si tu estimes que tes droits ne sont pas respectés.</p>
+      </div>
+
+      <div id="legalSectionNotice" class="legal-section" style="display:none;">
+        <h2>Mentions légales</h2>
+
+        <h3>Éditeur du site</h3>
+        <p>[À COMPLÉTER : ton nom ou raison sociale]<br>[À COMPLÉTER : adresse]<br>[À COMPLÉTER : email de contact]<br>[À COMPLÉTER : SIRET si applicable]</p>
+
+        <h3>Directeur de la publication</h3>
+        <p>[À COMPLÉTER : ton nom]</p>
+
+        <h3>Hébergement</h3>
+        <p>Le site est hébergé par GitHub, Inc. (GitHub Pages) — 88 Colin P Kelly Jr St, San Francisco, CA 94107, États-Unis.<br>La base de données et l'authentification sont hébergées par Supabase.</p>
+
+        <h3>Contact</h3>
+        <p>[À COMPLÉTER : email de contact]</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // REREPICKWINN — Application logic
@@ -1642,7 +2458,16 @@ var SUPABASE_URL = 'https://lrrtzslhlljsvcnlvthn.supabase.co';
 var YOUTUBE_API_KEY = 'AIzaSyDlRhuuogNNXPwkfNhlSMLFjXKQHY393QA';
 var SUPABASE_ANON_KEY = 'sb_publishable_gh0VQ7QG23J0Zx67b528iQ_UjRtUWWY';
 
+// Instagram API with Instagram Login — App ID only (never the App Secret,
+// which stays server-side in the instagram-oauth-exchange Edge Function).
+var INSTAGRAM_APP_ID = '27253784150966344';
+var INSTAGRAM_REDIRECT_URI = 'https://h84-web.github.io/giveaway-app/';
+
 var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Cached in memory once loaded, so the wizard doesn't need to re-query
+// Supabase every time the Instagram tab is opened.
+var instagramAccount = null;
 
 // ----------------------------------------------------------------
 // GLOBAL STATE
@@ -1743,21 +2568,62 @@ function showScreen(screenId) {
     currentActiveScreen = screenId;
     try { localStorage.setItem('repickwinn-last-screen', screenId); } catch (e) { /* storage unavailable, ignore */ }
   }
+
+  // Keep the 4 main nav links in sync no matter how a screen was reached
+  // (direct link click, a "back" button, or the phone's hardware back
+  // button below) — not just when navigateTo() was the entry point.
+  Object.keys(NAV_LINK_MAP).forEach(function(sid) {
+    var link = document.getElementById(NAV_LINK_MAP[sid]);
+    if (link) link.classList.toggle('active', sid === screenId);
+  });
+
+  // Push a browser history entry for this screen so the phone's (or
+  // browser's) hardware/gesture back button steps back through the
+  // app's own screens instead of leaving the app or reloading to the
+  // dashboard. Suppressed while we're already responding to a
+  // popstate/back event, to avoid re-pushing the entry we just popped.
+  if (!isHandlingPopState) {
+    // State only — deliberately NOT touching the visible URL (no hash),
+    // since GitHub Pages + Supabase's own auth redirect handling both
+    // read/rewrite the URL, and fighting over it caused the phone's back
+    // button to misbehave. This still gives every screen its own entry
+    // in the tab's history, which is all the back button needs.
+    try { history.pushState({ screenId: screenId }, '', location.href); } catch (e) { /* ignore */ }
+  }
 }
 
+// True only while inside the popstate handler below — lets showScreen()
+// know not to push a fresh history entry for a navigation that IS the
+// back/forward action itself.
+var isHandlingPopState = false;
+
+window.addEventListener('popstate', function(event) {
+  isHandlingPopState = true;
+  var screenId = (event.state && event.state.screenId) || currentActiveScreen || 'dashboardScreen';
+  // Don't navigate INTO the wizard or draw screen via back/forward —
+  // their in-memory state (current step, active giveaway) isn't
+  // guaranteed to still be valid, so treat them like the main screen
+  // they'd normally return to instead.
+  if (screenId === 'wizardScreen' || screenId === 'drawScreen') {
+    screenId = currentActiveScreen || 'dashboardScreen';
+  }
+  showScreen(screenId);
+  isHandlingPopState = false;
+});
+
 function goBackToMainScreen() {
-  showScreen(currentActiveScreen);
+  // Mirrors the phone's hardware back button: step back in the browser's
+  // own history rather than jumping straight to currentActiveScreen, so
+  // in-app "back" buttons and the hardware back button behave the same
+  // way and never get out of sync with each other.
+  history.back();
 }
 
 // navigateTo is for the 4 main nav sections: it updates the active nav
 // link styling in addition to switching screens, and loads fresh data
 // for the screen being entered.
 function navigateTo(screenId) {
-  showScreen(screenId);
-  Object.keys(NAV_LINK_MAP).forEach(function(sid) {
-    var link = document.getElementById(NAV_LINK_MAP[sid]);
-    if (link) link.classList.toggle('active', sid === screenId);
-  });
+  showScreen(screenId); // now also syncs the 4 nav links and pushes history — see showScreen()
 
   if (screenId === 'giveawaysScreen') renderGiveawaysScreen();
   else if (screenId === 'participantsScreen') renderParticipantsScreen();
@@ -1810,6 +2676,7 @@ async function initAuth() {
   var { data } = await supabaseClient.auth.getSession();
   if (data && data.session) {
     onAuthSuccess(data.session.user);
+    handleInstagramOAuthRedirect();
   } else {
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('appShell').style.display = 'none';
@@ -1843,14 +2710,25 @@ function onAuthSuccess(user) {
   document.getElementById('userMenuEmail').textContent = user.email;
   document.getElementById('dashboardGreeting').textContent = 'Bonjour, ' + name + ' 👋';
 
+  var emailNotifToggle = document.getElementById('emailNotifToggle');
+  if (emailNotifToggle) emailNotifToggle.checked = !!(user.user_metadata && user.user_metadata.email_notifications);
+
   initTheme();
+  initLanguage();
   var lastScreen = 'dashboardScreen';
   try {
     var saved = localStorage.getItem('repickwinn-last-screen');
     if (saved && PERSISTABLE_SCREENS.indexOf(saved) !== -1) lastScreen = saved;
   } catch (e) { /* storage unavailable, ignore */ }
+  isHandlingPopState = true; // suppress pushState for this first screen — see replaceState below
   navigateTo(lastScreen);
+  isHandlingPopState = false;
+  // The very first screen shown replaces the base history entry rather
+  // than pushing on top of it — otherwise there'd be a duplicate entry
+  // and pressing back once wouldn't actually leave/exit as expected.
+  try { history.replaceState({ screenId: lastScreen }, '', location.href); } catch (e) { /* ignore */ }
   loadDashboardData().then(function() { renderNotifications(); });
+  loadInstagramAccountStatus();
 }
 
 // ----------------------------------------------------------------
@@ -1922,10 +2800,12 @@ function validateSignupForm() {
   clearFieldError('signupName', 'signupNameError');
   clearFieldError('signupEmail', 'signupEmailError');
   clearFieldError('signupPassword', 'signupPasswordError');
+  clearFieldError('signupAcceptTerms', 'signupAcceptTermsError');
 
   var name = document.getElementById('signupName').value.trim();
   var email = document.getElementById('signupEmail').value.trim();
   var password = document.getElementById('signupPassword').value;
+  var acceptedTerms = document.getElementById('signupAcceptTerms').checked;
 
   if (!name) { setFieldError('signupName', 'signupNameError', 'Renseigne ton nom.'); valid = false; }
 
@@ -1937,6 +2817,11 @@ function validateSignupForm() {
     valid = false;
   } else if (!isPasswordValid(password)) {
     setFieldError('signupPassword', 'signupPasswordError', 'Le mot de passe ne respecte pas tous les critères ci-dessous.');
+    valid = false;
+  }
+
+  if (!acceptedTerms) {
+    document.getElementById('signupAcceptTermsError').textContent = 'Tu dois accepter les CGU et la politique de confidentialité pour continuer.';
     valid = false;
   }
 
@@ -2375,8 +3260,72 @@ async function executeDeleteGiveaway() {
 }
 
 // ============================================================
-// PARTICIPANTS SCREEN
+// ACCOUNT DELETION (GDPR "right to erasure")
+// Deletes the account and every row tied to it. The auth user itself
+// can only be removed with the service role key, so the actual
+// deletion happens in the delete-account Edge Function — this just
+// re-verifies the password first (extra safety for such a destructive
+// action) and calls it.
 // ============================================================
+function openDeleteAccountConfirm() {
+  document.getElementById('deleteAccountPassword').value = '';
+  clearFieldError('deleteAccountPassword', 'deleteAccountError');
+  document.getElementById('deleteAccountModal').style.display = 'flex';
+}
+
+function closeDeleteAccountConfirm() {
+  document.getElementById('deleteAccountModal').style.display = 'none';
+}
+
+async function executeDeleteAccount() {
+  var password = document.getElementById('deleteAccountPassword').value;
+  if (!password) {
+    setFieldError('deleteAccountPassword', 'deleteAccountError', 'Confirme avec ton mot de passe pour continuer.');
+    return;
+  }
+
+  var btn = document.getElementById('deleteAccountBtn');
+  setBtnLoading(btn, true);
+
+  // Re-verify the password before doing something irreversible.
+  var { error: authError } = await supabaseClient.auth.signInWithPassword({
+    email: currentUser.email,
+    password: password
+  });
+  if (authError) {
+    setBtnLoading(btn, false);
+    setFieldError('deleteAccountPassword', 'deleteAccountError', 'Mot de passe incorrect.');
+    return;
+  }
+
+  try {
+    var { data: sessionData } = await supabaseClient.auth.getSession();
+    var accessToken = sessionData && sessionData.session && sessionData.session.access_token;
+    var resp = await fetch(SUPABASE_URL + '/functions/v1/delete-account', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + accessToken,
+        'apikey': SUPABASE_ANON_KEY
+      }
+    });
+    var result;
+    try { result = await resp.json(); } catch (e) { result = null; }
+    if (!resp.ok || (result && result.error)) {
+      throw new Error((result && result.error) || 'Échec de la suppression du compte');
+    }
+
+    showToast('Compte supprimé', 'success');
+    await supabaseClient.auth.signOut();
+    window.location.reload();
+  } catch (err) {
+    console.error('Delete account error:', err);
+    setBtnLoading(btn, false);
+    showToast('Erreur : ' + err.message, 'error');
+  }
+}
+
+
 function populateParticipantsGiveawayFilter() {
   var select = document.getElementById('participantsGiveawayFilter');
   var current = select.value;
@@ -2450,6 +3399,41 @@ function exportParticipantsCsv() {
 // ============================================================
 // WINNERS SCREEN
 // ============================================================
+function exportWinnersCsv() {
+  if (currentHistory.length === 0) {
+    showToast('Aucun gagnant à exporter', 'error');
+    return;
+  }
+  var giveawayTitleById = {};
+  currentGiveaways.forEach(function(g) { giveawayTitleById[g.id] = g.title; });
+
+  var rows = [['Gagnant', 'Tirage', 'Mode', 'Participants', 'Date']];
+  currentHistory.forEach(function(h) {
+    rows.push([
+      h.winner_name,
+      giveawayTitleById[h.giveaway_id] || '',
+      MODE_LABELS[h.draw_mode] || h.draw_mode,
+      h.pool_size,
+      new Date(h.created_at).toLocaleString('fr-FR')
+    ]);
+  });
+
+  var csv = rows.map(function(row) {
+    return row.map(function(cell) { return '"' + String(cell).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\n');
+
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'gagnants-repickwinn.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Export CSV téléchargé', 'success');
+}
+
 function renderWinnersScreen() {
   var list = document.getElementById('winnersFullList');
   var emptyEl = document.getElementById('winnersFullEmpty');
@@ -2467,6 +3451,50 @@ function renderWinnersScreen() {
 }
 
 // ============================================================
+// EMAIL NOTIFICATIONS (via the notify-winner Edge Function / Resend)
+// ============================================================
+async function setEmailNotifPref(enabled) {
+  var { error } = await supabaseClient.auth.updateUser({ data: { email_notifications: enabled } });
+  if (error) {
+    showToast('Erreur lors de l\'enregistrement', 'error');
+    document.getElementById('emailNotifToggle').checked = !enabled;
+    return;
+  }
+  currentUser.user_metadata = currentUser.user_metadata || {};
+  currentUser.user_metadata.email_notifications = enabled;
+  showToast(enabled ? 'Notifications par email activées' : 'Notifications par email désactivées', 'success');
+}
+
+// Fire-and-forget: called right after a winner is revealed. Never blocks
+// or shows an error toast on failure — an email notification is a nice-
+// to-have, not something that should interrupt the draw experience if
+// the Edge Function isn't deployed yet or Resend has a hiccup.
+async function notifyWinnerByEmail(winnerName, giveawayTitle, drawMode, poolSize) {
+  if (!currentUser || !currentUser.user_metadata || !currentUser.user_metadata.email_notifications) return;
+  try {
+    var { data: sessionData } = await supabaseClient.auth.getSession();
+    var accessToken = sessionData && sessionData.session && sessionData.session.access_token;
+    if (!accessToken) return;
+    await fetch(SUPABASE_URL + '/functions/v1/notify-winner', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + accessToken,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({
+        winnerName: winnerName,
+        giveawayTitle: giveawayTitle,
+        drawMode: MODE_LABELS[drawMode] || drawMode,
+        poolSize: poolSize
+      })
+    });
+  } catch (e) {
+    console.error('notify-winner error (non-blocking):', e);
+  }
+}
+
+// ============================================================
 // THEME (light / dark)
 // ============================================================
 function setTheme(theme) {
@@ -2477,6 +3505,30 @@ function setTheme(theme) {
   try { localStorage.setItem('repickwinn-theme', theme); } catch (e) { /* storage unavailable, ignore */ }
 }
 
+// ============================================================
+// LEGAL OVERLAY (CGU / Confidentialité / Mentions légales) — sits
+// outside the normal screen/history system so it opens the same way
+// whether the person is logged in or still on the signup form.
+// ============================================================
+function openLegalScreen(section) {
+  document.getElementById('legalOverlay').style.display = 'flex';
+  switchLegalTab(section || 'terms');
+}
+
+function closeLegalScreen() {
+  document.getElementById('legalOverlay').style.display = 'none';
+}
+
+function switchLegalTab(section) {
+  ['terms', 'privacy', 'notice'].forEach(function(s) {
+    var cap = s.charAt(0).toUpperCase() + s.slice(1);
+    document.getElementById('legalSection' + cap).style.display = s === section ? 'block' : 'none';
+    document.getElementById('legalTab' + cap).classList.toggle('active', s === section);
+  });
+  var body = document.querySelector('.legal-panel-body');
+  if (body) body.scrollTop = 0;
+}
+
 function initTheme() {
   var saved = 'light';
   try { saved = localStorage.getItem('repickwinn-theme') || 'light'; } catch (e) { /* ignore */ }
@@ -2484,12 +3536,135 @@ function initTheme() {
 }
 
 // ============================================================
+// LANGUAGE (i18n)
+// First pass: covers the main navigation, page titles, and Settings
+// screen. Dynamically generated content (toasts, wizard steps, table
+// content, etc.) still shows in French for now — a natural next
+// increment is expanding TRANSLATIONS and tagging more of the DOM with
+// data-i18n, following the same pattern as everything already here.
+// ============================================================
+var TRANSLATIONS = {
+  fr: {
+    nav_dashboard: 'Tableau de bord',
+    nav_giveaways: 'Mes tirages',
+    nav_participants: 'Participants',
+    nav_winners: 'Gagnants',
+    title_giveaways: 'Mes tirages',
+    subtitle_giveaways: 'Tous les giveaways que tu as créés.',
+    title_participants: 'Participants',
+    subtitle_participants: 'Toutes les personnes inscrites à tes tirages.',
+    title_winners: 'Gagnants',
+    subtitle_winners: "L'historique complet de tous tes tirages.",
+    title_settings: 'Paramètres',
+    title_profile: 'Mon profil',
+    back: '← Retour',
+    settings_language: 'Langue',
+    settings_language_label: "Langue de l'application",
+    settings_appearance: 'Apparence',
+    settings_theme: 'Thème',
+    theme_light: '☀️ Clair',
+    theme_dark: '🌙 Sombre',
+    settings_account: 'Compte',
+    settings_account_desc: 'Gère ton nom et ta sécurité depuis ton profil.',
+    settings_account_btn: 'Aller à mon profil',
+    settings_connected: 'Comptes connectés',
+    settings_ig_desc: "Connecte ton compte Instagram Business pour pouvoir importer les commentaires de tes posts lors des tirages.",
+    settings_ig_connect: 'Connecter Instagram',
+    draw_launch: 'Lancer le tirage'
+  },
+  en: {
+    nav_dashboard: 'Dashboard',
+    nav_giveaways: 'My giveaways',
+    nav_participants: 'Participants',
+    nav_winners: 'Winners',
+    title_giveaways: 'My giveaways',
+    subtitle_giveaways: 'All the giveaways you\'ve created.',
+    title_participants: 'Participants',
+    subtitle_participants: 'Everyone entered into your giveaways.',
+    title_winners: 'Winners',
+    subtitle_winners: 'The full history of all your draws.',
+    title_settings: 'Settings',
+    title_profile: 'My profile',
+    back: '← Back',
+    settings_language: 'Language',
+    settings_language_label: 'App language',
+    settings_appearance: 'Appearance',
+    settings_theme: 'Theme',
+    theme_light: '☀️ Light',
+    theme_dark: '🌙 Dark',
+    settings_account: 'Account',
+    settings_account_desc: 'Manage your name and security from your profile.',
+    settings_account_btn: 'Go to my profile',
+    settings_connected: 'Connected accounts',
+    settings_ig_desc: 'Connect your Instagram Business account to import comments from your posts for draws.',
+    settings_ig_connect: 'Connect Instagram',
+    draw_launch: 'Start the draw'
+  }
+};
+
+function applyLanguage(lang) {
+  var dict = TRANSLATIONS[lang] || TRANSLATIONS.fr;
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n');
+    if (dict[key]) el.textContent = dict[key];
+  });
+  var select = document.getElementById('languageSelect');
+  if (select) select.value = lang;
+}
+
+function setLanguage(lang) {
+  if (!TRANSLATIONS[lang]) lang = 'fr';
+  try { localStorage.setItem('repickwinn-lang', lang); } catch (e) { /* ignore */ }
+  applyLanguage(lang);
+}
+
+function initLanguage() {
+  var saved = 'fr';
+  try { saved = localStorage.getItem('repickwinn-lang') || 'fr'; } catch (e) { /* ignore */ }
+  applyLanguage(saved);
+}
+
+// ============================================================
 // NOTIFICATIONS (derived from recent activity — no separate backend)
 // ============================================================
+
+// Read state is tracked client-side (there's no dedicated column for it
+// in draw_results), keyed by each notification's draw_results id.
+var readNotifIds = [];
+try {
+  var savedReadNotifs = localStorage.getItem('repickwinn-read-notifs');
+  if (savedReadNotifs) readNotifIds = JSON.parse(savedReadNotifs);
+} catch (e) { /* storage unavailable or corrupt — start fresh */ }
+
+function saveReadNotifIds() {
+  try {
+    // Cap the stored list so it doesn't grow forever across many sessions.
+    var trimmed = readNotifIds.slice(-200);
+    localStorage.setItem('repickwinn-read-notifs', JSON.stringify(trimmed));
+  } catch (e) { /* ignore */ }
+}
+
+function markNotificationRead(id) {
+  if (readNotifIds.indexOf(id) === -1) {
+    readNotifIds.push(id);
+    saveReadNotifIds();
+    renderNotifications();
+  }
+}
+
+function markAllNotificationsRead() {
+  currentHistory.slice(0, 5).forEach(function(h) {
+    if (readNotifIds.indexOf(h.id) === -1) readNotifIds.push(h.id);
+  });
+  saveReadNotifIds();
+  renderNotifications();
+}
+
 function renderNotifications() {
   var list = document.getElementById('notifList');
   var emptyEl = document.getElementById('notifEmpty');
   var badge = document.getElementById('notifBadge');
+  var markAllBtn = document.getElementById('notifMarkAllBtn');
 
   var recentWinners = currentHistory.slice(0, 5);
 
@@ -2497,25 +3672,39 @@ function renderNotifications() {
     list.innerHTML = '';
     emptyEl.style.display = 'block';
     badge.style.display = 'none';
+    markAllBtn.style.display = 'none';
     return;
   }
 
+  var unreadCount = recentWinners.filter(function(h) { return readNotifIds.indexOf(h.id) === -1; }).length;
+
   emptyEl.style.display = 'none';
-  badge.style.display = 'block';
+  if (unreadCount > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+  } else {
+    badge.style.display = 'none';
+  }
+  markAllBtn.style.display = unreadCount > 0 ? 'inline' : 'none';
+
   list.innerHTML = '';
   recentWinners.forEach(function(h) {
+    var isUnread = readNotifIds.indexOf(h.id) === -1;
     var item = document.createElement('div');
-    item.className = 'notif-item';
+    item.className = 'notif-item' + (isUnread ? ' notif-item-unread' : '');
+    item.onclick = function() { markNotificationRead(h.id); };
     var date = new Date(h.created_at).toLocaleDateString('fr-FR');
     item.innerHTML =
       '<span class="notif-item-icon">🏆</span>' +
       '<div><div class="notif-item-text">@' + escapeHtml(h.winner_name) + ' a été désigné gagnant</div>' +
-      '<div class="notif-item-date">' + date + '</div></div>';
+      '<div class="notif-item-date">' + date + '</div></div>' +
+      (isUnread ? '<span class="notif-item-dot" title="Non lu"></span>' : '');
     list.appendChild(item);
   });
 }
 
-var MODE_LABELS = { wheel: 'Roue', instant: 'Instantané', slot: 'Machine' };
+var MODE_LABELS = { wheel: 'Roue', instant: 'Instantané', slot: 'Machine', duck: 'Course', plinko: 'Plinko', marble: 'Course de billes' };
+var MODE_ICONS = { wheel: '🎡', instant: '⚡', slot: '🎰', duck: '🦆', plinko: '🔴', marble: '🔵' };
 
 function escapeHtml(str) {
   var div = document.createElement('div');
@@ -2548,7 +3737,7 @@ function startWizard() {
 }
 
 function exitWizard() {
-  showScreen('dashboardScreen');
+  goBackToMainScreen();
 }
 
 function goToWizardStep(step) {
@@ -2578,9 +3767,9 @@ function wizardNext(fromStep) {
   if (fromStep === 2) {
     var raw = document.getElementById('wizardRawText').value;
     if (raw.trim()) {
-      wizardData.participants = parseRawInput(raw).map(function(line) {
+      setWizardParticipants(parseRawInput(raw).map(function(line) {
         return { name: extractNameFromLine(line), raw: line, mentions: countMentions(line) };
-      });
+      }));
     }
     if (wizardData.participants.length === 0) {
       showToast('Ajoute au moins un participant', 'error');
@@ -2606,9 +3795,12 @@ function wizardSwitchTab(tab) {
   document.getElementById('wizTabPaste').classList.toggle('active', tab === 'paste');
   document.getElementById('wizTabCsv').classList.toggle('active', tab === 'csv');
   document.getElementById('wizTabYoutube').classList.toggle('active', tab === 'youtube');
+  document.getElementById('wizTabInstagram').classList.toggle('active', tab === 'instagram');
   document.getElementById('wizPastePanel').style.display = tab === 'paste' ? 'block' : 'none';
   document.getElementById('wizCsvPanel').style.display = tab === 'csv' ? 'block' : 'none';
   document.getElementById('wizYoutubePanel').style.display = tab === 'youtube' ? 'block' : 'none';
+  document.getElementById('wizInstagramPanel').style.display = tab === 'instagram' ? 'block' : 'none';
+  if (tab === 'instagram') renderInstagramWizardState();
 }
 
 function handleWizardImageSelect(evt) {
@@ -2732,11 +3924,11 @@ function handleWizardCsvChange(evt) {
   reader.onload = function(e) {
     var text = String(e.target.result || '');
     var lines = parseCsvLines(text);
-    wizardData.participants = lines.map(function(line) {
+    setWizardParticipants(lines.map(function(line) {
       var cols = line.split(',');
       var name = cols[0].replace(/"/g, '').trim().replace(/^@/, '');
       return { name: name, raw: line, mentions: countMentions(line) };
-    });
+    }));
     document.getElementById('wizardParticipantPreview').textContent = wizardData.participants.length + ' participants importés du CSV';
   };
   reader.readAsText(file);
@@ -2774,6 +3966,13 @@ function setYoutubeFetchStatus(message, isError) {
   el.style.display = message ? 'block' : 'none';
 }
 
+function setYoutubeLoading(isLoading, loadingText) {
+  var loadingBlock = document.getElementById('youtubeLoadingState');
+  var loadingTextEl = document.getElementById('youtubeLoadingText');
+  loadingBlock.style.display = isLoading ? 'block' : 'none';
+  if (isLoading && loadingText) loadingTextEl.textContent = loadingText;
+}
+
 async function fetchYoutubeComments() {
   var urlInput = document.getElementById('wizardYoutubeUrl').value;
   var keyword = document.getElementById('wizardYoutubeKeyword').value.trim().toLowerCase();
@@ -2786,7 +3985,8 @@ async function fetchYoutubeComments() {
   }
 
   setBtnLoading(btn, true);
-  setYoutubeFetchStatus('Vérification de la vidéo…', false);
+  setYoutubeFetchStatus('', false);
+  setYoutubeLoading(true, 'Connexion à YouTube…');
 
   try {
     // Step 1: check whether this video is an active livestream — that
@@ -2807,16 +4007,20 @@ async function fetchYoutubeComments() {
 
     var rawEntries;
     if (liveChatId) {
-      setYoutubeFetchStatus('Live détecté — lecture du tchat en direct…', false);
+      setYoutubeLoading(true, 'Live détecté — lecture du tchat en direct…');
       rawEntries = await fetchYoutubeLiveChat(liveChatId);
     } else {
-      setYoutubeFetchStatus('Récupération des commentaires…', false);
+      setYoutubeLoading(true, 'Récupération des commentaires…');
       rawEntries = await fetchYoutubeVideoComments(videoId);
     }
+
+    setYoutubeLoading(true, 'Mise en forme des participants…');
 
     if (keyword) {
       rawEntries = rawEntries.filter(function(e) { return e.raw.toLowerCase().indexOf(keyword) !== -1; });
     }
+
+    setYoutubeLoading(false);
 
     if (rawEntries.length === 0) {
       setYoutubeFetchStatus('Aucun commentaire trouvé' + (keyword ? ' avec ce mot-clé' : ''), true);
@@ -2824,12 +4028,13 @@ async function fetchYoutubeComments() {
       return;
     }
 
-    wizardData.participants = rawEntries;
+    setWizardParticipants(rawEntries);
     setYoutubeFetchStatus('✓ ' + rawEntries.length + ' participant(s) importé(s)', false);
     document.getElementById('wizardYoutubeStatus').style.color = 'var(--green)';
     showToast(rawEntries.length + ' participants importés depuis YouTube', 'success');
   } catch (err) {
     console.error('YouTube fetch error:', err);
+    setYoutubeLoading(false);
     setYoutubeFetchStatus('Erreur : ' + err.message, true);
     showToast('Erreur YouTube : ' + err.message, 'error');
   } finally {
@@ -2890,10 +4095,310 @@ async function fetchYoutubeLiveChat(liveChatId) {
   return entries;
 }
 
+// ============================================================
+// INSTAGRAM AUTO-IMPORT
+// Unlike YouTube, Instagram's Graph API doesn't allow reading comments on
+// arbitrary public posts with a simple API key — it requires OAuth: the
+// giveaway organizer connects their own Instagram Business account once
+// (from Settings), and comments can then only be read on posts published
+// by that same connected account.
+// ============================================================
+
+// ----- Connection (OAuth) -----
+
+function connectInstagramAccount() {
+  var authUrl = 'https://www.instagram.com/oauth/authorize' +
+    '?client_id=' + INSTAGRAM_APP_ID +
+    '&redirect_uri=' + encodeURIComponent(INSTAGRAM_REDIRECT_URI) +
+    '&response_type=code' +
+    '&scope=instagram_business_basic,instagram_business_manage_comments';
+  // repickwinn-last-screen already tracks where the user was (see showScreen),
+  // so onAuthSuccess naturally brings them back there after the OAuth
+  // round-trip through Instagram's own domain re-loads the app fresh.
+  window.location.href = authUrl;
+}
+
+async function disconnectInstagramAccount() {
+  if (!currentUser) return;
+  var { error } = await supabaseClient.from('instagram_accounts').delete().eq('user_id', currentUser.id);
+  if (error) {
+    showToast('Erreur lors de la déconnexion : ' + error.message, 'error');
+    return;
+  }
+  instagramAccount = null;
+  renderInstagramSettingsState();
+  renderInstagramWizardState();
+  showToast('Compte Instagram déconnecté', 'success');
+}
+
+// Called once at startup: if the URL contains ?code=... we just came back
+// from Instagram's consent screen, so exchange it for a token via the
+// Edge Function (which alone holds the App Secret) and clean the URL.
+async function handleInstagramOAuthRedirect() {
+  var params = new URLSearchParams(window.location.search);
+  var code = params.get('code');
+  var oauthError = params.get('error') || params.get('error_reason');
+  var oauthErrorDesc = params.get('error_description');
+
+  if (!code && !oauthError) return; // no Instagram redirect params — nothing to do
+
+  // Strip the OAuth params from the URL right away so a page refresh
+  // doesn't try to redeem the same code (or re-show the same error) twice.
+  // Preserves the current screen state rather than wiping it, so the
+  // back-button history stays intact through the OAuth round-trip.
+  var cleanUrl = window.location.origin + window.location.pathname;
+  window.history.replaceState({ screenId: currentActiveScreen || 'dashboardScreen' }, document.title, cleanUrl);
+
+  if (oauthError) {
+    // Instagram itself refused/cancelled the connection — most commonly
+    // because the app is still in Development mode and this Instagram
+    // account hasn't been added as a tester yet. Surface that clearly
+    // instead of silently doing nothing.
+    console.error('Instagram OAuth error param:', oauthError, oauthErrorDesc);
+    showToast('Instagram a refusé la connexion : ' + (oauthErrorDesc || oauthError) + '. Vérifie que ton compte est bien ajouté comme testeur dans l\'app Meta.', 'error');
+    return;
+  }
+
+  showToast('Connexion à Instagram en cours…', 'success');
+  try {
+    var { data: sessionData } = await supabaseClient.auth.getSession();
+    var accessToken = sessionData && sessionData.session && sessionData.session.access_token;
+    if (!accessToken) {
+      throw new Error('Ta session a expiré — reconnecte-toi puis réessaie de connecter Instagram');
+    }
+    var resp = await fetch(SUPABASE_URL + '/functions/v1/instagram-oauth-exchange', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + accessToken,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ code: code })
+    });
+    var result;
+    try {
+      result = await resp.json();
+    } catch (parseErr) {
+      // Most likely the Edge Function isn't deployed yet (404/HTML error
+      // page instead of JSON) — give a specific, actionable message.
+      throw new Error('Réponse invalide du serveur — vérifie que la fonction instagram-oauth-exchange est bien déployée sur Supabase');
+    }
+    if (!resp.ok || result.error) {
+      throw new Error((result && (result.error || (result.details && JSON.stringify(result.details)))) || 'Échec de la connexion Instagram');
+    }
+    showToast('Instagram connecté : @' + result.username, 'success');
+    await loadInstagramAccountStatus();
+  } catch (err) {
+    console.error('Instagram OAuth error:', err);
+    showToast('Erreur de connexion Instagram : ' + err.message, 'error');
+  }
+}
+
+// Loads (or refreshes from cache) whether the current user has a
+// connected Instagram account, and updates both places it's shown:
+// the Settings screen and the participants-import wizard.
+async function loadInstagramAccountStatus() {
+  if (!currentUser) return;
+  var { data, error } = await supabaseClient
+    .from('instagram_accounts')
+    .select('ig_username, access_token, token_expires_at')
+    .eq('user_id', currentUser.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Instagram account fetch error:', error);
+    return;
+  }
+  instagramAccount = data || null;
+  renderInstagramSettingsState();
+  renderInstagramWizardState();
+}
+
+function renderInstagramSettingsState() {
+  var notConnectedEl = document.getElementById('settingsInstagramNotConnected');
+  var connectedEl = document.getElementById('settingsInstagramConnected');
+  if (!notConnectedEl || !connectedEl) return; // settings screen not in DOM yet
+  if (instagramAccount) {
+    notConnectedEl.style.display = 'none';
+    connectedEl.style.display = 'block';
+    document.getElementById('settingsInstagramUsername').textContent = '@' + instagramAccount.ig_username;
+  } else {
+    notConnectedEl.style.display = 'block';
+    connectedEl.style.display = 'none';
+  }
+}
+
+function renderInstagramWizardState() {
+  var notConnectedEl = document.getElementById('wizInstagramNotConnected');
+  var connectedEl = document.getElementById('wizInstagramConnected');
+  if (!notConnectedEl || !connectedEl) return;
+  if (instagramAccount) {
+    notConnectedEl.style.display = 'none';
+    connectedEl.style.display = 'block';
+    document.getElementById('wizInstagramUsername').textContent = '@' + instagramAccount.ig_username;
+  } else {
+    notConnectedEl.style.display = 'block';
+    connectedEl.style.display = 'none';
+  }
+}
+
+// Long-lived Instagram tokens last ~60 days. Refreshing them only needs
+// the token itself (not the App Secret), so this can safely run
+// client-side. Called lazily, right before a fetch, if expiry is close.
+async function ensureFreshInstagramToken() {
+  if (!instagramAccount) return null;
+  var expiresAt = new Date(instagramAccount.token_expires_at).getTime();
+  var fiveDaysMs = 5 * 24 * 60 * 60 * 1000;
+  if (expiresAt - Date.now() > fiveDaysMs) return instagramAccount.access_token;
+
+  var refreshUrl = 'https://graph.instagram.com/refresh_access_token' +
+    '?grant_type=ig_refresh_token&access_token=' + encodeURIComponent(instagramAccount.access_token);
+  var resp = await fetch(refreshUrl);
+  var data = await resp.json();
+  if (!resp.ok || !data.access_token) {
+    throw new Error('Le token Instagram a expiré — reconnecte ton compte dans les Paramètres');
+  }
+  var newExpiresAt = new Date(Date.now() + (data.expires_in || 5184000) * 1000).toISOString();
+  await supabaseClient.from('instagram_accounts').update({
+    access_token: data.access_token,
+    token_expires_at: newExpiresAt,
+    updated_at: new Date().toISOString()
+  }).eq('user_id', currentUser.id);
+  instagramAccount.access_token = data.access_token;
+  instagramAccount.token_expires_at = newExpiresAt;
+  return data.access_token;
+}
+
+// ----- Comment import -----
+
+function extractInstagramShortcode(url) {
+  if (!url) return null;
+  var m = url.trim().match(/instagram\.com\/(?:p|reel|tv)\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+function setInstagramFetchStatus(message, isError) {
+  var el = document.getElementById('wizardInstagramStatus');
+  el.textContent = message;
+  el.style.color = isError ? 'var(--red)' : 'var(--muted)';
+  el.style.display = message ? 'block' : 'none';
+}
+
+function setInstagramLoading(isLoading, loadingText) {
+  var loadingBlock = document.getElementById('instagramLoadingState');
+  var loadingTextEl = document.getElementById('instagramLoadingText');
+  loadingBlock.style.display = isLoading ? 'block' : 'none';
+  if (isLoading && loadingText) loadingTextEl.textContent = loadingText;
+}
+
+async function fetchInstagramComments() {
+  var urlInput = document.getElementById('wizardInstagramUrl').value;
+  var keyword = document.getElementById('wizardInstagramKeyword').value.trim().toLowerCase();
+  var shortcode = extractInstagramShortcode(urlInput);
+  var btn = document.getElementById('wizardInstagramFetchBtn');
+
+  if (!shortcode) {
+    showToast('Lien Instagram invalide — colle l\'URL complète du post ou du reel', 'error');
+    return;
+  }
+  if (!instagramAccount) {
+    showToast('Connecte d\'abord ton compte Instagram', 'error');
+    return;
+  }
+
+  setBtnLoading(btn, true);
+  setInstagramFetchStatus('', false);
+  setInstagramLoading(true, 'Connexion à Instagram…');
+
+  try {
+    var token = await ensureFreshInstagramToken();
+
+    setInstagramLoading(true, 'Recherche du post…');
+    var mediaId = await findInstagramMediaByShortcode(shortcode, token);
+    if (!mediaId) {
+      throw new Error('Post introuvable sur le compte connecté — vérifie que c\'est bien un post de @' + instagramAccount.ig_username);
+    }
+
+    setInstagramLoading(true, 'Récupération des commentaires…');
+    var rawEntries = await fetchInstagramMediaComments(mediaId, token);
+
+    setInstagramLoading(true, 'Mise en forme des participants…');
+    if (keyword) {
+      rawEntries = rawEntries.filter(function(e) { return e.raw.toLowerCase().indexOf(keyword) !== -1; });
+    }
+
+    setInstagramLoading(false);
+
+    if (rawEntries.length === 0) {
+      setInstagramFetchStatus('Aucun commentaire trouvé' + (keyword ? ' avec ce mot-clé' : ''), true);
+      setBtnLoading(btn, false);
+      return;
+    }
+
+    setWizardParticipants(rawEntries);
+    setInstagramFetchStatus('✓ ' + rawEntries.length + ' participant(s) importé(s)', false);
+    document.getElementById('wizardInstagramStatus').style.color = 'var(--green)';
+    showToast(rawEntries.length + ' participants importés depuis Instagram', 'success');
+  } catch (err) {
+    console.error('Instagram fetch error:', err);
+    setInstagramLoading(false);
+    setInstagramFetchStatus('Erreur : ' + err.message, true);
+    showToast('Erreur Instagram : ' + err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+// The Graph API can't look media up directly by shortcode/URL, so we
+// page through the connected account's own media and match by permalink.
+async function findInstagramMediaByShortcode(shortcode, token) {
+  var url = 'https://graph.instagram.com/me/media?fields=id,permalink&limit=50&access_token=' + encodeURIComponent(token);
+  var maxPages = 20; // up to 1000 recent posts
+
+  for (var page = 0; page < maxPages; page++) {
+    var resp = await fetch(url);
+    var data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'Erreur API Instagram');
+
+    var match = (data.data || []).find(function(item) {
+      return item.permalink && item.permalink.indexOf('/' + shortcode + '/') !== -1;
+    });
+    if (match) return match.id;
+
+    if (!data.paging || !data.paging.next) break;
+    url = data.paging.next;
+  }
+  return null;
+}
+
+async function fetchInstagramMediaComments(mediaId, token) {
+  var entries = [];
+  var url = 'https://graph.instagram.com/' + mediaId + '/comments?fields=text,username,timestamp&limit=100&access_token=' + encodeURIComponent(token);
+  var maxPages = 20; // up to ~2000 comments
+
+  for (var page = 0; page < maxPages; page++) {
+    var resp = await fetch(url);
+    var data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'Erreur API Instagram');
+
+    (data.data || []).forEach(function(item) {
+      var name = item.username || '';
+      if (!name) return;
+      var text = item.text || '';
+      entries.push({ name: name, raw: text, mentions: countMentions(text) });
+    });
+
+    if (!data.paging || !data.paging.next) break;
+    url = data.paging.next;
+  }
+  return entries;
+}
+
 function wizardSetMode(mode) {
   wizardData.mode = mode;
-  ['Wheel', 'Instant', 'Slot'].forEach(function(m) {
-    document.getElementById('wizMode' + m).classList.toggle('active', m.toLowerCase() === mode);
+  ['Wheel', 'Instant', 'Slot', 'Duck', 'Plinko', 'Marble'].forEach(function(m) {
+    var el = document.getElementById('wizMode' + m);
+    if (el) el.classList.toggle('active', m.toLowerCase() === mode);
   });
 }
 
@@ -3046,16 +4551,28 @@ async function openGiveaway(giveawayId, prefetched) {
   spinBtn.style.background = currentDrawAccentColor;
   spinBtn.style.boxShadow = '0 4px 16px ' + currentDrawAccentColor + '52';
 
-  ['Wheel', 'Instant', 'Slot'].forEach(function(m) {
+  ['Wheel', 'Instant', 'Slot', 'Duck', 'Plinko', 'Marble'].forEach(function(m) {
     document.getElementById('drawStage' + m).style.display = m.toLowerCase() === drawMode ? 'block' : 'none';
   });
+
+  var modeIconEl = document.getElementById('drawModeIcon');
+  var modeNameEl = document.getElementById('drawModeName');
+  if (modeIconEl) modeIconEl.textContent = MODE_ICONS[drawMode] || '🎡';
+  if (modeNameEl) modeNameEl.textContent = MODE_LABELS[drawMode] || '';
+
+  // Show the screen BEFORE any mode-specific setup that measures its own
+  // size (duck race canvas): while drawScreen is display:none, any
+  // container it's inside reports 0 width/height, which was the root
+  // cause of the duck race rendering blank.
+  showScreen('drawScreen');
 
   renderDrawStats();
   if (drawMode === 'wheel') drawWheel(0, null, getDrawFilteredEntries());
   if (drawMode === 'slot') setupSlotStage(getDrawFilteredEntries());
   if (drawMode === 'instant') resetInstantStage();
-
-  showScreen('drawScreen');
+  if (drawMode === 'duck') setupDuckRace(getDrawFilteredEntries());
+  if (drawMode === 'plinko') setupPlinkoStage(getDrawFilteredEntries());
+  if (drawMode === 'marble') setupMarbleStage(getDrawFilteredEntries());
 }
 
 function getDrawFilteredEntries() {
@@ -3127,6 +4644,21 @@ function looksLikeUsername(line) {
   // reasonable length, optionally prefixed with @.
   var trimmed = line.trim();
   return /^@?[a-zA-Z0-9._-]{2,30}$/.test(trimmed);
+}
+
+// Anti-abuse guardrail: caps how many participants a single import can
+// add. Applied uniformly wherever wizardData.participants is set, so no
+// import path (paste, CSV, YouTube, Instagram) can bypass it — protects
+// both the browser (rendering/animating tens of thousands of entries)
+// and the database from an accidental or intentional oversized import.
+var MAX_PARTICIPANTS_PER_IMPORT = 10000;
+
+function setWizardParticipants(list) {
+  if (list.length > MAX_PARTICIPANTS_PER_IMPORT) {
+    showToast('Import limité à ' + MAX_PARTICIPANTS_PER_IMPORT.toLocaleString('fr-FR') + ' participants — les suivants ont été ignorés.', 'error');
+    list = list.slice(0, MAX_PARTICIPANTS_PER_IMPORT);
+  }
+  wizardData.participants = list;
 }
 
 function parseRawInput(raw) {
@@ -3297,10 +4829,28 @@ function drawWheel(currentRotation, highlightIndex, list) {
 
   ctx.restore();
 
+  // A subtle metallic rim ring around the whole wheel — the small
+  // finishing touch that was missing.
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius + 4, 0, Math.PI * 2);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(15,17,23,0.12)';
+  ctx.stroke();
+
   ctx.beginPath();
   ctx.arc(cx, cy, 24, 0, Math.PI * 2);
   ctx.fillStyle = '#16181D';
   ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.stroke();
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '700 10px -apple-system, sans-serif';
   ctx.textAlign = 'center';
@@ -3390,7 +4940,7 @@ function spinInstantMode(pool, winnerIndex, durationSeconds, onDone) {
 // ============================================================
 // SLOT MACHINE MODE — 3 independent reels, staggered stops
 // ============================================================
-var SLOT_ITEM_HEIGHT = 68;
+var SLOT_ITEM_HEIGHT = 112;
 var SLOT_REEL_IDS = ['slotStrip0', 'slotStrip1', 'slotStrip2'];
 
 function setupSlotStage(list) {
@@ -3642,6 +5192,13 @@ function runDraw() {
   var pool = getDrawFilteredEntries();
   if (pool.length === 0 || isSpinning) return;
 
+  // Unlock audio playback synchronously, right inside this tap handler —
+  // see the comment on unlockDuckAudio() for why this has to happen here
+  // and not later inside the race animation.
+  if (drawMode === 'duck') unlockDuckAudio();
+  if (drawMode === 'plinko') unlockPlinkoAudio();
+  if (drawMode === 'marble') unlockMarbleAudio();
+
   var totalWinnersWanted = Math.min((activeGiveaway && activeGiveaway.winner_count) || 1, pool.length);
   runDrawRound(pool, 1, totalWinnersWanted);
 }
@@ -3688,6 +5245,8 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
       draw_mode: drawMode
     });
 
+    notifyWinnerByEmail(winner.name, activeGiveaway.title, drawMode, remainingPool.length);
+
     var nextPool = remainingPool.filter(function(_, i) { return i !== winnerIndex; });
 
     if (roundNumber < totalWinnersWanted && nextPool.length > 0) {
@@ -3706,6 +5265,9 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
   if (drawMode === 'wheel') spinWheelMode(remainingPool, winnerIndex, durationSeconds, onDone);
   else if (drawMode === 'instant') spinInstantMode(remainingPool, winnerIndex, durationSeconds, onDone);
   else if (drawMode === 'slot') spinSlotMode(remainingPool, winnerIndex, durationSeconds, onDone);
+  else if (drawMode === 'duck') spinDuckMode(remainingPool, winnerIndex, durationSeconds, onDone);
+  else if (drawMode === 'plinko') spinPlinkoMode(remainingPool, winnerIndex, durationSeconds, onDone);
+  else if (drawMode === 'marble') spinMarbleMode(remainingPool, winnerIndex, durationSeconds, onDone);
 }
 
 function showWinner(w, roundNumber, totalWinnersWanted) {
@@ -3719,6 +5281,836 @@ function showWinner(w, roundNumber, totalWinnersWanted) {
   }
 
   document.getElementById('winnerTicket').style.display = 'flex';
+}
+
+// ============================================================
+// DUCK RACE MODE — full canvas rendering (sky, water, illustrated
+// ducks with body/wing/beak/eye/feet, checkered finish line).
+// The canvas is sized right when the stage is actually visible
+// (see openGiveaway, which shows the screen first) — sizing it
+// while hidden is what caused the blank-canvas bug, since a
+// display:none ancestor makes offsetWidth/clientWidth report 0.
+// ============================================================
+var duckPositions = [];      // current 0–100 progress of each duck along the track
+var duckPool = [];           // participants in the current race
+var duckProfiles = [];       // per-duck { color, accessory, pattern } — see pickDuckProfile()
+var duckSplashes = [];       // active water-splash particles, redrawn every frame
+var duckAnimId = null;       // requestAnimationFrame handle
+var duckCtx = null;
+var duckCanvasW = 0;
+var duckCanvasH = 0;
+// MAX_DUCKS caps how many ducks race at once (see selectDuckRacers).
+// MAX_DUCKS_SMALL is the point below which each duck still gets its own
+// full-width lane; above it, ducks share a multi-row "swarm" layout
+// (see laneLayoutFor) so a 100-participant race stays watchable.
+var MAX_DUCKS_SMALL = 12;
+var MAX_DUCKS = 100;
+
+var DUCK_QUACK_SOUND = 'data:audio/wav;base64,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';
+
+var DUCK_COLORS = ['#FFC845', '#FF7A5C', '#5FD068', '#4FA8E8', '#B980F0', '#FF6FA5', '#3FD9C7', '#F2A65A'];
+
+// Original, non-branded "personality" system for the ducks: an accessory
+// plus a body pattern, combined with the 8 base colors. 8 × 9 × 2 = 144
+// distinct looks, deterministically picked from each participant's name
+// so the same person tends to get the same duck across draws.
+var DUCK_ACCESSORIES = ['none', 'sunglasses', 'bandana', 'bowtie', 'cap', 'crest', 'flower', 'headphones', 'monocle'];
+var DUCK_PATTERNS = ['solid', 'spots'];
+
+function hashString(str) {
+  var h = 0;
+  for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function pickDuckProfile(name) {
+  var h = hashString(name || 'duck');
+  return {
+    color: DUCK_COLORS[h % DUCK_COLORS.length],
+    accessory: DUCK_ACCESSORIES[Math.floor(h / 8) % DUCK_ACCESSORIES.length],
+    pattern: DUCK_PATTERNS[Math.floor(h / 71) % DUCK_PATTERNS.length]
+  };
+}
+
+var duckSoundEnabled = true;
+try {
+  var __savedDuckSound = localStorage.getItem('repickwinn-duck-sound');
+  if (__savedDuckSound !== null) duckSoundEnabled = __savedDuckSound === '1';
+} catch (e) { /* storage unavailable, keep default */ }
+
+// A single, reused <audio> element. Mobile browsers (Safari/iOS in
+// particular) only allow .play() reliably when it happens synchronously
+// inside a real user-gesture handler — a quack fired 3 seconds into a
+// requestAnimationFrame loop does NOT count as one and gets silently
+// blocked. The fix: "unlock" this one element with a play() call made
+// directly inside the tap handler (unlockDuckAudio, called from
+// runDraw/toggleDuckSound), then reuse that same unlocked element for
+// every later quack — restarting it doesn't need a fresh gesture.
+var duckQuackAudioEl = null;
+
+function getDuckQuackAudioEl() {
+  if (!duckQuackAudioEl) {
+    duckQuackAudioEl = new Audio(DUCK_QUACK_SOUND);
+    duckQuackAudioEl.preload = 'auto';
+  }
+  return duckQuackAudioEl;
+}
+
+function unlockDuckAudio() {
+  try {
+    var el = getDuckQuackAudioEl();
+    var p = el.play();
+    if (p && p.catch) p.catch(function() { /* still blocked — fine, next real tap will unlock it */ });
+    el.pause();
+    el.currentTime = 0;
+  } catch (e) { /* ignore — playDuckQuack will just stay silent */ }
+}
+
+function toggleDuckSound() {
+  duckSoundEnabled = !duckSoundEnabled;
+  try { localStorage.setItem('repickwinn-duck-sound', duckSoundEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
+  var btn = document.getElementById('duckSoundToggle');
+  if (btn) btn.textContent = duckSoundEnabled ? '🔊' : '🔇';
+  if (duckSoundEnabled) unlockDuckAudio(); // this tap is itself a valid gesture — use it
+}
+
+function duckShadeColor(hex, amount) {
+  var num = parseInt(hex.slice(1), 16);
+  var r = Math.max(0, Math.min(255, (num >> 16) + amount));
+  var g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + amount));
+  var b = Math.max(0, Math.min(255, (num & 0xff) + amount));
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+// Sizes the canvas for crisp rendering at the device's actual pixel
+// density, using the visible container width. Falls back to the
+// viewport width if the container still measures 0 for any reason
+// (belt-and-braces on top of the openGiveaway ordering fix above).
+function initDuckCanvas(pool) {
+  var canvas = document.getElementById('duckCanvas');
+  if (!canvas) return null;
+
+  var container = canvas.parentElement;
+  var displayWidth = (container && container.clientWidth) || 0;
+  if (!displayWidth) displayWidth = Math.max(280, window.innerWidth - 40);
+
+  var duckCount = Math.max(1, Math.min(pool.length, MAX_DUCKS));
+  var laneHeight = duckCount <= 3 ? 92 : duckCount <= 5 ? 76 : duckCount <= 6 ? 64 : 54;
+  var displayHeight = Math.min(560, Math.max(300, duckCount * laneHeight + 90));
+
+  var dpr = window.devicePixelRatio || 1;
+  canvas.style.width = displayWidth + 'px';
+  canvas.style.height = displayHeight + 'px';
+  canvas.width = Math.round(displayWidth * dpr);
+  canvas.height = Math.round(displayHeight * dpr);
+
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS-pixel coordinates from here on
+
+  duckCtx = ctx;
+  duckCanvasW = displayWidth;
+  duckCanvasH = displayHeight;
+  return ctx;
+}
+
+// MAX_DUCKS caps how many ducks race at once. Below the small-race
+// threshold each participant gets their own lane; above it, ducks are
+// packed into a shared multi-row "swarm" (see laneLayoutFor) so a race
+// with 100 participants is still watchable.
+function setupDuckRace(pool) {
+  duckPool = pool.slice(0, MAX_DUCKS);
+  duckPositions = duckPool.map(function() { return 0; });
+  duckProfiles = duckPool.map(function(p) { return pickDuckProfile(p.name); });
+
+  var soundBtn = document.getElementById('duckSoundToggle');
+  if (soundBtn) soundBtn.textContent = duckSoundEnabled ? '🔊' : '🔇';
+
+  var ctx = initDuckCanvas(duckPool);
+  if (!ctx) return; // canvas not in the DOM yet — spinDuckMode will retry
+  drawDuckScene(0, null);
+}
+
+// Builds the set of ducks that actually race, GUARANTEEING the real
+// winner is always included and correctly indexed — the previous
+// version sliced the pool to the first MAX_DUCKS entries regardless of
+// where the winner fell, so with >8 participants the declared winner
+// could be someone not even shown racing. That's fixed here: the winner
+// is always present, at a random position among the pack.
+function selectDuckRacers(pool, winnerIndex) {
+  var winnerEntry = pool[winnerIndex];
+  if (pool.length <= MAX_DUCKS) {
+    return { racePool: pool.slice(), winnerIndex: winnerIndex };
+  }
+  var others = pool.filter(function(_, i) { return i !== winnerIndex; });
+  for (var i = others.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = others[i]; others[i] = others[j]; others[j] = tmp;
+  }
+  var racePool = others.slice(0, MAX_DUCKS - 1);
+  var insertAt = Math.floor(Math.random() * (racePool.length + 1));
+  racePool.splice(insertAt, 0, winnerEntry);
+  return { racePool: racePool, winnerIndex: insertAt };
+}
+
+function spinDuckMode(pool, winnerIndex, durationSeconds, onDone) {
+  var selection = selectDuckRacers(pool, winnerIndex);
+  duckPool = selection.racePool;
+  var actualWinnerIndex = selection.winnerIndex;
+  var duckCount = duckPool.length;
+  duckPositions = duckPool.map(function() { return 0; });
+  duckProfiles = duckPool.map(function(p) { return pickDuckProfile(p.name); });
+  duckSplashes = [];
+
+  var ctx = initDuckCanvas(duckPool);
+  if (!ctx) { onDone(); return; }
+
+  drawDuckScene(0, null); // static line-up while the countdown plays
+
+  runDuckCountdown(function() {
+    startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, onDone);
+  });
+}
+
+// "3… 2… 1… C'est parti !" drawn over the static line-up, then hands off
+// to the actual race. Purely for anticipation/drama — the race timing
+// itself starts fresh right after.
+function runDuckCountdown(onComplete) {
+  var steps = ['3', '2', '1', 'C\'est parti !'];
+  var stepIndex = 0;
+
+  function showStep() {
+    drawDuckScene(performance.now(), null);
+    var ctx = duckCtx;
+    if (ctx) {
+      var w = duckCanvasW, h = duckCanvasH;
+      ctx.fillStyle = 'rgba(10, 30, 50, 0.28)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.font = 'bold ' + (stepIndex < 3 ? 46 : 26) + 'px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = 'rgba(0,0,0,0.35)';
+      ctx.shadowBlur = 8;
+      ctx.fillText(steps[stepIndex], w / 2, h / 2 + 12);
+      ctx.shadowBlur = 0;
+    }
+    stepIndex++;
+    if (stepIndex < steps.length) {
+      setTimeout(showStep, stepIndex === steps.length - 1 ? 450 : 550);
+    } else {
+      setTimeout(onComplete, 350);
+    }
+  }
+  showStep();
+}
+
+function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, onDone) {
+  playDuckQuack();
+
+  var duration = (durationSeconds || 4) * 1000;
+  var startTime = performance.now();
+  var finished = false;
+  var overshootUntil = null; // set once the winner crosses; keeps animating a bit longer so it visibly swims past the line
+  var FINISH = 100;
+  var FLAG_POSITION = 78; // matches the checkered line placement in drawDuckScene
+  var SPRINT_START = 0.72; // race stays genuinely unpredictable before this point — see below
+
+  // Two parallel tracks per duck, kept deliberately separate:
+  //  - guaranteedPos: the OLD monotonic formula (winner's speed factor is
+  //    always the highest) — used ONLY to decide correctness/timing (who
+  //    has truly won, and when the round is allowed to end). Never drawn.
+  //  - duckPositions: what's actually drawn, accumulated frame by frame
+  //    from a per-duck speed MULTIPLIER (not additive position noise —
+  //    that could make a duck momentarily swim backward, which read as
+  //    a glitch). The multiplier is always positive, so ducks only ever
+  //    move forward, but at a genuinely varying pace — real overtakes
+  //    happen. In the final stretch (SPRINT_START onward) the actual
+  //    winner gets a growing speed boost and everyone else eases off a
+  //    little, so the predetermined winner reliably pulls ahead for a
+  //    believable finish that always matches who's declared the winner.
+  var speedFactors = duckPositions.map(function(_, i) {
+    return i === actualWinnerIndex ? 1.0 : 0.5 + Math.random() * 0.35;
+  });
+  var wobbleParams = duckPositions.map(function() {
+    return {
+      f1: 0.28 + Math.random() * 0.35, p1: Math.random() * Math.PI * 2, a1: 0.22 + Math.random() * 0.2,
+      f2: 0.7 + Math.random() * 0.7, p2: Math.random() * Math.PI * 2, a2: 0.1 + Math.random() * 0.13
+    };
+  });
+  function speedMultiplier(i, t) {
+    var n = wobbleParams[i];
+    var wobble = n.a1 * Math.sin(t * Math.PI * 2 * n.f1 + n.p1) + n.a2 * Math.sin(t * Math.PI * 2 * n.f2 + n.p2);
+    return Math.max(0.3, 1 + wobble); // always positive — forward only, pace just varies
+  }
+  function smoothstep(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+
+  var guaranteedPos = duckPositions.map(function() { return 0; });
+
+  // Occasional quacks from random ducks while the race is running, not
+  // just at the very start/end — makes it sound alive instead of one lone
+  // blip. Scheduled against elapsed time so it's frame-rate independent.
+  var nextAmbientQuackAt = 250 + Math.random() * 400;
+
+  if (duckAnimId) cancelAnimationFrame(duckAnimId);
+  var lastElapsed = 0;
+
+  function tick(now) {
+    var elapsed = now - startTime;
+    var timeProgress = Math.min(elapsed / duration, 1);
+    var dtFrac = Math.max(0, elapsed - lastElapsed) / duration; // this frame's slice of the total race
+    var bw = timeProgress <= SPRINT_START ? 0 : smoothstep((timeProgress - SPRINT_START) / (1 - SPRINT_START));
+
+    for (var i = 0; i < duckCount; i++) {
+      var gEased = Math.pow(Math.min(timeProgress * speedFactors[i], 1), 1.7);
+      guaranteedPos[i] = Math.min(gEased * FINISH, FINISH);
+
+      var sprintBoost = 1;
+      if (bw > 0) sprintBoost = i === actualWinnerIndex ? (1 + bw * 1.3) : Math.max(0.35, 1 - bw * 0.45);
+
+      var mult = speedMultiplier(i, timeProgress) * sprintBoost;
+      var prevPos = duckPositions[i];
+      duckPositions[i] = Math.min(duckPositions[i] + mult * dtFrac * 82, FINISH); // *82 ≈ average pace needed to comfortably reach FLAG_POSITION by the end
+
+      // Spawn a small water-splash trail behind each duck while it's
+      // actively moving — purely cosmetic, capped so it never piles up.
+      if (duckPositions[i] > prevPos && Math.random() < 0.5 && duckSplashes.length < 90) {
+        spawnDuckSplash(i, duckCount);
+      }
+    }
+    updateDuckSplashes(elapsed - lastElapsed);
+    lastElapsed = elapsed;
+
+    if (!finished && elapsed >= nextAmbientQuackAt) {
+      playDuckQuack();
+      nextAmbientQuackAt = elapsed + 450 + Math.random() * 550;
+    }
+
+    // Timing/correctness is driven by guaranteedPos, never by the
+    // wobbly visual one — so an early speed swing can never falsely end
+    // the round for the wrong duck. A short overshoot window afterward
+    // keeps the animation running a little longer so the winner visibly
+    // swims past the flag instead of freezing exactly on it.
+    if (!finished && guaranteedPos[actualWinnerIndex] >= FLAG_POSITION) {
+      finished = true;
+      overshootUntil = elapsed + 550;
+      playDuckQuack();
+    }
+
+    drawDuckScene(elapsed, finished ? actualWinnerIndex : null);
+
+    if (!finished || elapsed < overshootUntil) {
+      duckAnimId = requestAnimationFrame(tick);
+    } else {
+      setTimeout(onDone, 300);
+    }
+  }
+  duckAnimId = requestAnimationFrame(tick);
+}
+
+// A single splash particle: position is computed fresh each frame from
+// the duck's current lane/progress (so it doesn't need to track canvas
+// resizes), only its birth time and drift offsets are stored.
+function spawnDuckSplash(duckIndex, duckCount) {
+  duckSplashes.push({
+    duckIndex: duckIndex,
+    age: 0,
+    life: 380 + Math.random() * 220,
+    dx: (Math.random() - 0.5) * 14,
+    dy: -Math.random() * 10 - 4,
+    size: 2 + Math.random() * 2.4
+  });
+}
+
+function updateDuckSplashes(dt) {
+  if (!dt || dt <= 0 || dt > 200) dt = 16; // guard against huge gaps (tab backgrounded, etc.)
+  for (var i = duckSplashes.length - 1; i >= 0; i--) {
+    duckSplashes[i].age += dt;
+    if (duckSplashes[i].age >= duckSplashes[i].life) duckSplashes.splice(i, 1);
+  }
+}
+
+// Redraws the entire scene for the current frame: sky, sun, grass banks,
+// water lanes, finish line, splash particles, and every duck at its
+// current progress.
+function drawDuckScene(elapsed, winnerIndex) {
+  var ctx = duckCtx;
+  if (!ctx) return;
+  var w = duckCanvasW, h = duckCanvasH;
+  var duckCount = Math.max(1, duckPool.length);
+  var bankH = 14; // grassy strip top and bottom, framing the water
+  var waterTop = bankH, waterBottom = h - bankH;
+
+  // Below MAX_DUCKS_SMALL, every duck gets its own full-width lane and a
+  // visible name label. Above it (large giveaways), ducks share a
+  // multi-row "swarm" — enough rows to keep each one a reasonable size,
+  // with 2–3 ducks per row spread out a little so they don't fully stack.
+  var useSwarm = duckCount > MAX_DUCKS_SMALL;
+  var rows = useSwarm ? Math.max(6, Math.min(duckCount, Math.round(Math.sqrt(duckCount * 1.6)))) : duckCount;
+  var perRow = Math.ceil(duckCount / rows);
+  var rowH = (waterBottom - waterTop) / rows;
+  var duckSize = Math.max(9, Math.min(22, rowH * 0.3));
+  var trackStart = 34;
+  var duckMaxX = w - 26;                                   // rightmost a duck can swim, near the canvas edge
+  var flagX = trackStart + (duckMaxX - trackStart) * 0.7;  // checkered line sits before the end, so the winner visibly swims past it
+
+  // Sky
+  var sky = ctx.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, '#BFEBFF');
+  sky.addColorStop(1, '#8FD8F7');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+
+  // Sun, tucked in the corner with a soft glow.
+  var sunX = w - 34, sunY = 24;
+  var sunGlow = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, 30);
+  sunGlow.addColorStop(0, 'rgba(255, 240, 180, 0.9)');
+  sunGlow.addColorStop(1, 'rgba(255, 240, 180, 0)');
+  ctx.fillStyle = sunGlow;
+  ctx.fillRect(sunX - 30, sunY - 30, 60, 60);
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, 11, 0, Math.PI * 2);
+  ctx.fillStyle = '#FFE58A';
+  ctx.fill();
+
+  // A couple of soft drifting clouds for atmosphere.
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  [0.15, 0.55].forEach(function(cx, idx) {
+    var drift = (elapsed / 9000 + idx * 3) % 1;
+    var x = ((cx + drift) % 1.3 - 0.15) * w;
+    var y = 14 + idx * 12;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 22, 9, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 16, y + 3, 16, 7, 0, 0, Math.PI * 2);
+    ctx.ellipse(x - 14, y + 4, 14, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // A couple of small birds, simple "v" shapes drifting across the sky.
+  ctx.strokeStyle = 'rgba(60,70,90,0.5)';
+  ctx.lineWidth = 1.4;
+  [0.3, 0.75].forEach(function(bx, idx) {
+    var drift = (elapsed / 6000 + idx * 2.2) % 1.4 - 0.2;
+    var x = bx * w + drift * 40;
+    var y = 10 + idx * 16 + Math.sin(elapsed / 500 + idx) * 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 5, y);
+    ctx.quadraticCurveTo(x - 2, y - 4, x, y);
+    ctx.quadraticCurveTo(x + 2, y - 4, x + 5, y);
+    ctx.stroke();
+  });
+
+  // Grassy bank — top.
+  ctx.fillStyle = '#6FBF5C';
+  ctx.fillRect(0, 0, w, bankH);
+  ctx.fillStyle = '#5CA84C';
+  for (var tx = -4; tx < w; tx += 9) {
+    ctx.beginPath();
+    ctx.moveTo(tx, bankH);
+    ctx.lineTo(tx + 4, bankH - 6);
+    ctx.lineTo(tx + 8, bankH);
+    ctx.fill();
+  }
+
+  // Water
+  var water = ctx.createLinearGradient(0, waterTop, 0, waterBottom);
+  water.addColorStop(0, '#4FB3E8');
+  water.addColorStop(1, '#2E8FCB');
+  ctx.fillStyle = water;
+  ctx.fillRect(0, waterTop, w, waterBottom - waterTop);
+
+  // Faint horizontal ripple lines to break up the flat water color — one
+  // per row, not per duck, so this stays cheap even with 100 ducks.
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.lineWidth = 2;
+  for (var r = 0; r <= rows; r++) {
+    var ry = waterTop + r * rowH;
+    ctx.beginPath();
+    for (var x = 0; x <= w; x += 14) {
+      var wave = Math.sin(x / 22 + elapsed / 260 + r) * 2;
+      if (x === 0) ctx.moveTo(x, ry + wave); else ctx.lineTo(x, ry + wave);
+    }
+    ctx.stroke();
+  }
+
+  // Finish line — checkered flag strip on a pole, placed before the
+  // track's end so ducks (the winner especially) visibly swim past it.
+  var checkSize = 8;
+  for (var cy = waterTop; cy < waterBottom; cy += checkSize) {
+    for (var cx2 = 0; cx2 < 2; cx2++) {
+      var isDark = (Math.round((cy - waterTop) / checkSize) + cx2) % 2 === 0;
+      ctx.fillStyle = isDark ? 'rgba(20,20,30,0.55)' : 'rgba(255,255,255,0.75)';
+      ctx.fillRect(flagX + cx2 * checkSize, cy, checkSize, checkSize);
+    }
+  }
+  ctx.fillStyle = '#8B5A2B';
+  ctx.fillRect(flagX - 2, 0, 3, waterTop);
+  ctx.fillRect(flagX - 2, waterBottom, 3, bankH);
+
+  // Grassy bank — bottom.
+  ctx.fillStyle = '#6FBF5C';
+  ctx.fillRect(0, waterBottom, w, bankH);
+  ctx.fillStyle = '#5CA84C';
+  for (var tx2 = -4; tx2 < w; tx2 += 9) {
+    ctx.beginPath();
+    ctx.moveTo(tx2, waterBottom);
+    ctx.lineTo(tx2 + 4, waterBottom + 6);
+    ctx.lineTo(tx2 + 8, waterBottom);
+    ctx.fill();
+  }
+
+  // Duck count badge, useful once names stop being individually labeled.
+  if (useSwarm) {
+    ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(15,25,40,0.65)';
+    ctx.fillText('🦆 ' + duckCount + ' canards', 8, waterTop + 12);
+  }
+
+  function duckPosition(i) {
+    var row = i % rows;
+    var col = Math.floor(i / rows);
+    var laneCenterY = waterTop + row * rowH + rowH / 2 + ((col % 3) - 1) * (rowH * 0.16);
+    var progress = duckPositions[i] / 100;
+    var x = trackStart + progress * (duckMaxX - trackStart);
+    return { x: x, y: laneCenterY };
+  }
+
+  // Water-splash particles, behind the ducks.
+  duckSplashes.forEach(function(p) {
+    var t = p.age / p.life;
+    var pos = duckPosition(p.duckIndex);
+    var px = pos.x - duckSize * 0.9 + p.dx * t;
+    var py = pos.y + duckSize * 0.5 + p.dy * t + 10 * t * t; // slight gravity arc
+    ctx.beginPath();
+    ctx.arc(px, py, p.size * (1 - t * 0.5), 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * (1 - t)) + ')';
+    ctx.fill();
+  });
+
+  // Ducks.
+  duckPool.forEach(function(participant, i) {
+    var pos = duckPosition(i);
+    var bob = Math.sin(elapsed / 220 + i * 1.7) * (duckSize * 0.14);
+    var paddlePhase = elapsed / 130 + i * 2;
+    var profile = duckProfiles[i] || pickDuckProfile(participant.name);
+    var isWinner = winnerIndex === i;
+
+    drawDuck(ctx, pos.x, pos.y + bob, profile, isWinner, paddlePhase, i + 1, duckSize);
+
+    if (!useSwarm) {
+      // Name label. Once a duck has swum past the flag there's no room
+      // for a label to its right, so it flips to sit just above/left of it.
+      ctx.font = '600 ' + Math.round(Math.max(11, duckSize * 0.42)) + 'px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = 'rgba(15,25,40,0.75)';
+      if (pos.x < w - 70) {
+        ctx.textAlign = 'left';
+        ctx.fillText('@' + participant.name, pos.x + duckSize * 1.5, pos.y + 3, Math.max(30, w - 8 - (pos.x + duckSize * 1.5)));
+      } else {
+        ctx.textAlign = 'right';
+        ctx.fillText('@' + participant.name, pos.x - duckSize * 1.2, pos.y - duckSize - 4, 80);
+      }
+    } else if (isWinner) {
+      // In swarm mode, only the winner ever gets a name label — right
+      // above the crown, once the race has revealed them.
+      ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 4;
+      ctx.fillText('@' + participant.name, pos.x, pos.y - duckSize * 1.9);
+      ctx.shadowBlur = 0;
+    }
+  });
+}
+
+// Draws one duck: ripple, body with belly patch, layered wing, head,
+// eye, rounded bill, paddling feet, a numbered bib, an optional body
+// pattern, and an optional original accessory (never real characters,
+// logos or public figures — see pickDuckProfile for the combinations).
+function drawDuck(ctx, x, y, profile, isWinner, paddlePhase, laneNumber, size) {
+  size = size || 16;
+  var color = profile.color;
+  var showDetail = size >= 13;   // skip fussy small details on tiny swarm ducks
+  var showAccessory = size >= 15;
+
+  if (isWinner) {
+    ctx.beginPath();
+    ctx.arc(x, y, size + 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 215, 90, 0.55)';
+    ctx.fill();
+  }
+
+  // Water ripple under the duck.
+  ctx.beginPath();
+  ctx.ellipse(x, y + size * 0.58, size * 1.1, size * 0.28, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.32)';
+  ctx.fill();
+
+  // Paddling feet, peeking out to the sides.
+  if (showDetail) {
+    var footSwing = Math.sin(paddlePhase) * 3.5;
+    ctx.fillStyle = '#F2A33E';
+    ctx.beginPath();
+    ctx.ellipse(x - size * 0.38 + footSwing, y + size * 0.5, 4.6, 2.3, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x + size * 0.38 - footSwing, y + size * 0.5, 4.6, 2.3, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Body — round and plump, single clean shape.
+  ctx.beginPath();
+  ctx.ellipse(x, y, size * 0.92, size * 0.66, 0, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // Belly patch — lighter shade, gives the body a bit of volume.
+  if (showDetail) {
+    ctx.beginPath();
+    ctx.ellipse(x - size * 0.02, y + size * 0.24, size * 0.58, size * 0.3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = duckShadeColor(color, 55);
+    ctx.globalAlpha = 0.5;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Optional body pattern — small spots, purely decorative variety.
+    if (profile.pattern === 'spots') {
+      var spotColor = duckShadeColor(color, -50);
+      [[-0.3, -0.15], [0.1, -0.24], [-0.05, 0.05]].forEach(function(p) {
+        ctx.beginPath();
+        ctx.arc(x + p[0] * size, y + p[1] * size, size * 0.08, 0, Math.PI * 2);
+        ctx.fillStyle = spotColor;
+        ctx.globalAlpha = 0.5;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+    }
+  }
+
+  // Wing — a single soft curve, angled back.
+  var wingColor = duckShadeColor(color, -40);
+  ctx.beginPath();
+  ctx.ellipse(x - size * 0.08, y, size * 0.44, size * 0.3, 0.3, 0, Math.PI * 2);
+  ctx.fillStyle = wingColor;
+  ctx.fill();
+
+  // Numbered bib — small white badge, only at a readable size and when
+  // the field is small enough that per-duck numbers are actually useful.
+  if (showDetail && laneNumber <= 30) {
+    var bibX = x - size * 0.02, bibY = y + size * 0.46;
+    ctx.beginPath();
+    ctx.arc(bibX, bibY, size * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.lineWidth = 1.3;
+    ctx.strokeStyle = wingColor;
+    ctx.stroke();
+    ctx.font = 'bold ' + Math.round(size * 0.36) + 'px system-ui, sans-serif';
+    ctx.fillStyle = '#1E1E28';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(laneNumber), bibX, bibY + size * 0.12);
+  }
+
+  // Head.
+  var headX = x + size * 0.72, headY = y - size * 0.44;
+  ctx.beginPath();
+  ctx.arc(headX, headY, size * 0.46, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // Bill — one clean rounded shape.
+  ctx.beginPath();
+  ctx.moveTo(headX + size * 0.32, headY - size * 0.02);
+  ctx.quadraticCurveTo(headX + size * 0.92, headY - size * 0.04, headX + size * 0.9, headY + size * 0.1);
+  ctx.quadraticCurveTo(headX + size * 0.62, headY + size * 0.22, headX + size * 0.32, headY + size * 0.18);
+  ctx.closePath();
+  ctx.fillStyle = '#F5A93E';
+  ctx.fill();
+
+  var eyeX = headX + size * 0.1, eyeY = headY - size * 0.14;
+
+  if (profile.accessory === 'sunglasses' && showAccessory) {
+    ctx.beginPath();
+    ctx.ellipse(eyeX, eyeY, size * 0.17, size * 0.13, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#2B2B36';
+    ctx.fill();
+  } else {
+    // Simple friendly eye — dark dot with a tiny highlight.
+    ctx.beginPath();
+    ctx.arc(eyeX, eyeY, size * 0.09, 0, Math.PI * 2);
+    ctx.fillStyle = '#1E1E28';
+    ctx.fill();
+    if (showDetail) {
+      ctx.beginPath();
+      ctx.arc(eyeX + size * 0.03, eyeY - size * 0.03, size * 0.03, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+    }
+    if (profile.accessory === 'monocle' && showAccessory) {
+      ctx.beginPath();
+      ctx.arc(eyeX, eyeY, size * 0.22, 0, Math.PI * 2);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = '#C9A227';
+      ctx.stroke();
+    }
+  }
+
+  if (showAccessory) {
+    drawDuckAccessory(ctx, headX, headY, size, profile.accessory, wingColor, color);
+  }
+
+  if (isWinner) {
+    // Small crown for the winner, drawn once the race has finished.
+    ctx.font = (size * 1.2) + 'px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('👑', headX, headY - size * 0.8);
+  }
+}
+
+// Original, non-branded accessories layered onto the duck's head/neck.
+// Deliberately simple shapes — no logos, characters, or real people.
+function drawDuckAccessory(ctx, headX, headY, size, accessory, wingColor, bodyColor) {
+  switch (accessory) {
+    case 'bandana': {
+      ctx.beginPath();
+      ctx.moveTo(headX - size * 0.5, headY - size * 0.2);
+      ctx.lineTo(headX + size * 0.15, headY - size * 0.55);
+      ctx.lineTo(headX - size * 0.05, headY - size * 0.05);
+      ctx.closePath();
+      ctx.fillStyle = '#E14D4D';
+      ctx.fill();
+      // knot
+      ctx.beginPath();
+      ctx.arc(headX - size * 0.5, headY - size * 0.2, size * 0.09, 0, Math.PI * 2);
+      ctx.fillStyle = '#B23A3A';
+      ctx.fill();
+      break;
+    }
+    case 'cap': {
+      ctx.beginPath();
+      ctx.arc(headX - size * 0.02, headY - size * 0.42, size * 0.44, Math.PI, 0);
+      ctx.fillStyle = '#3E7CE0';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(headX + size * 0.32, headY - size * 0.42, size * 0.22, size * 0.08, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#2F63BD';
+      ctx.fill();
+      break;
+    }
+    case 'crest': {
+      ctx.fillStyle = '#FF5E9E';
+      [-0.15, 0.05, 0.25].forEach(function(dx) {
+        ctx.beginPath();
+        ctx.moveTo(headX + dx * size, headY - size * 0.42);
+        ctx.lineTo(headX + (dx - 0.05) * size, headY - size * 0.72);
+        ctx.lineTo(headX + (dx + 0.08) * size, headY - size * 0.5);
+        ctx.closePath();
+        ctx.fill();
+      });
+      break;
+    }
+    case 'flower': {
+      var fx = headX - size * 0.42, fy = headY - size * 0.05;
+      ctx.fillStyle = '#FF8FB3';
+      for (var a = 0; a < 5; a++) {
+        var ang = (a / 5) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.ellipse(fx + Math.cos(ang) * size * 0.13, fy + Math.sin(ang) * size * 0.13, size * 0.1, size * 0.06, ang, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(fx, fy, size * 0.08, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFD64E';
+      ctx.fill();
+      break;
+    }
+    case 'headphones': {
+      ctx.beginPath();
+      ctx.arc(headX, headY - size * 0.1, size * 0.58, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.lineWidth = size * 0.12;
+      ctx.strokeStyle = '#2B2B36';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(headX - size * 0.5, headY - size * 0.05, size * 0.13, size * 0.19, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#2B2B36';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(headX + size * 0.5, headY - size * 0.05, size * 0.13, size * 0.19, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#2B2B36';
+      ctx.fill();
+      break;
+    }
+    case 'bowtie': {
+      var bx = headX + size * 0.55, by = headY + size * 0.55;
+      ctx.fillStyle = duckShadeColor(bodyColor, -30);
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx - size * 0.24, by - size * 0.16);
+      ctx.lineTo(bx - size * 0.24, by + size * 0.16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + size * 0.24, by - size * 0.16);
+      ctx.lineTo(bx + size * 0.24, by + size * 0.16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bx, by, size * 0.07, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      break;
+    }
+    // 'sunglasses' and 'monocle' are drawn over the eye above; 'none' adds nothing.
+    default: break;
+  }
+}
+
+// A real (procedurally synthesized) "quack" sound, embedded above as a
+// data URI — no network needed. Reuses the single unlocked <audio>
+// element (see unlockDuckAudio) so it actually plays on mobile even when
+// triggered from inside the race animation, well after the original tap.
+// Respects the user's sound toggle (speaker button on the duck stage).
+function playDuckQuack() {
+  if (!duckSoundEnabled) return;
+  try {
+    var el = getDuckQuackAudioEl();
+    el.pause();
+    el.currentTime = 0;
+    // Small random pitch variation so repeated quacks (start + finish,
+    // several rounds) don't sound identically robotic.
+    el.playbackRate = 0.9 + Math.random() * 0.28;
+    el.volume = 0.9;
+    var p = el.play();
+    if (p && p.catch) p.catch(function() { /* still blocked on this device — stays silent */ });
+  } catch (e) { /* audio unavailable — silent fallback */ }
+}
+
+async function shareWinner() {
+  if (!winner) {
+    showToast('Aucun gagnant à partager pour le moment', 'error');
+    return;
+  }
+  var giveawayTitle = (activeGiveaway && activeGiveaway.title) || 'notre tirage';
+  var shareText = '🏆 @' + winner.name + ' a été désigné(e) gagnant(e) de "' + giveawayTitle + '" avec RerePickWinn !';
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ text: shareText });
+      return;
+    } catch (e) {
+      // Person cancelled the native share sheet, or it failed — fall
+      // through to the clipboard copy below rather than showing an error.
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+
+  // No native share support (or it failed): copy the text instead.
+  try {
+    await navigator.clipboard.writeText(shareText);
+    showToast('Texte du résultat copié — colle-le où tu veux le partager', 'success');
+  } catch (e) {
+    showToast(shareText, 'success');
+  }
 }
 
 function copyWinner() {
@@ -3959,6 +6351,849 @@ if (document.readyState === 'loading') {
 } else {
   // DOM is already parsed (e.g. script loaded with `defer` after the fact)
   initApp();
+}
+
+// ============================================================
+// PLINKO MODE — a ball drops through a peg field and lands in the
+// winner's slot. The bounce path looks random each time but is built
+// backwards from the known winner, exactly like the duck race: fair by
+// construction (the winner is decided first), theatrical by animation.
+// ============================================================
+var plinkoPool = [];        // participants shown as slots in the current round
+var plinkoCtx = null;
+var plinkoCanvasW = 0;
+var plinkoCanvasH = 0;
+var plinkoAnimId = null;
+var plinkoSoundEnabled = true;
+try {
+  var __savedPlinkoSound = localStorage.getItem('repickwinn-plinko-sound');
+  if (__savedPlinkoSound !== null) plinkoSoundEnabled = __savedPlinkoSound === '1';
+} catch (e) { /* ignore */ }
+
+var MAX_PLINKO_SLOTS = 9; // odd, so there's always a true center slot
+
+function togglePlinkoSound() {
+  plinkoSoundEnabled = !plinkoSoundEnabled;
+  try { localStorage.setItem('repickwinn-plinko-sound', plinkoSoundEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
+  var btn = document.getElementById('plinkoSoundToggle');
+  if (btn) btn.textContent = plinkoSoundEnabled ? '🔊' : '🔇';
+  if (plinkoSoundEnabled) unlockPlinkoAudio();
+}
+
+// Web Audio needs to be created/resumed inside a real tap handler on
+// mobile — same constraint as the duck quack, see unlockDuckAudio().
+function getPlinkoAudioCtx() {
+  var Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  if (!window.__plinkoAudioCtx) window.__plinkoAudioCtx = new Ctx();
+  return window.__plinkoAudioCtx;
+}
+
+function unlockPlinkoAudio() {
+  var ctx = getPlinkoAudioCtx();
+  if (ctx && ctx.state === 'suspended') ctx.resume().catch(function() { /* ignore */ });
+}
+
+function playPlinkoTone(freq, duration, startDelay) {
+  if (!plinkoSoundEnabled) return;
+  try {
+    var ctx = getPlinkoAudioCtx();
+    if (!ctx) return;
+    var startAt = ctx.currentTime + (startDelay || 0);
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, startAt);
+    gain.gain.setValueAtTime(0.001, startAt);
+    gain.gain.exponentialRampToValueAtTime(0.12, startAt + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(startAt);
+    osc.stop(startAt + duration + 0.02);
+  } catch (e) { /* audio unavailable — silent fallback */ }
+}
+
+function playPlinkoTick() {
+  // A short, physical-sounding "click" for each peg the ball touches —
+  // percussive rather than musical, so it reads as a tick, not a note.
+  if (!plinkoSoundEnabled) return;
+  try {
+    var ctx = getPlinkoAudioCtx();
+    if (!ctx) return;
+    var startAt = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1000 + Math.random() * 400, startAt);
+    osc.frequency.exponentialRampToValueAtTime(500, startAt + 0.035);
+    gain.gain.setValueAtTime(0.11, startAt);
+    gain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.045);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(startAt);
+    osc.stop(startAt + 0.05);
+  } catch (e) { /* audio unavailable — silent fallback */ }
+}
+
+function playPlinkoDrop() {
+  // A lower, rounder "thud" the instant the ball settles into its slot —
+  // distinct from both the tick and the celebratory chime that follows.
+  if (!plinkoSoundEnabled) return;
+  try {
+    var ctx = getPlinkoAudioCtx();
+    if (!ctx) return;
+    var startAt = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, startAt);
+    osc.frequency.exponentialRampToValueAtTime(90, startAt + 0.16);
+    gain.gain.setValueAtTime(0.001, startAt);
+    gain.gain.exponentialRampToValueAtTime(0.22, startAt + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.2);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(startAt);
+    osc.stop(startAt + 0.22);
+  } catch (e) { /* audio unavailable — silent fallback */ }
+}
+
+function playPlinkoWinChime() {
+  [660, 880, 1100].forEach(function(freq, i) {
+    playPlinkoTone(freq, 0.22, i * 0.09);
+  });
+}
+
+// Picks which participants appear as slots, GUARANTEEING the real
+// winner is among them (same fix as selectDuckRacers — never truncate
+// blindly and lose track of where the winner actually is).
+function selectPlinkoSlots(pool, winnerIndex) {
+  var winnerEntry = pool[winnerIndex];
+  if (pool.length <= MAX_PLINKO_SLOTS) {
+    return { slotPool: pool.slice(), winnerSlot: winnerIndex };
+  }
+  var others = pool.filter(function(_, i) { return i !== winnerIndex; });
+  for (var i = others.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = others[i]; others[i] = others[j]; others[j] = tmp;
+  }
+  var slotPool = others.slice(0, MAX_PLINKO_SLOTS - 1);
+  var insertAt = Math.floor(Math.random() * (slotPool.length + 1));
+  slotPool.splice(insertAt, 0, winnerEntry);
+  return { slotPool: slotPool, winnerSlot: insertAt };
+}
+
+function initPlinkoCanvas(slotCount) {
+  var canvas = document.getElementById('plinkoCanvas');
+  if (!canvas) return null;
+  var container = canvas.parentElement;
+  var displayWidth = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
+  var displayHeight = Math.min(520, Math.max(360, 300 + slotCount * 10));
+
+  var dpr = window.devicePixelRatio || 1;
+  canvas.style.width = displayWidth + 'px';
+  canvas.style.height = displayHeight + 'px';
+  canvas.width = Math.round(displayWidth * dpr);
+  canvas.height = Math.round(displayHeight * dpr);
+
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  plinkoCtx = ctx;
+  plinkoCanvasW = displayWidth;
+  plinkoCanvasH = displayHeight;
+  return ctx;
+}
+
+function setupPlinkoStage(pool) {
+  var slots = Math.max(1, Math.min(pool.length, MAX_PLINKO_SLOTS));
+  plinkoPool = pool.slice(0, slots);
+
+  var soundBtn = document.getElementById('plinkoSoundToggle');
+  if (soundBtn) soundBtn.textContent = plinkoSoundEnabled ? '🔊' : '🔇';
+
+  var ctx = initPlinkoCanvas(plinkoPool.length);
+  if (!ctx) return;
+  drawPlinkoScene(null, -1, 1); // static board, ball parked above the top
+}
+
+// Builds a bounce path: exactly `winnerSlot` right-moves and the rest
+// left-moves, order shuffled — guarantees the ball ends in the right
+// slot while the sequence of bounces still looks unpredictable.
+function buildPlinkoPath(pegRows, winnerSlot) {
+  var moves = [];
+  for (var i = 0; i < pegRows; i++) moves.push(i < winnerSlot ? 1 : 0);
+  for (var i = moves.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = moves[i]; moves[i] = moves[j]; moves[j] = tmp;
+  }
+  var cumulative = [0];
+  var running = 0;
+  for (var r = 0; r < pegRows; r++) {
+    running += moves[r];
+    cumulative.push(running);
+  }
+  return cumulative; // length pegRows+1, cumulative[pegRows] === winnerSlot
+}
+
+function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
+  var selection = selectPlinkoSlots(pool, winnerIndex);
+  plinkoPool = selection.slotPool;
+  var slotCount = plinkoPool.length;
+  var winnerSlot = selection.winnerSlot;
+  var pegRows = Math.max(1, slotCount - 1);
+
+  var ctx = initPlinkoCanvas(slotCount);
+  if (!ctx) { onDone(); return; }
+
+  if (slotCount === 1) {
+    // Nothing to animate — just reveal immediately.
+    drawPlinkoScene(0, 0, 1);
+    playPlinkoWinChime();
+    setTimeout(onDone, 500);
+    return;
+  }
+
+  var path = buildPlinkoPath(pegRows, winnerSlot);
+  // Per-row horizontal target with a jitter that tapers off near the
+  // bottom, so the path looks bouncy early and settles precisely into
+  // the winning slot by the last row (see drawPlinkoScene for geometry).
+  var duration = Math.max(2200, (durationSeconds || 4) * 1000);
+  var rowDuration = duration / (pegRows + 1);
+  var startTime = performance.now();
+
+  if (plinkoAnimId) cancelAnimationFrame(plinkoAnimId);
+
+  function tick(now) {
+    var elapsed = now - startTime;
+    var rowFloat = Math.min(elapsed / rowDuration, pegRows + 1);
+    var row = Math.min(Math.floor(rowFloat), pegRows);
+    var rowT = rowFloat - row; // 0..1 progress within the current row's fall
+
+    if (row !== tick.lastBounceRow && row > 0) {
+      playPlinkoTick();
+      tick.lastBounceRow = row;
+    }
+
+    drawPlinkoScene(path, row, Math.min(rowT, 1));
+
+    if (rowFloat < pegRows + 1) {
+      plinkoAnimId = requestAnimationFrame(tick);
+    } else {
+      drawPlinkoScene(path, pegRows, 1, true);
+      playPlinkoDrop();
+      setTimeout(playPlinkoWinChime, 120);
+      setTimeout(onDone, 650);
+    }
+  }
+  plinkoAnimId = requestAnimationFrame(tick);
+}
+
+// Draws the whole board every frame: peg field, slots, and the ball at
+// its current row/position. `path` is the cumulative right-move array
+// from buildPlinkoPath (or null for the static pre-race board). `row`
+// is which peg-row the ball is currently falling past, `rowT` its
+// progress (0–1) through that fall, `settled` marks the final frame.
+function drawPlinkoScene(path, row, rowT, settled) {
+  var ctx = plinkoCtx;
+  if (!ctx) return;
+  var w = plinkoCanvasW, h = plinkoCanvasH;
+  var slotCount = Math.max(1, plinkoPool.length);
+  var pegRows = Math.max(1, slotCount - 1);
+  var slotLabelH = 46;
+  var boardTop = 26, boardBottom = h - slotLabelH;
+  var slotW = w / slotCount;
+
+  // Every "level" from 0 (top, before any pegs) to pegRows (bottom,
+  // matching the final slots exactly) uses this SAME formula for both
+  // the pegs and the ball. That's the key fix: previously the ball's
+  // x-position was computed against the fixed bottom slot grid at every
+  // row, while the pegs were drawn on a narrower triangular grid — the
+  // two didn't line up, which is why the ball looked disconnected from
+  // the pegs it was supposedly bouncing off. Now level 0 is a single
+  // centered channel (matching the ball's true starting point at w/2),
+  // and level pegRows lands exactly on the labeled slot centers.
+  function levelX(level, channel) {
+    return w / 2 + (channel - level / 2) * slotW;
+  }
+
+  // Background.
+  var bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#2A1D52');
+  bg.addColorStop(1, '#16181D');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // Peg field — a symmetric quincunx grid on the exact same coordinate
+  // system as the ball's path (see levelX above).
+  var rowH = (boardBottom - boardTop) / (pegRows + 1);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (var r = 1; r <= pegRows; r++) {
+    var y = boardTop + r * rowH;
+    for (var p = 0; p <= r; p++) {
+      var x = levelX(r, p);
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Slot dividers + labels.
+  for (var s = 0; s <= slotCount; s++) {
+    var dx = s * slotW;
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(dx, boardBottom - 10);
+    ctx.lineTo(dx, h - 6);
+    ctx.stroke();
+  }
+  plinkoPool.forEach(function(participant, i) {
+    var isWinnerSlot = settled && path && i === path[path.length - 1];
+    var cx = i * slotW + slotW / 2;
+    ctx.fillStyle = isWinnerSlot ? 'rgba(245,165,36,0.35)' : 'rgba(255,255,255,0.08)';
+    ctx.fillRect(i * slotW + 1, boardBottom - 10, slotW - 2, h - (boardBottom - 10) - 4);
+    ctx.font = (isWinnerSlot ? 'bold ' : '600 ') + Math.min(11, slotW * 0.32) + 'px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = isWinnerSlot ? '#FFD873' : 'rgba(255,255,255,0.75)';
+    ctx.textAlign = 'center';
+    var label = '@' + participant.name;
+    if (label.length > 10) label = label.slice(0, 9) + '…';
+    ctx.fillText(label, cx, h - 16, slotW - 4);
+  });
+
+  // Ball position — uses levelX(), the exact same formula as the pegs
+  // above, so the ball's path always lines up with what it's bouncing off.
+  var ballX, ballY;
+  if (!path || row < 0) {
+    ballX = w / 2;
+    ballY = boardTop - 14;
+  } else {
+    var fromCol = path[row];
+    var toCol = row < pegRows ? path[row + 1] : path[row];
+    var fromX = levelX(row, fromCol);
+    var toX = row < pegRows ? levelX(row + 1, toCol) : levelX(pegRows, toCol);
+    var y0 = boardTop + row * rowH;
+    var y1 = boardTop + (row + 1) * rowH;
+    ballX = fromX + (toX - fromX) * rowT;
+    // A little parabolic bounce within each row-to-row fall.
+    ballY = y0 + (y1 - y0) * rowT - Math.sin(rowT * Math.PI) * (rowH * 0.28);
+  }
+
+  var ballRadius = 5.5;
+  ctx.beginPath();
+  ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+  ctx.fillStyle = '#FF6B5C';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(ballX - 1.4, ballY - 1.4, 1.7, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fill();
+}
+
+
+// ============================================================
+// MARBLE RACE MODE — marbles roll along one shared winding track
+// (curves and straights, not parallel lanes) and the fastest one
+// crosses first. Same fairness pattern as the duck race and Plinko:
+// the winner is picked FIRST, then given the top speed factor, so it's
+// guaranteed to lead the whole way — never decided by who visually
+// happens to be ahead.
+// ============================================================
+var marblePool = [];
+var marbleCtx = null;
+var marbleCanvasW = 0;
+var marbleCanvasH = 0;
+var marbleAnimId = null;
+var marbleSoundEnabled = true;
+try {
+  var __savedMarbleSound = localStorage.getItem('repickwinn-marble-sound');
+  if (__savedMarbleSound !== null) marbleSoundEnabled = __savedMarbleSound === '1';
+} catch (e) { /* ignore */ }
+
+var MAX_MARBLES = 100; // matches the duck race's cap — multi-lane grouping below keeps it readable at any size
+
+function toggleMarbleSound() {
+  marbleSoundEnabled = !marbleSoundEnabled;
+  try { localStorage.setItem('repickwinn-marble-sound', marbleSoundEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
+  var btn = document.getElementById('marbleSoundToggle');
+  if (btn) btn.textContent = marbleSoundEnabled ? '🔊' : '🔇';
+  if (marbleSoundEnabled) unlockMarbleAudio();
+}
+
+function getMarbleAudioCtx() {
+  var Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  if (!window.__marbleAudioCtx) window.__marbleAudioCtx = new Ctx();
+  return window.__marbleAudioCtx;
+}
+
+function unlockMarbleAudio() {
+  var ctx = getMarbleAudioCtx();
+  if (ctx && ctx.state === 'suspended') ctx.resume().catch(function() { /* ignore */ });
+}
+
+// A soft, glassy "clink" — marbles knocking past each other on the track.
+function playMarbleClink() {
+  if (!marbleSoundEnabled) return;
+  try {
+    var ctx = getMarbleAudioCtx();
+    if (!ctx) return;
+    var startAt = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1400 + Math.random() * 500, startAt);
+    osc.frequency.exponentialRampToValueAtTime(900, startAt + 0.05);
+    gain.gain.setValueAtTime(0.001, startAt);
+    gain.gain.exponentialRampToValueAtTime(0.08, startAt + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.07);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(startAt);
+    osc.stop(startAt + 0.08);
+  } catch (e) { /* ignore */ }
+}
+
+function playMarbleWinChime() {
+  [740, 990, 1240].forEach(function(freq, i) {
+    try {
+      var ctx = getMarbleAudioCtx();
+      if (!ctx || !marbleSoundEnabled) return;
+      var startAt = ctx.currentTime + i * 0.1;
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startAt);
+      gain.gain.setValueAtTime(0.001, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.14, startAt + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.24);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startAt);
+      osc.stop(startAt + 0.26);
+    } catch (e) { /* ignore */ }
+  });
+}
+
+// GUARANTEES the real winner is among the marbles shown — same pattern
+// as selectDuckRacers / selectPlinkoSlots.
+function selectMarbleRacers(pool, winnerIndex) {
+  var winnerEntry = pool[winnerIndex];
+  if (pool.length <= MAX_MARBLES) {
+    return { racePool: pool.slice(), winnerIndex: winnerIndex };
+  }
+  var others = pool.filter(function(_, i) { return i !== winnerIndex; });
+  for (var i = others.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = others[i]; others[i] = others[j]; others[j] = tmp;
+  }
+  var racePool = others.slice(0, MAX_MARBLES - 1);
+  var insertAt = Math.floor(Math.random() * (racePool.length + 1));
+  racePool.splice(insertAt, 0, winnerEntry);
+  return { racePool: racePool, winnerIndex: insertAt };
+}
+
+function initMarbleCanvas(marbleCount) {
+  var canvas = document.getElementById('marbleCanvas');
+  if (!canvas) return null;
+  var container = canvas.parentElement;
+  var displayWidth = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
+  var displayHeight = Math.min(760, Math.max(480, 380 + marbleCount * 9));
+
+  var dpr = window.devicePixelRatio || 1;
+  canvas.style.width = displayWidth + 'px';
+  canvas.style.height = displayHeight + 'px';
+  canvas.width = Math.round(displayWidth * dpr);
+  canvas.height = Math.round(displayHeight * dpr);
+
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  marbleCtx = ctx;
+  marbleCanvasW = displayWidth;
+  marbleCanvasH = displayHeight;
+  return ctx;
+}
+
+// The track: a winding path from left to right, described as a plain
+// function of progress t (0–1) → {x, y}, using a couple of sine bends so
+// it reads as a real road with curves and straights rather than a
+// straight line. Both drawing and marble movement use this SAME
+// function, so there's no risk of the marbles drifting off the drawn
+// track (the exact bug that was fixed in the duck/plinko modes).
+function marbleTrackPoint(t, w, h) {
+  var marginX = 40, marginY = Math.max(70, h * 0.16);
+  var trackW = w - marginX * 2;
+  var trackH = h - marginY * 2;
+  var x = marginX + t * trackW;
+  var y = marginY + trackH / 2 + Math.sin(t * Math.PI * 2.4) * (trackH * 0.32) * Math.sin(t * Math.PI); // eases out at both ends so the track starts/ends level
+  return { x: x, y: y };
+}
+
+// How many side-by-side lanes to spread marbles across, and how wide the
+// track needs to be to comfortably fit them. Capped so it never needs to
+// grow linearly with participant count — extra marbles beyond the lane
+// count simply share a lane (naturally separated since they're rarely at
+// the exact same point on the track at the same time), which is what
+// keeps this workable up to 100 racers instead of the road needing to
+// become absurdly wide.
+function marbleLaneLayout(count) {
+  var numLanes = Math.min(count, Math.max(3, Math.round(Math.sqrt(count * 1.3))));
+  var laneSpacing = 20;
+  var roadWidth = Math.min(240, numLanes * laneSpacing + 34);
+  return { numLanes: numLanes, laneSpacing: laneSpacing, roadWidth: roadWidth };
+}
+
+// Precomputes a lookup table mapping "distance traveled along the curvy
+// track" (0–1, constant visual speed) back to the parameter t used by
+// marbleTrackPoint — otherwise marbles would visibly speed up/slow down
+// through the curves instead of moving at a steady pace.
+function buildMarbleArcLengthTable(w, h) {
+  var samples = 200;
+  var pts = [];
+  for (var i = 0; i <= samples; i++) pts.push(marbleTrackPoint(i / samples, w, h));
+  var cumulative = [0];
+  for (var i = 1; i <= samples; i++) {
+    var dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y;
+    cumulative.push(cumulative[i - 1] + Math.sqrt(dx * dx + dy * dy));
+  }
+  var total = cumulative[samples];
+  return { cumulative: cumulative, total: total, samples: samples };
+}
+
+// distanceFraction (0–1) → t (0–1), via the arc-length table.
+function marbleDistanceToT(distanceFraction, table) {
+  var target = distanceFraction * table.total;
+  var lo = 0, hi = table.samples;
+  while (lo < hi) {
+    var mid = (lo + hi) >> 1;
+    if (table.cumulative[mid] < target) lo = mid + 1; else hi = mid;
+  }
+  var idx = Math.max(1, lo);
+  var segStart = table.cumulative[idx - 1], segEnd = table.cumulative[idx];
+  var segT = segEnd > segStart ? (target - segStart) / (segEnd - segStart) : 0;
+  return ((idx - 1) + segT) / table.samples;
+}
+
+function setupMarbleStage(pool) {
+  var count = Math.max(1, Math.min(pool.length, MAX_MARBLES));
+  marblePool = pool.slice(0, count);
+
+  var soundBtn = document.getElementById('marbleSoundToggle');
+  if (soundBtn) soundBtn.textContent = marbleSoundEnabled ? '🔊' : '🔇';
+
+  var ctx = initMarbleCanvas(marblePool.length);
+  if (!ctx) return;
+  drawMarbleScene(marblePool.map(function() { return 0; }), null, 0);
+}
+
+// Fixed obstacle positions along the track (as a t-fraction 0–1). Purely
+// visual bumpers to weave around — each one plays a "clink" the instant
+// a marble actually passes it, so the sound is tied to something the
+// person can see happening instead of firing on an arbitrary timer.
+var MARBLE_OBSTACLES = [0.1, 0.22, 0.34, 0.46, 0.58, 0.7, 0.82];
+
+function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
+  var selection = selectMarbleRacers(pool, winnerIndex);
+  marblePool = selection.racePool;
+  var count = marblePool.length;
+  var actualWinnerIndex = selection.winnerIndex;
+
+  var ctx = initMarbleCanvas(count);
+  if (!ctx) { onDone(); return; }
+
+  var table = buildMarbleArcLengthTable(marbleCanvasW, marbleCanvasH);
+  var positions = marblePool.map(function() { return 0; }); // 0–1 distance fraction per marble — accumulated, see tick()
+  var guaranteedPos = marblePool.map(function() { return 0; }); // drives correctness/timing only, never drawn
+  var obstacleHit = marblePool.map(function() { return MARBLE_OBSTACLES.map(function() { return false; }); });
+
+  var SPRINT_START = 0.72;
+  var speedFactors = positions.map(function(_, i) {
+    return i === actualWinnerIndex ? 1.0 : 0.5 + Math.random() * 0.35;
+  });
+  // Per-marble speed WOBBLE (not position noise) — this is the fix for
+  // the "irrational" backward jitter: earlier the wobble was added
+  // directly to the displayed position, which can decrease a sine wave
+  // goes down, i.e. the marble visibly rolls backward. Multiplying the
+  // per-frame VELOCITY instead — always kept positive — means the pace
+  // still speeds up and slows down (real overtakes happen) but the
+  // marble only ever moves forward along the track, never in reverse.
+  var wobbleParams = positions.map(function() {
+    return {
+      f1: 0.28 + Math.random() * 0.35, p1: Math.random() * Math.PI * 2, a1: 0.22 + Math.random() * 0.2,
+      f2: 0.7 + Math.random() * 0.7, p2: Math.random() * Math.PI * 2, a2: 0.1 + Math.random() * 0.13
+    };
+  });
+  function speedMultiplier(i, t) {
+    var n = wobbleParams[i];
+    var wobble = n.a1 * Math.sin(t * Math.PI * 2 * n.f1 + n.p1) + n.a2 * Math.sin(t * Math.PI * 2 * n.f2 + n.p2);
+    return Math.max(0.3, 1 + wobble); // always positive — forward motion only, pace just varies
+  }
+  function smoothstep(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+
+  playMarbleClink();
+  var duration = Math.max(2500, (durationSeconds || 4) * 1000);
+  var startTime = performance.now();
+  var finished = false;
+  var overshootUntil = null;
+  var FINISH_FRACTION = 0.9;
+  var lastElapsed = 0;
+
+  if (marbleAnimId) cancelAnimationFrame(marbleAnimId);
+
+  function tick(now) {
+    var elapsed = now - startTime;
+    var timeProgress = Math.min(elapsed / duration, 1);
+    var dtFrac = Math.max(0, elapsed - lastElapsed) / duration; // this frame's slice of the total race, as a fraction
+    lastElapsed = elapsed;
+
+    var bw = timeProgress <= SPRINT_START ? 0 : smoothstep((timeProgress - SPRINT_START) / (1 - SPRINT_START));
+
+    for (var i = 0; i < count; i++) {
+      var gEased = Math.pow(Math.min(timeProgress * speedFactors[i], 1), 1.7);
+      guaranteedPos[i] = Math.min(gEased, 1);
+
+      // Sprint bias: the real winner gets a growing speed boost in the
+      // final stretch, everyone else eases off a little — still always
+      // forward, just a believable closing kick that lines up with who
+      // actually wins.
+      var sprintBoost = 1;
+      if (bw > 0) sprintBoost = i === actualWinnerIndex ? (1 + bw * 1.3) : Math.max(0.35, 1 - bw * 0.45);
+
+      var mult = speedMultiplier(i, timeProgress) * sprintBoost;
+      positions[i] = Math.min(positions[i] + mult * dtFrac, 1);
+
+      // Fire the clink the instant this marble's drawn position actually
+      // passes an obstacle — sound tied to a real visual event.
+      for (var o = 0; o < MARBLE_OBSTACLES.length; o++) {
+        if (!obstacleHit[i][o] && positions[i] >= MARBLE_OBSTACLES[o]) {
+          obstacleHit[i][o] = true;
+          playMarbleClink();
+        }
+      }
+    }
+
+    if (!finished && guaranteedPos[actualWinnerIndex] >= FINISH_FRACTION) {
+      finished = true;
+      overshootUntil = elapsed + 500;
+      playMarbleWinChime();
+    }
+
+    drawMarbleScene(positions, finished ? actualWinnerIndex : null, elapsed, table);
+
+    if (!finished || elapsed < overshootUntil) {
+      marbleAnimId = requestAnimationFrame(tick);
+    } else {
+      setTimeout(onDone, 300);
+    }
+  }
+  marbleAnimId = requestAnimationFrame(tick);
+}
+
+function drawMarbleScene(positions, winnerIndex, elapsed, table) {
+  var ctx = marbleCtx;
+  if (!ctx) return;
+  var w = marbleCanvasW, h = marbleCanvasH;
+  table = table || buildMarbleArcLengthTable(w, h);
+
+  // ---- Geek/circuit-board backdrop: dark gradient + faint neon grid ----
+  var bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#0B0F1A');
+  bg.addColorStop(1, '#131A2B');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.strokeStyle = 'rgba(80, 220, 255, 0.07)';
+  ctx.lineWidth = 1;
+  for (var gx = 0; gx < w; gx += 22) {
+    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke();
+  }
+  for (var gy = 0; gy < h; gy += 22) {
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+  }
+
+  // ---- Track: a wide glowing neon tube, sized from the lane layout so
+  // every marble lane fits comfortably inside it (this is also the fix
+  // for marbles previously drifting outside the drawn road). ----
+  var steps = 140;
+  var lanes = marbleLaneLayout(marblePool.length);
+  var roadWidth = lanes.roadWidth;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(90, 220, 255, 0.55)';
+  ctx.shadowBlur = 14;
+  ctx.strokeStyle = 'rgba(30, 45, 70, 0.9)';
+  ctx.lineWidth = roadWidth;
+  ctx.beginPath();
+  for (var i = 0; i <= steps; i++) {
+    var pt = marbleTrackPoint(i / steps, w, h);
+    if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  // Neon edge lines on both sides of the track.
+  [-1, 1].forEach(function(side) {
+    ctx.strokeStyle = side < 0 ? 'rgba(90,220,255,0.55)' : 'rgba(255,90,220,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      var pt = marbleTrackPoint(t, w, h);
+      var tNext = marbleTrackPoint(Math.min(t + 0.01, 1), w, h);
+      var tx = tNext.x - pt.x, ty = tNext.y - pt.y;
+      var tl = Math.sqrt(tx * tx + ty * ty) || 1;
+      var nx = -ty / tl, ny = tx / tl;
+      var ex = pt.x + nx * (roadWidth / 2) * side, ey = pt.y + ny * (roadWidth / 2) * side;
+      if (i === 0) ctx.moveTo(ex, ey); else ctx.lineTo(ex, ey);
+    }
+    ctx.stroke();
+  });
+
+  // Dashed cyan centerline.
+  ctx.strokeStyle = 'rgba(140, 240, 255, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([7, 9]);
+  ctx.beginPath();
+  for (var i = 0; i <= steps; i++) {
+    var pt3 = marbleTrackPoint(i / steps, w, h);
+    if (i === 0) ctx.moveTo(pt3.x, pt3.y); else ctx.lineTo(pt3.x, pt3.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ---- Obstacles: glowing diamond bumpers along the track ----
+  MARBLE_OBSTACLES.forEach(function(ot) {
+    var op = marbleTrackPoint(ot, w, h);
+    var pulse = 0.6 + Math.sin(elapsed / 220 + ot * 10) * 0.4;
+    ctx.save();
+    ctx.translate(op.x, op.y);
+    ctx.rotate(Math.PI / 4);
+    ctx.shadowColor = 'rgba(255, 210, 60, 0.8)';
+    ctx.shadowBlur = 8 + pulse * 6;
+    ctx.fillStyle = '#FFD23C';
+    ctx.fillRect(-6, -6, 12, 12);
+    ctx.restore();
+  });
+
+  // Start marker.
+  var startPt = marbleTrackPoint(0, w, h);
+  ctx.font = '14px "Courier New", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#7FF7C4';
+  ctx.fillText('◉ START', startPt.x, startPt.y - roadWidth / 2 - 8);
+
+  // Checkered finish flag, placed a little before the very end of the
+  // track (matching FINISH_FRACTION) so the winner visibly rolls past it.
+  var flagPt = marbleTrackPoint(0.9, w, h);
+  var checkSize = 6;
+  for (var cy = -14; cy <= 14; cy += checkSize) {
+    for (var cx = 0; cx < 2; cx++) {
+      var isDark = (Math.round((cy + 14) / checkSize) + cx) % 2 === 0;
+      ctx.fillStyle = isDark ? 'rgba(10,10,20,0.9)' : 'rgba(230,240,255,0.95)';
+      ctx.fillRect(flagPt.x - 6 + cx * checkSize, flagPt.y + cy - roadWidth / 2, checkSize, checkSize);
+    }
+  }
+
+  // ---- Marbles: real glass-marble rendering with a swirl core, sharp
+  // specular highlight, and a neon rim matching each marble's color. ----
+  marblePool.forEach(function(participant, i) {
+    var dist = (positions && positions[i]) || 0;
+    var t = marbleDistanceToT(Math.min(dist, 1), table);
+    var pos = marbleTrackPoint(t, w, h);
+    var tNext = marbleTrackPoint(Math.min(t + 0.01, 1), w, h);
+    var tangentX = tNext.x - pos.x, tangentY = tNext.y - pos.y;
+    var tangentLen = Math.sqrt(tangentX * tangentX + tangentY * tangentY) || 1;
+    var normalX = -tangentY / tangentLen, normalY = tangentX / tangentLen;
+    // Marbles beyond the lane count share a lane with an earlier one —
+    // naturally fine since they're rarely at the exact same point on the
+    // track at the same moment (their speeds/wobble differ).
+    var laneIndex = i % lanes.numLanes;
+    var laneOffset = (laneIndex - (lanes.numLanes - 1) / 2) * lanes.laneSpacing;
+    var mx = pos.x + normalX * laneOffset;
+    var my = pos.y + normalY * laneOffset;
+
+    var color = DUCK_COLORS[i % DUCK_COLORS.length];
+    var isWinner = winnerIndex === i;
+    var radius = 7.5;
+
+    if (isWinner) {
+      ctx.beginPath();
+      ctx.arc(mx, my, radius + 8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 215, 90, 0.5)';
+      ctx.fill();
+    }
+
+    // Shadow on the track.
+    ctx.beginPath();
+    ctx.ellipse(mx, my + radius * 0.75, radius * 0.9, radius * 0.32, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fill();
+
+    // Neon rim glow behind the glass body.
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(mx, my, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+
+    // Glass body: darker rim, bright core, swirl "cat's eye" band —
+    // reads as an actual glass marble rather than a flat dot.
+    var bodyGrad = ctx.createRadialGradient(mx - radius * 0.3, my - radius * 0.35, radius * 0.15, mx, my, radius);
+    bodyGrad.addColorStop(0, '#FFFFFF');
+    bodyGrad.addColorStop(0.28, duckShadeColor(color, 60));
+    bodyGrad.addColorStop(0.65, color);
+    bodyGrad.addColorStop(1, duckShadeColor(color, -60));
+    ctx.beginPath();
+    ctx.arc(mx, my, radius, 0, Math.PI * 2);
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+
+    // Swirl core (the classic marble "cat's eye" ribbon).
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(mx, my, radius, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = radius * 0.55;
+    ctx.beginPath();
+    ctx.moveTo(mx - radius, my + radius * 0.3);
+    ctx.quadraticCurveTo(mx, my - radius * 0.6, mx + radius, my + radius * 0.3);
+    ctx.stroke();
+    ctx.restore();
+
+    // Sharp specular highlight.
+    ctx.beginPath();
+    ctx.arc(mx - radius * 0.32, my - radius * 0.34, radius * 0.24, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+
+    // Thin dark glass outline.
+    ctx.beginPath();
+    ctx.arc(mx, my, radius, 0, Math.PI * 2);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.stroke();
+
+    // Every marble carries its pseudo — smaller and lighter for big
+    // fields so it stays out of the way, but never hidden.
+    var nameSize = marblePool.length <= 15 ? 10 : marblePool.length <= 40 ? 8.5 : 7.5;
+    ctx.font = (isWinner ? 'bold ' : '600 ') + nameSize + 'px "Courier New", monospace';
+    ctx.fillStyle = isWinner ? '#FFE8A3' : 'rgba(207,232,255,0.85)';
+    ctx.textAlign = 'center';
+    ctx.fillText('@' + participant.name, mx, my - radius - (isWinner ? 8 : 6), 80);
+
+    if (isWinner) {
+      ctx.font = '15px system-ui, sans-serif';
+      ctx.fillText('👑', mx, my - radius - 8 - nameSize - 4);
+    }
+  });
 }
 
 </script>
