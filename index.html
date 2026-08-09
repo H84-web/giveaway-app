@@ -7369,6 +7369,13 @@ function downloadCertificate() {
   ctx.lineWidth = 1;
   ctx.stroke();
 
+  // Everything below is center-anchored text. This must be set
+  // explicitly and unconditionally — it used to only get set as a side
+  // effect of the "logo not loaded" fallback branch above, which broke
+  // the whole layout (text drifting to the right) once the logo started
+  // reliably preloading and that branch stopped running.
+  ctx.textAlign = 'center';
+
   // --- Eyebrow ---
   ctx.fillStyle = '#5A5346';
   ctx.font = '600 13px Georgia, serif';
