@@ -1,3 +1,273 @@
+<!--
+============================================================
+CONFIGURATION SERVEUR — ABONNEMENT PRO (NOWPayments, crypto)
+============================================================
+
+--- Étape 1 — Compte NOWPayments ---
+1. Crée un compte sur nowpayments.io
+2. Dans leur dashboard → Store settings → récupère ta clé API
+3. Toujours dans Store settings → Instant Payment Notifications →
+   active-les, et note le "IPN Secret" (tu en auras besoin étape 3)
+
+--- Étape 2 — SQL (une fois) ---
+SQL Editor → colle et Run :
+-- Table de suivi des abonnements Pro (paiement crypto via NOWPayments)
+create table if not exists subscriptions (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  status text not null default 'inactive',  -- 'inactive' | 'active' | 'cancelled' | 'expired'
+  plan text not null default 'pro',
+  nowpayments_subscription_id text,
+  nowpayments_plan_id text,
+  current_period_end timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table subscriptions enable row level security;
+
+create policy "select_own_subscription"
+  on subscriptions for select
+  using (auth.uid() = user_id);
+
+-- No insert/update policy for regular users: only the Edge Functions
+-- (using the service role key, which bypasses RLS) are allowed to
+-- create or change subscription status. This is deliberate — a user
+-- must never be able to grant themselves "active" by editing client-side
+-- data; only a confirmed NOWPayments webhook can do that.
+
+
+--- Étape 3 — Edge Function : create-nowpayments-subscription ---
+Edge Functions → crée "create-nowpayments-subscription" → colle :
+// Supabase Edge Function : create-nowpayments-subscription
+//
+// Called when a logged-in user clicks "Passer Pro". Creates (or reuses)
+// the RerePickWinn Pro subscription plan on NOWPayments, subscribes this
+// user's email to it, and returns the payment link they need to open to
+// pay their first invoice. NOWPayments then bills them automatically at
+// the same interval going forward and notifies us via the IPN webhook
+// (see nowpayments-webhook) — this function never marks anyone as
+// "active" itself, it only kicks off the very first payment.
+//
+// Secrets to configure (Edge Functions → create-nowpayments-subscription → Secrets):
+//   NOWPAYMENTS_API_KEY = <ta clé API NOWPayments>
+//
+// Déploiement : supabase functions deploy create-nowpayments-subscription
+
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const NOWPAYMENTS_API_KEY = Deno.env.get("NOWPAYMENTS_API_KEY")!;
+
+const PLAN_TITLE = "RerePickWinn Pro";
+const PLAN_AMOUNT = 7.99;
+const PLAN_CURRENCY = "usd";
+const PLAN_INTERVAL_DAYS = 30;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return json({ error: "Non authentifié" }, 401);
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const jwt = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
+    if (userErr || !userData.user || !userData.user.email) {
+      return json({ error: "Session invalide" }, 401);
+    }
+    const user = userData.user;
+
+    // Step 1 — find or create the shared subscription plan. NOWPayments
+    // doesn't have a "get or create" endpoint, so we cache the plan id
+    // in a settings row the very first time this runs, and reuse it
+    // after that instead of creating a duplicate plan on every signup.
+    let planId: string | null = null;
+    const { data: existingSub } = await supabase
+      .from("subscriptions")
+      .select("nowpayments_plan_id")
+      .not("nowpayments_plan_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+    planId = existingSub?.nowpayments_plan_id || null;
+
+    if (!planId) {
+      const planResp = await fetch("https://api.nowpayments.io/v1/subscriptions/plans", {
+        method: "POST",
+        headers: { "x-api-key": NOWPAYMENTS_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: PLAN_TITLE,
+          interval_day: PLAN_INTERVAL_DAYS,
+          amount: PLAN_AMOUNT,
+          currency: PLAN_CURRENCY,
+        }),
+      });
+      const planData = await planResp.json();
+      if (!planResp.ok || !planData.result?.id) {
+        return json({ error: "Échec de création du plan NOWPayments", details: planData }, 500);
+      }
+      planId = planData.result.id;
+    }
+
+    // Step 2 — subscribe this user's email to the plan. NOWPayments
+    // sends them an invoice by email, AND returns the same info here so
+    // we can send the person straight to the payment page ourselves.
+    const subResp = await fetch(
+      `https://api.nowpayments.io/v1/subscriptions/plans/${planId}/subscribe`,
+      {
+        method: "POST",
+        headers: { "x-api-key": NOWPAYMENTS_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscriber_email: user.email,
+          // The user id travels with the subscription so the webhook
+          // can find them again without guessing from an email match.
+          order_id: user.id,
+        }),
+      }
+    );
+    const subData = await subResp.json();
+    if (!subResp.ok || !subData.result?.[0]?.id) {
+      return json({ error: "Échec de création de l'abonnement NOWPayments", details: subData }, 500);
+    }
+    const subscription = subData.result[0];
+
+    await supabase.from("subscriptions").upsert({
+      user_id: user.id,
+      status: "inactive", // becomes "active" only once the webhook confirms payment
+      plan: "pro",
+      nowpayments_subscription_id: subscription.id,
+      nowpayments_plan_id: planId,
+      updated_at: new Date().toISOString(),
+    });
+
+    return json({ success: true, payment_url: subscription.payment_url || null, subscription_id: subscription.id });
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : "Erreur inconnue" }, 500);
+  }
+});
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+Secret de cette fonction :
+  NOWPAYMENTS_API_KEY = <ta clé API de l'étape 1>
+
+--- Étape 4 — Edge Function : nowpayments-webhook ---
+Edge Functions → crée "nowpayments-webhook" → colle :
+// Supabase Edge Function : nowpayments-webhook
+//
+// NOWPayments calls this URL (their "IPN callback") every time a
+// subscription payment succeeds, fails, or a subscription's status
+// changes. This is the ONLY place that ever marks a user's
+// subscription as "active" — never the client, never
+// create-nowpayments-subscription. The request is verified using the
+// IPN secret before anything is trusted, so nobody can fake a payment
+// by just calling this URL themselves.
+//
+// Secrets to configure (Edge Functions → nowpayments-webhook → Secrets):
+//   NOWPAYMENTS_IPN_SECRET = <ton secret IPN NOWPayments>
+//
+// Une fois déployée, copie son URL et colle-la dans NOWPayments :
+// Store settings → Instant Payment Notifications → IPN callback URL.
+//
+// Déploiement : supabase functions deploy nowpayments-webhook --no-verify-jwt
+// (--no-verify-jwt est nécessaire : NOWPayments n'envoie pas de jeton Supabase)
+
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { createHmac } from "node:crypto";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const NOWPAYMENTS_IPN_SECRET = Deno.env.get("NOWPAYMENTS_IPN_SECRET")!;
+
+// NOWPayments signs the JSON body with keys sorted alphabetically —
+// this exact ordering is required for the signature to match.
+function sortedStringify(obj: unknown): string {
+  if (Array.isArray(obj)) return "[" + obj.map(sortedStringify).join(",") + "]";
+  if (obj && typeof obj === "object") {
+    const keys = Object.keys(obj as Record<string, unknown>).sort();
+    return "{" + keys.map((k) => JSON.stringify(k) + ":" + sortedStringify((obj as Record<string, unknown>)[k])).join(",") + "}";
+  }
+  return JSON.stringify(obj);
+}
+
+Deno.serve(async (req) => {
+  try {
+    const rawBody = await req.text();
+    const signature = req.headers.get("x-nowpayments-sig");
+    if (!signature) return json({ error: "Signature manquante" }, 401);
+
+    const payload = JSON.parse(rawBody);
+    const expectedSig = createHmac("sha512", NOWPAYMENTS_IPN_SECRET)
+      .update(sortedStringify(payload))
+      .digest("hex");
+
+    if (expectedSig !== signature) {
+      return json({ error: "Signature invalide" }, 401);
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // order_id was set to the user's id when we created the subscription.
+    const userId = payload.order_id;
+    const paymentStatus = payload.payment_status; // 'finished', 'confirmed', 'failed', 'expired', ...
+
+    if (!userId) return json({ error: "order_id manquant" }, 400);
+
+    if (paymentStatus === "finished" || paymentStatus === "confirmed") {
+      const periodEnd = new Date();
+      periodEnd.setDate(periodEnd.getDate() + 30);
+      await supabase.from("subscriptions").update({
+        status: "active",
+        current_period_end: periodEnd.toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("user_id", userId);
+    } else if (paymentStatus === "failed" || paymentStatus === "expired") {
+      await supabase.from("subscriptions").update({
+        status: "expired",
+        updated_at: new Date().toISOString(),
+      }).eq("user_id", userId);
+    }
+
+    return json({ success: true });
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : "Erreur inconnue" }, 500);
+  }
+});
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+Secret de cette fonction :
+  NOWPAYMENTS_IPN_SECRET = <le IPN Secret de l'étape 1>
+
+IMPORTANT : cette fonction doit être déployée avec l'option
+"pas de vérification JWT" (--no-verify-jwt) car NOWPayments ne
+lui envoie pas de jeton Supabase. Cherche cette option dans les
+paramètres de la fonction sur le dashboard (souvent une case à
+cocher "Verify JWT" à décocher).
+
+--- Étape 5 — Copier l'URL de la fonction dans NOWPayments ---
+Une fois déployée, copie l'URL de "nowpayments-webhook"
+(visible dans le dashboard Supabase → Edge Functions) et colle-la
+dans NOWPayments → Store settings → Instant Payment
+Notifications → "IPN callback URL".
+============================================================
+-->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -412,6 +682,21 @@ button { font-family: inherit; }
 .auth-screen {
   min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr;
 }
+/* The login/signup card is deliberately always light (white card,
+   dark text) regardless of the app's own theme toggle — but its text
+   was inheriting --ink etc. from the global theme variables, which
+   flip to light colors in dark mode, making text nearly invisible on
+   the still-white card. Pinning the variables back to their light
+   values here, scoped to #authScreen, fixes every element inside it
+   at once without touching each one individually. */
+[data-theme="dark"] #authScreen {
+  --ink: #0F1117; --ink-soft: #4B5063; --muted: #6B7280; --line: #E8E9F0; --bg: #FAFBFF; --card: #FFFFFF;
+}
+[data-theme="dark"] #authScreen .form-input { background: #FCFCFE; }
+[data-theme="dark"] #authScreen .form-input:focus { background: #fff; }
+[data-theme="dark"] #authScreen .auth-security-note { background: #F8F8FB; }
+[data-theme="dark"] #authScreen .btn-secondary { background: #F2F3F7; }
+[data-theme="dark"] #authScreen .btn-secondary:not(:disabled):hover { background: #E9EAF0; }
 
 /* ---- Left: brand panel (desktop only) ---- */
 .auth-brand-panel {
@@ -1234,6 +1519,20 @@ button { font-family: inherit; }
 
 /* ---- theme switch (Settings screen) ---- */
 .theme-toggle-row { display: flex; align-items: center; justify-content: space-between; }
+.billing-pro-box {
+  background: linear-gradient(160deg, var(--accent-soft), rgba(139,92,246,0.08));
+  border: 1.5px solid var(--accent); border-radius: 14px; padding: 18px;
+}
+.billing-pro-badge {
+  display: inline-block; background: var(--gradient-brand); color: #fff; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.05em; padding: 4px 10px; border-radius: 99px; margin-bottom: 10px;
+}
+.billing-pro-price { display: block; font-size: 26px; font-weight: 800; color: var(--ink); margin-bottom: 12px; }
+.billing-pro-price span { font-size: 14px; font-weight: 500; color: var(--muted); }
+.billing-pro-list { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-direction: column; gap: 6px; }
+.billing-pro-list li { font-size: 13.5px; color: var(--ink-soft); padding-left: 22px; position: relative; }
+.billing-pro-list li::before { content: '✓'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+.billing-active-row { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-soft); }
 .theme-switch { display: flex; gap: 4px; background: #F2F3F7; border-radius: 10px; padding: 4px; }
 .theme-switch-btn {
   border: none; background: transparent; padding: 8px 14px; border-radius: 7px;
@@ -2098,6 +2397,30 @@ button { font-family: inherit; }
           <div class="theme-switch" id="themeSwitch">
             <button class="theme-switch-btn active" data-theme="light" onclick="setTheme('light')" data-i18n="theme_light">☀️ Clair</button>
             <button class="theme-switch-btn" data-theme="dark" onclick="setTheme('dark')" data-i18n="theme_dark">🌙 Sombre</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="billingCard">
+        <h3 class="card-section-title" data-i18n="billing_title">Abonnement</h3>
+        <div id="billingFreeState">
+          <p class="hint" style="margin-bottom:14px;" data-i18n="billing_free_desc">Plan gratuit : jusqu'à 3 tirages actifs, 100 participants par tirage.</p>
+          <div class="billing-pro-box">
+            <span class="billing-pro-badge" data-i18n="billing_pro_badge">PRO</span>
+            <span class="billing-pro-price">7,99$<span data-i18n="billing_per_month">/mois</span></span>
+            <ul class="billing-pro-list">
+              <li data-i18n="billing_feature_unlimited_giveaways">Tirages illimités</li>
+              <li data-i18n="billing_feature_unlimited_participants">Participants illimités</li>
+            </ul>
+            <button class="btn btn-primary btn-block" id="billingUpgradeBtn" onclick="upgradeToProClicked()">
+              <span class="btn-label" data-i18n="billing_upgrade_btn">Passer Pro (paiement crypto)</span>
+            </button>
+          </div>
+        </div>
+        <div id="billingProState" style="display:none;">
+          <div class="billing-active-row">
+            <span class="billing-pro-badge" data-i18n="billing_pro_badge">PRO</span>
+            <span data-i18n="billing_active_desc">Ton abonnement est actif — merci !</span>
           </div>
         </div>
       </div>
@@ -3179,6 +3502,7 @@ function onAuthSuccess(user) {
 
   initTheme();
   initLanguage();
+  loadSubscriptionStatus();
   var lastScreen = 'dashboardScreen';
   try {
     var saved = localStorage.getItem('repickwinn-last-screen');
@@ -4170,6 +4494,17 @@ var TRANSLATIONS = {
     "toast_sheets_not_public": "Impossible de lire cette feuille — vérifie qu'elle est bien partagée en \"Toute personne disposant du lien peut afficher\".",
     "toast_sheets_imported": "{count} participants importés depuis Google Sheets",
     "toast_sheets_error": "Erreur Google Sheets : {msg}",
+    "billing_title": "Abonnement",
+    "billing_free_desc": "Plan gratuit : jusqu'à 3 tirages actifs, 100 participants par tirage.",
+    "billing_pro_badge": "PRO",
+    "billing_per_month": "/mois",
+    "billing_feature_unlimited_giveaways": "Tirages illimités",
+    "billing_feature_unlimited_participants": "Participants illimités",
+    "billing_upgrade_btn": "Passer Pro (paiement crypto)",
+    "billing_active_desc": "Ton abonnement est actif — merci !",
+    "billing_check_email": "Vérifie ton email pour le lien de paiement",
+    "toast_free_participant_limit": "Plan gratuit limité à {count} participants par tirage — passe Pro pour lever cette limite.",
+    "toast_free_giveaway_limit": "Plan gratuit limité à {count} tirages actifs en même temps — passe Pro pour lever cette limite.",
     "legal_last_updated": "Dernière mise à jour : 7 août 2026",
     "terms_h2": "Conditions Générales d'Utilisation",
     "terms_h1": "1. Objet",
@@ -4532,6 +4867,17 @@ var TRANSLATIONS = {
     "toast_sheets_not_public": "Couldn't read this sheet — check that it's shared as \"Anyone with the link can view\".",
     "toast_sheets_imported": "{count} participants imported from Google Sheets",
     "toast_sheets_error": "Google Sheets error: {msg}",
+    "billing_title": "Subscription",
+    "billing_free_desc": "Free plan: up to 3 active giveaways, 100 participants per giveaway.",
+    "billing_pro_badge": "PRO",
+    "billing_per_month": "/month",
+    "billing_feature_unlimited_giveaways": "Unlimited giveaways",
+    "billing_feature_unlimited_participants": "Unlimited participants",
+    "billing_upgrade_btn": "Upgrade to Pro (crypto payment)",
+    "billing_active_desc": "Your subscription is active — thank you!",
+    "billing_check_email": "Check your email for the payment link",
+    "toast_free_participant_limit": "Free plan limited to {count} participants per giveaway — upgrade to Pro to remove this limit.",
+    "toast_free_giveaway_limit": "Free plan limited to {count} active giveaways at once — upgrade to Pro to remove this limit.",
     "legal_last_updated": "Last updated: August 7, 2026",
     "terms_h2": "Terms of Service",
     "terms_h1": "1. Purpose",
@@ -4894,6 +5240,17 @@ var TRANSLATIONS = {
     "toast_sheets_not_public": "Dieses Tabellenblatt konnte nicht gelesen werden — überprüfe, ob es mit \"Jeder mit dem Link kann ansehen\" freigegeben ist.",
     "toast_sheets_imported": "{count} Teilnehmer von Google Sheets importiert",
     "toast_sheets_error": "Google-Sheets-Fehler: {msg}",
+    "billing_title": "Abonnement",
+    "billing_free_desc": "Kostenloser Plan: bis zu 3 aktive Verlosungen, 100 Teilnehmer pro Verlosung.",
+    "billing_pro_badge": "PRO",
+    "billing_per_month": "/Monat",
+    "billing_feature_unlimited_giveaways": "Unbegrenzte Verlosungen",
+    "billing_feature_unlimited_participants": "Unbegrenzte Teilnehmer",
+    "billing_upgrade_btn": "Auf Pro upgraden (Krypto-Zahlung)",
+    "billing_active_desc": "Dein Abonnement ist aktiv — danke!",
+    "billing_check_email": "Überprüfe deine E-Mail für den Zahlungslink",
+    "toast_free_participant_limit": "Kostenloser Plan auf {count} Teilnehmer pro Verlosung begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
+    "toast_free_giveaway_limit": "Kostenloser Plan auf {count} aktive Verlosungen gleichzeitig begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "legal_last_updated": "Zuletzt aktualisiert: 7. August 2026",
     "terms_h2": "Allgemeine Geschäftsbedingungen",
     "terms_h1": "1. Gegenstand",
@@ -6116,6 +6473,15 @@ function reviewRow(label, value) {
 
 async function wizardCreate() {
   var btn = document.getElementById('wizardCreateBtn');
+
+  if (!isPro()) {
+    var activeCount = currentGiveaways.filter(function(g) { return getGiveawayStatus(g) === 'active'; }).length;
+    if (activeCount >= FREE_ACTIVE_GIVEAWAYS_LIMIT) {
+      showToast(t('toast_free_giveaway_limit', { count: FREE_ACTIVE_GIVEAWAYS_LIMIT }), 'error');
+      return;
+    }
+  }
+
   setBtnLoading(btn, true);
 
   // The image (if any) was already uploaded right when it was selected
@@ -6316,11 +6682,77 @@ function looksLikeUsername(line) {
 // both the browser (rendering/animating tens of thousands of entries)
 // and the database from an accidental or intentional oversized import.
 var MAX_PARTICIPANTS_PER_IMPORT = 10000;
+var FREE_ACTIVE_GIVEAWAYS_LIMIT = 3;
+var FREE_PARTICIPANT_LIMIT = 100;
+var currentSubscription = null;
+
+function isPro() {
+  return !!(currentSubscription && currentSubscription.status === 'active');
+}
+
+async function loadSubscriptionStatus() {
+  if (!currentUser) return;
+  try {
+    var { data } = await supabaseClient
+      .from('subscriptions')
+      .select('status, current_period_end')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    currentSubscription = data || null;
+  } catch (e) {
+    currentSubscription = null;
+  }
+  renderBillingCard();
+}
+
+function renderBillingCard() {
+  var freeEl = document.getElementById('billingFreeState');
+  var proEl = document.getElementById('billingProState');
+  if (!freeEl || !proEl) return;
+  var pro = isPro();
+  freeEl.style.display = pro ? 'none' : 'block';
+  proEl.style.display = pro ? 'block' : 'none';
+}
+
+async function upgradeToProClicked() {
+  var btn = document.getElementById('billingUpgradeBtn');
+  setBtnLoading(btn, true);
+  try {
+    var { data: sessionData } = await supabaseClient.auth.getSession();
+    var accessToken = sessionData && sessionData.session && sessionData.session.access_token;
+    if (!accessToken) throw new Error(t('err_generic_prefix', { msg: 'no session' }));
+
+    var resp = await fetch(SUPABASE_URL + '/functions/v1/create-nowpayments-subscription', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + accessToken,
+        'apikey': SUPABASE_ANON_KEY
+      }
+    });
+    var data = await resp.json();
+    if (!resp.ok || !data.success) throw new Error((data && data.error) || 'unknown');
+
+    if (data.payment_url) {
+      window.location.href = data.payment_url;
+    } else {
+      showToast(t('billing_check_email'), 'success');
+    }
+  } catch (err) {
+    showToast(t('toast_error_prefix', { msg: err.message }), 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
 
 function setWizardParticipants(list) {
   if (list.length > MAX_PARTICIPANTS_PER_IMPORT) {
     showToast(t('toast_import_limited', { count: MAX_PARTICIPANTS_PER_IMPORT.toLocaleString(currentLang()) }), 'error');
     list = list.slice(0, MAX_PARTICIPANTS_PER_IMPORT);
+  }
+  if (!isPro() && list.length > FREE_PARTICIPANT_LIMIT) {
+    showToast(t('toast_free_participant_limit', { count: FREE_PARTICIPANT_LIMIT }), 'error');
+    list = list.slice(0, FREE_PARTICIPANT_LIMIT);
   }
   wizardData.participants = list;
 }
