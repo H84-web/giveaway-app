@@ -21,6 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* ============================================================
    REREPICKWINN — Design system
@@ -2203,7 +2204,7 @@ button { font-family: inherit; }
 
       <div class="card">
         <h3 class="card-section-title" data-i18n="profile_security">Sécurité</h3>
-        <button class="btn btn-secondary btn-block" onclick="showView('forgotView'); showScreen(null); document.getElementById('authScreen').style.display='flex'; document.getElementById('appShell').style.display='none';">
+        <button class="btn btn-secondary btn-block" onclick="showView('forgotView'); showScreen(null); document.getElementById('authScreen').style.display='grid'; document.getElementById('appShell').style.display='none';">
           <span data-i18n="btn_change_password">Changer mon mot de passe</span>
         </button>
       </div>
@@ -2274,7 +2275,8 @@ button { font-family: inherit; }
 
         <div class="tabs">
           <button class="tab active" id="wizTabPaste" onclick="wizardSwitchTab('paste')" data-i18n="tab_paste">Coller une liste</button>
-          <button class="tab" id="wizTabCsv" onclick="wizardSwitchTab('csv')" data-i18n="tab_csv">Importer un CSV</button>
+          <button class="tab" id="wizTabCsv" onclick="wizardSwitchTab('csv')" data-i18n="tab_csv">Importer un fichier</button>
+          <button class="tab" id="wizTabSheets" onclick="wizardSwitchTab('sheets')" data-i18n="tab_sheets">Google Sheets</button>
           <button class="tab" id="wizTabYoutube" onclick="wizardSwitchTab('youtube')">YouTube</button>
           <button class="tab" id="wizTabInstagram" onclick="wizardSwitchTab('instagram')">Instagram</button>
         </div>
@@ -2288,7 +2290,18 @@ button { font-family: inherit; }
         </div>
 
         <div id="wizCsvPanel" class="form-field" style="display:none;">
-          <input type="file" id="wizardCsvInput" accept=".csv,text/csv" class="form-input" />
+          <input type="file" id="wizardCsvInput" accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="form-input" />
+          <p class="hint" data-i18n="hint_csv_xlsx">Fichiers acceptés : CSV ou Excel (.xlsx). La première colonne doit contenir les pseudos.</p>
+        </div>
+
+        <div id="wizSheetsPanel" class="form-field" style="display:none;">
+          <label class="form-label" data-i18n="sheets_url_label">Lien Google Sheets</label>
+          <input type="text" id="wizardSheetsUrl" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/..." />
+          <p class="hint-box" data-i18n="sheets_share_hint">📄 La feuille doit être partagée en "Toute personne disposant du lien peut afficher" (bouton Partager, en haut à droite de Google Sheets).</p>
+          <button type="button" class="btn btn-secondary" id="wizardSheetsFetchBtn" onclick="fetchGoogleSheet()" style="margin-top:14px;">
+            <span class="btn-label" data-i18n="sheets_import_btn">Importer la feuille</span>
+          </button>
+          <p class="hint" id="wizardSheetsStatus" style="display:none;"></p>
         </div>
 
         <div id="wizYoutubePanel" class="form-field" style="display:none;">
@@ -2624,105 +2637,105 @@ button { font-family: inherit; }
     <div class="legal-panel-body">
 
       <div id="legalSectionTerms" class="legal-section">
-        <h2>Conditions Générales d'Utilisation</h2>
-        <p class="legal-updated">Dernière mise à jour : 7 août 2026</p>
+        <h2 data-i18n="terms_h2">Conditions Générales d'Utilisation</h2>
+        <p class="legal-updated" data-i18n="legal_last_updated">Dernière mise à jour : 7 août 2026</p>
 
-        <h3>1. Objet</h3>
-        <p>RerePickWinn ("le Service") est une application permettant d'organiser et de réaliser des tirages au sort (giveaways) à partir de listes de participants importées manuellement ou depuis des plateformes tierces (YouTube, Instagram).</p>
+        <h3 data-i18n="terms_h1">1. Objet</h3>
+        <p data-i18n="terms_p1">RerePickWinn ("le Service") est une application permettant d'organiser et de réaliser des tirages au sort (giveaways) à partir de listes de participants importées manuellement ou depuis des plateformes tierces (YouTube, Instagram).</p>
 
-        <h3>2. Accès au service</h3>
-        <p>L'accès au Service nécessite la création d'un compte (email et mot de passe). Le Service est actuellement proposé gratuitement.</p>
+        <h3 data-i18n="terms_h2b">2. Accès au service</h3>
+        <p data-i18n="terms_p2">L'accès au Service nécessite la création d'un compte (email et mot de passe). Le Service est actuellement proposé gratuitement.</p>
 
-        <h3>3. Compte utilisateur</h3>
-        <p>L'utilisateur est seul responsable de la confidentialité de ses identifiants et de toute activité réalisée depuis son compte. Il s'engage à fournir des informations exactes lors de son inscription.</p>
+        <h3 data-i18n="terms_h3">3. Compte utilisateur</h3>
+        <p data-i18n="terms_p3">L'utilisateur est seul responsable de la confidentialité de ses identifiants et de toute activité réalisée depuis son compte. Il s'engage à fournir des informations exactes lors de son inscription.</p>
 
-        <h3>4. Utilisation du service</h3>
-        <p>L'utilisateur s'engage à utiliser le Service conformément à la loi et aux conditions d'utilisation des plateformes tierces concernées (notamment les CGU d'Instagram et de YouTube lors de l'import de commentaires). Il est seul responsable de la légalité et de la loyauté des tirages qu'il organise (règlement du jeu, conditions de participation, remise effective des lots aux gagnants désignés).</p>
-        <p>Sont interdits : l'utilisation du Service à des fins illégales, l'import de données obtenues de manière non autorisée, et toute tentative de contournement des mesures de sécurité du Service.</p>
+        <h3 data-i18n="terms_h4">4. Utilisation du service</h3>
+        <p data-i18n="terms_p4a">L'utilisateur s'engage à utiliser le Service conformément à la loi et aux conditions d'utilisation des plateformes tierces concernées (notamment les CGU d'Instagram et de YouTube lors de l'import de commentaires). Il est seul responsable de la légalité et de la loyauté des tirages qu'il organise (règlement du jeu, conditions de participation, remise effective des lots aux gagnants désignés).</p>
+        <p data-i18n="terms_p4b">Sont interdits : l'utilisation du Service à des fins illégales, l'import de données obtenues de manière non autorisée, et toute tentative de contournement des mesures de sécurité du Service.</p>
 
-        <h3>5. Propriété intellectuelle</h3>
-        <p>Le Service, son code et son interface restent la propriété de Hermes Hounkanrin. Les données et listes de participants importées par l'utilisateur restent sa propriété.</p>
+        <h3 data-i18n="terms_h5">5. Propriété intellectuelle</h3>
+        <p data-i18n="terms_p5">Le Service, son code et son interface restent la propriété de Hermes Hounkanrin. Les données et listes de participants importées par l'utilisateur restent sa propriété.</p>
 
-        <h3>6. Disponibilité du service</h3>
-        <p>Le Service est fourni "en l'état", sans garantie de disponibilité continue. Des interruptions pour maintenance ou évolution peuvent survenir sans préavis.</p>
+        <h3 data-i18n="terms_h6">6. Disponibilité du service</h3>
+        <p data-i18n="terms_p6">Le Service est fourni "en l'état", sans garantie de disponibilité continue. Des interruptions pour maintenance ou évolution peuvent survenir sans préavis.</p>
 
-        <h3>7. Responsabilité</h3>
-        <p>Le Service se limite à fournir un outil de tirage au sort et d'aide à l'organisation de giveaways. L'éditeur ne saurait être tenu responsable des litiges entre l'utilisateur organisateur et les participants ou gagnants d'un tirage, ni de l'usage fait des données importées.</p>
+        <h3 data-i18n="terms_h7">7. Responsabilité</h3>
+        <p data-i18n="terms_p7">Le Service se limite à fournir un outil de tirage au sort et d'aide à l'organisation de giveaways. L'éditeur ne saurait être tenu responsable des litiges entre l'utilisateur organisateur et les participants ou gagnants d'un tirage, ni de l'usage fait des données importées.</p>
 
-        <h3>8. Résiliation</h3>
-        <p>L'utilisateur peut supprimer son compte à tout moment depuis son profil. L'éditeur se réserve le droit de suspendre ou supprimer un compte en cas de non-respect des présentes CGU.</p>
+        <h3 data-i18n="terms_h8">8. Résiliation</h3>
+        <p data-i18n="terms_p8">L'utilisateur peut supprimer son compte à tout moment depuis son profil. L'éditeur se réserve le droit de suspendre ou supprimer un compte en cas de non-respect des présentes CGU.</p>
 
-        <h3>9. Modification des CGU</h3>
-        <p>Les présentes CGU peuvent être modifiées à tout moment. La version en vigueur est celle affichée dans l'application.</p>
+        <h3 data-i18n="terms_h9">9. Modification des CGU</h3>
+        <p data-i18n="terms_p9">Les présentes CGU peuvent être modifiées à tout moment. La version en vigueur est celle affichée dans l'application.</p>
 
-        <h3>10. Droit applicable</h3>
-        <p>Les présentes CGU sont soumises au droit béninois. Tout litige relève des tribunaux compétents.</p>
+        <h3 data-i18n="terms_h10">10. Droit applicable</h3>
+        <p data-i18n="terms_p10">Les présentes CGU sont soumises au droit béninois. Tout litige relève des tribunaux compétents.</p>
 
-        <h3>11. Contact</h3>
+        <h3 data-i18n="terms_h11">11. Contact</h3>
         <p>rere50170@gmail.com</p>
       </div>
 
       <div id="legalSectionPrivacy" class="legal-section" style="display:none;">
-        <h2>Politique de confidentialité</h2>
-        <p class="legal-updated">Dernière mise à jour : 7 août 2026</p>
+        <h2 data-i18n="privacy_h2">Politique de confidentialité</h2>
+        <p class="legal-updated" data-i18n="legal_last_updated">Dernière mise à jour : 7 août 2026</p>
 
-        <h3>1. Responsable du traitement</h3>
+        <h3 data-i18n="privacy_h1">1. Responsable du traitement</h3>
         <p>Hermes Hounkanrin — rere50170@gmail.com</p>
 
-        <h3>2. Données collectées</h3>
-        <p>Lors de l'utilisation du Service, sont collectées : ton nom et ton email (compte), les listes de participants que tu importes (pseudos, commentaires), et, si tu connectes ton compte Instagram, un jeton d'accès permettant de lire les commentaires de tes propres publications.</p>
+        <h3 data-i18n="privacy_h2b">2. Données collectées</h3>
+        <p data-i18n="privacy_p2">Lors de l'utilisation du Service, sont collectées : ton nom et ton email (compte), les listes de participants que tu importes (pseudos, commentaires), et, si tu connectes ton compte Instagram, un jeton d'accès permettant de lire les commentaires de tes propres publications.</p>
 
-        <h3>3. Finalités</h3>
-        <p>Ces données sont utilisées uniquement pour faire fonctionner le Service : authentification, réalisation des tirages, affichage de ton historique.</p>
+        <h3 data-i18n="privacy_h3">3. Finalités</h3>
+        <p data-i18n="privacy_p3">Ces données sont utilisées uniquement pour faire fonctionner le Service : authentification, réalisation des tirages, affichage de ton historique.</p>
 
-        <h3>4. Destinataires des données</h3>
-        <p>Les données sont hébergées par Supabase (base de données et authentification) et le Service lui-même est hébergé par GitHub Pages. Lorsque tu utilises l'import YouTube ou Instagram, une requête est faite directement aux API de Google/YouTube et de Meta/Instagram avec les identifiants que tu as toi-même configurés.</p>
+        <h3 data-i18n="privacy_h4">4. Destinataires des données</h3>
+        <p data-i18n="privacy_p4">Les données sont hébergées par Supabase (base de données et authentification) et le Service lui-même est hébergé par GitHub Pages. Lorsque tu utilises l'import YouTube ou Instagram, une requête est faite directement aux API de Google/YouTube et de Meta/Instagram avec les identifiants que tu as toi-même configurés.</p>
 
-        <h3>5. Durée de conservation</h3>
-        <p>Les données sont conservées tant que le compte existe. Elles sont supprimées lors de la suppression du compte (voir "Tes droits" ci-dessous).</p>
+        <h3 data-i18n="privacy_h5">5. Durée de conservation</h3>
+        <p data-i18n="privacy_p5">Les données sont conservées tant que le compte existe. Elles sont supprimées lors de la suppression du compte (voir "Tes droits" ci-dessous).</p>
 
-        <h3>6. Cookies et stockage local</h3>
-        <p>Le Service n'utilise pas de cookies publicitaires ou de traceurs tiers. Il utilise le stockage local de ton navigateur (localStorage) pour mémoriser tes préférences (thème clair/sombre, langue, activation du son) et ta session de connexion — ces données restent sur ton appareil.</p>
+        <h3 data-i18n="privacy_h6">6. Cookies et stockage local</h3>
+        <p data-i18n="privacy_p6">Le Service n'utilise pas de cookies publicitaires ou de traceurs tiers. Il utilise le stockage local de ton navigateur (localStorage) pour mémoriser tes préférences (thème clair/sombre, langue, activation du son) et ta session de connexion — ces données restent sur ton appareil.</p>
 
-        <h3>7. Tes droits</h3>
-        <p>Conformément au RGPD, tu disposes d'un droit d'accès, de rectification, d'effacement et de portabilité de tes données. Tu peux supprimer ton compte et toutes les données associées à tout moment depuis ton profil, ou nous contacter à rere50170@gmail.com.</p>
+        <h3 data-i18n="privacy_h7">7. Tes droits</h3>
+        <p data-i18n="privacy_p7">Conformément au RGPD, tu disposes d'un droit d'accès, de rectification, d'effacement et de portabilité de tes données. Tu peux supprimer ton compte et toutes les données associées à tout moment depuis ton profil, ou nous contacter à rere50170@gmail.com.</p>
 
-        <h3>8. Sécurité</h3>
-        <p>Les mots de passe sont gérés et chiffrés par Supabase Auth ; le Service n'y a jamais accès en clair.</p>
+        <h3 data-i18n="privacy_h8">8. Sécurité</h3>
+        <p data-i18n="privacy_p8">Les mots de passe sont gérés et chiffrés par Supabase Auth ; le Service n'y a jamais accès en clair.</p>
 
-        <h3>9. Réclamation</h3>
-        <p>Tu peux introduire une réclamation auprès de la CNIL (cnil.fr) si tu estimes que tes droits ne sont pas respectés.</p>
+        <h3 data-i18n="privacy_h9">9. Réclamation</h3>
+        <p data-i18n="privacy_p9">Tu peux introduire une réclamation auprès de la CNIL (cnil.fr) si tu estimes que tes droits ne sont pas respectés.</p>
       </div>
 
       <div id="legalSectionNotice" class="legal-section" style="display:none;">
-        <h2>Mentions légales</h2>
+        <h2 data-i18n="notice_h2">Mentions légales</h2>
 
-        <h3>Éditeur du site</h3>
-        <p>Hermes Hounkanrin (entrepreneur individuel — pas d'entreprise déclarée)<br>Cotonou, Bénin<br>rere50170@gmail.com<br>SIRET : non applicable</p>
+        <h3 data-i18n="notice_h1">Éditeur du site</h3>
+        <p data-i18n-html="notice_p1">Hermes Hounkanrin (entrepreneur individuel — pas d'entreprise déclarée)<br>Cotonou, Bénin<br>rere50170@gmail.com<br>SIRET : non applicable</p>
 
-        <h3>Directeur de la publication</h3>
+        <h3 data-i18n="notice_h2b">Directeur de la publication</h3>
         <p>Hermes Hounkanrin</p>
 
-        <h3>Hébergement</h3>
-        <p>Le site est hébergé par GitHub, Inc. (GitHub Pages) — 88 Colin P Kelly Jr St, San Francisco, CA 94107, États-Unis.<br>La base de données et l'authentification sont hébergées par Supabase.</p>
+        <h3 data-i18n="notice_h3">Hébergement</h3>
+        <p data-i18n-html="notice_p3">Le site est hébergé par GitHub, Inc. (GitHub Pages) — 88 Colin P Kelly Jr St, San Francisco, CA 94107, États-Unis.<br>La base de données et l'authentification sont hébergées par Supabase.</p>
 
-        <h3>Contact</h3>
+        <h3 data-i18n="notice_h4">Contact</h3>
         <p>rere50170@gmail.com</p>
       </div>
 
       <div id="legalSectionDeletion" class="legal-section" style="display:none;">
-        <h2>Suppression des données</h2>
-        <p class="legal-updated">Dernière mise à jour : 7 août 2026</p>
+        <h2 data-i18n="deletion_h2">Suppression des données</h2>
+        <p class="legal-updated" data-i18n="legal_last_updated">Dernière mise à jour : 7 août 2026</p>
 
-        <h3>Comment supprimer tes données</h3>
-        <p>Si tu as un compte RerePickWinn, tu peux supprimer définitivement ton compte et toutes les données associées (tirages, participants, historique, connexion Instagram) à tout moment, toi-même, sans attendre personne :</p>
-        <p>Ouvre l'application → <strong>Paramètres</strong> → fais défiler jusqu'à <strong>"Zone de danger"</strong> → clique <strong>"Supprimer mon compte"</strong> → confirme avec ton mot de passe. La suppression est immédiate et irréversible.</p>
+        <h3 data-i18n="deletion_h1">Comment supprimer tes données</h3>
+        <p data-i18n="deletion_p1a">Si tu as un compte RerePickWinn, tu peux supprimer définitivement ton compte et toutes les données associées (tirages, participants, historique, connexion Instagram) à tout moment, toi-même, sans attendre personne :</p>
+        <p data-i18n-html="deletion_p1b">Ouvre l'application → <strong>Paramètres</strong> → fais défiler jusqu'à <strong>"Zone de danger"</strong> → clique <strong>"Supprimer mon compte"</strong> → confirme avec ton mot de passe. La suppression est immédiate et irréversible.</p>
 
-        <h3>Données liées à Instagram</h3>
-        <p>Si tu as connecté ton compte Instagram à RerePickWinn, le jeton d'accès associé est supprimé automatiquement dès que tu déconnectes ton compte depuis <strong>Paramètres → Comptes connectés → Déconnecter</strong>, ou lors de la suppression complète de ton compte RerePickWinn ci-dessus.</p>
+        <h3 data-i18n="deletion_h2b">Données liées à Instagram</h3>
+        <p data-i18n-html="deletion_p2">Si tu as connecté ton compte Instagram à RerePickWinn, le jeton d'accès associé est supprimé automatiquement dès que tu déconnectes ton compte depuis <strong>Paramètres → Comptes connectés → Déconnecter</strong>, ou lors de la suppression complète de ton compte RerePickWinn ci-dessus.</p>
 
-        <h3>Si tu ne peux pas accéder à ton compte</h3>
-        <p>Si tu n'arrives plus à te connecter à ton compte pour le supprimer toi-même, écris-nous à rere50170@gmail.com en précisant l'adresse email de ton compte — nous supprimerons tes données manuellement sous 30 jours.</p>
+        <h3 data-i18n="deletion_h3">Si tu ne peux pas accéder à ton compte</h3>
+        <p data-i18n="deletion_p3">Si tu n'arrives plus à te connecter à ton compte pour le supprimer toi-même, écris-nous à rere50170@gmail.com en précisant l'adresse email de ton compte — nous supprimerons tes données manuellement sous 30 jours.</p>
       </div>
 
     </div>
@@ -3002,7 +3015,7 @@ function showLandingScreen() {
 
 function showAuthFromLanding(viewId) {
   document.getElementById('landingScreen').style.display = 'none';
-  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('authScreen').style.display = 'grid';
   showView(viewId);
 }
 
@@ -3211,10 +3224,10 @@ function validateLoginForm() {
   var email = document.getElementById('loginEmail').value.trim();
   var password = document.getElementById('loginPassword').value;
 
-  if (!email) { setFieldError('loginEmail', 'loginEmailError', 'Renseigne ton email.'); valid = false; }
-  else if (!isValidEmail(email)) { setFieldError('loginEmail', 'loginEmailError', 'Format d\'email invalide.'); valid = false; }
+  if (!email) { setFieldError('loginEmail', 'loginEmailError', t('val_email_required')); valid = false; }
+  else if (!isValidEmail(email)) { setFieldError('loginEmail', 'loginEmailError', t('err_invalid_email_format')); valid = false; }
 
-  if (!password) { setFieldError('loginPassword', 'loginPasswordError', 'Renseigne ton mot de passe.'); valid = false; }
+  if (!password) { setFieldError('loginPassword', 'loginPasswordError', t('val_password_required')); valid = false; }
 
   return valid;
 }
@@ -3258,21 +3271,21 @@ function validateSignupForm() {
   var password = document.getElementById('signupPassword').value;
   var acceptedTerms = document.getElementById('signupAcceptTerms').checked;
 
-  if (!name) { setFieldError('signupName', 'signupNameError', 'Renseigne ton nom.'); valid = false; }
+  if (!name) { setFieldError('signupName', 'signupNameError', t('val_name_required')); valid = false; }
 
-  if (!email) { setFieldError('signupEmail', 'signupEmailError', 'Renseigne ton email.'); valid = false; }
-  else if (!isValidEmail(email)) { setFieldError('signupEmail', 'signupEmailError', 'Format d\'email invalide.'); valid = false; }
+  if (!email) { setFieldError('signupEmail', 'signupEmailError', t('val_email_required')); valid = false; }
+  else if (!isValidEmail(email)) { setFieldError('signupEmail', 'signupEmailError', t('err_invalid_email_format')); valid = false; }
 
   if (!password) {
-    setFieldError('signupPassword', 'signupPasswordError', 'Choisis un mot de passe.');
+    setFieldError('signupPassword', 'signupPasswordError', t('val_password_choose'));
     valid = false;
   } else if (!isPasswordValid(password)) {
-    setFieldError('signupPassword', 'signupPasswordError', 'Le mot de passe ne respecte pas tous les critères ci-dessous.');
+    setFieldError('signupPassword', 'signupPasswordError', t('val_password_criteria'));
     valid = false;
   }
 
   if (!acceptedTerms) {
-    document.getElementById('signupAcceptTermsError').textContent = 'Tu dois accepter les CGU et la politique de confidentialité pour continuer.';
+    document.getElementById('signupAcceptTermsError').textContent = t('val_accept_terms');
     valid = false;
   }
 
@@ -3283,8 +3296,8 @@ function validateForgotForm() {
   var valid = true;
   clearFieldError('forgotEmail', 'forgotEmailError');
   var email = document.getElementById('forgotEmail').value.trim();
-  if (!email) { setFieldError('forgotEmail', 'forgotEmailError', 'Renseigne ton email.'); valid = false; }
-  else if (!isValidEmail(email)) { setFieldError('forgotEmail', 'forgotEmailError', 'Format d\'email invalide.'); valid = false; }
+  if (!email) { setFieldError('forgotEmail', 'forgotEmailError', t('val_email_required')); valid = false; }
+  else if (!isValidEmail(email)) { setFieldError('forgotEmail', 'forgotEmailError', t('err_invalid_email_format')); valid = false; }
   return valid;
 }
 
@@ -3306,7 +3319,7 @@ async function handleLoginSubmit(e) {
   if (error) {
     showToast(translateAuthError(error.message), 'error');
   } else {
-    showToast('Connexion réussie', 'success');
+    showToast(t('toast_login_success'), 'success');
   }
 }
 
@@ -3330,10 +3343,10 @@ async function handleSignupSubmit(e) {
   if (error) {
     showToast(translateAuthError(error.message), 'error');
   } else if (data && data.user && !data.session) {
-    showToast('Vérifie ta boîte mail pour confirmer ton compte', 'success');
+    showToast(t('toast_check_email'), 'success');
     showView('loginView');
   } else {
-    showToast('Compte créé avec succès', 'success');
+    showToast(t('toast_account_created'), 'success');
   }
 }
 
@@ -3351,7 +3364,7 @@ async function handleForgotSubmit(e) {
   if (error) {
     showToast(translateAuthError(error.message), 'error');
   } else {
-    showToast('Email de réinitialisation envoyé', 'success');
+    showToast(t('toast_reset_email_sent'), 'success');
     showView('loginView');
   }
 }
@@ -3363,19 +3376,19 @@ async function signInWithProvider(provider) {
 
 async function signOut() {
   await supabaseClient.auth.signOut();
-  showToast('Déconnecté', 'success');
+  showToast(t('toast_logged_out'), 'success');
 }
 
 function translateAuthError(msg) {
   var map = {
-    'Invalid login credentials': 'Email ou mot de passe incorrect.',
-    'User already registered': 'Un compte existe déjà avec cet email.',
-    'Email not confirmed': 'Confirme ton email avant de te connecter.',
-    'Password should be at least 6 characters': 'Le mot de passe doit contenir au moins 6 caractères.',
-    'Unable to validate email address: invalid format': 'Format d\'email invalide.',
-    'signup_disabled': 'Les inscriptions sont temporairement désactivées.'
+    'Invalid login credentials': t('err_invalid_credentials'),
+    'User already registered': t('err_already_registered'),
+    'Email not confirmed': t('err_email_not_confirmed'),
+    'Password should be at least 6 characters': t('err_password_too_short'),
+    'Unable to validate email address: invalid format': t('err_invalid_email_format'),
+    'signup_disabled': t('err_signup_disabled')
   };
-  return map[msg] || ('Une erreur est survenue : ' + msg);
+  return map[msg] || t('err_generic_prefix', { msg: msg });
 }
 
 // ============================================================
@@ -3407,9 +3420,9 @@ async function selectAvatarColor(color) {
   renderAvatarPicker(color);
   var { error } = await supabaseClient.auth.updateUser({ data: { avatar_color: color } });
   if (error) {
-    showToast('Erreur lors de la mise à jour', 'error');
+    showToast(t('toast_update_error'), 'error');
   } else {
-    showToast('Couleur mise à jour', 'success');
+    showToast(t('toast_color_updated'), 'success');
   }
 }
 
@@ -3419,9 +3432,9 @@ async function handleUpdateNameSubmit(e) {
   if (!newName) return;
   var { error } = await supabaseClient.auth.updateUser({ data: { name: newName } });
   if (error) {
-    showToast('Erreur lors de la mise à jour', 'error');
+    showToast(t('toast_update_error'), 'error');
   } else {
-    showToast('Nom mis à jour', 'success');
+    showToast(t('toast_name_updated'), 'success');
     document.getElementById('profileName').textContent = newName;
     document.getElementById('navAvatar').textContent = newName.charAt(0).toUpperCase();
     document.getElementById('profileAvatar').textContent = newName.charAt(0).toUpperCase();
@@ -3438,7 +3451,7 @@ async function loadDashboardData() {
     .order('created_at', { ascending: false });
 
   if (gErr) {
-    showToast('Impossible de charger tes tirages', 'error');
+    showToast(t('toast_load_giveaways_error'), 'error');
     return;
   }
   currentGiveaways = giveaways || [];
@@ -3701,9 +3714,9 @@ async function executeDeleteGiveaway() {
 
   setBtnLoading(btn, false);
   if (error) {
-    showToast('Erreur lors de la suppression', 'error');
+    showToast(t('toast_delete_error'), 'error');
   } else {
-    showToast('Tirage supprimé', 'success');
+    showToast(t('toast_giveaway_deleted'), 'success');
     closeDeleteConfirm();
     await loadDashboardData();
     renderGiveawaysScreen();
@@ -3766,13 +3779,13 @@ async function executeDeleteAccount() {
       throw new Error((result && result.error) || 'Échec de la suppression du compte');
     }
 
-    showToast('Compte supprimé', 'success');
+    showToast(t('toast_account_deleted'), 'success');
     await supabaseClient.auth.signOut();
     window.location.reload();
   } catch (err) {
     console.error('Delete account error:', err);
     setBtnLoading(btn, false);
-    showToast('Erreur : ' + err.message, 'error');
+    showToast(t('toast_error_prefix', { msg: err.message }), 'error');
   }
 }
 
@@ -3825,7 +3838,7 @@ function renderParticipantsScreen() {
 function exportParticipantsCsv() {
   var all = getAllParticipantsFlat();
   if (all.length === 0) {
-    showToast('Aucun participant à exporter', 'error');
+    showToast(t('toast_no_participants_export'), 'error');
     return;
   }
   var rows = [['Nom', 'Tirage', 'Mentions']];
@@ -3844,7 +3857,7 @@ function exportParticipantsCsv() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('Export CSV téléchargé', 'success');
+  showToast(t('toast_csv_downloaded'), 'success');
 }
 
 // ============================================================
@@ -3852,7 +3865,7 @@ function exportParticipantsCsv() {
 // ============================================================
 function exportWinnersCsv() {
   if (currentHistory.length === 0) {
-    showToast('Aucun gagnant à exporter', 'error');
+    showToast(t('toast_no_winners_export'), 'error');
     return;
   }
   var giveawayTitleById = {};
@@ -3882,7 +3895,7 @@ function exportWinnersCsv() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('Export CSV téléchargé', 'success');
+  showToast(t('toast_csv_downloaded'), 'success');
 }
 
 function renderWinnersScreen() {
@@ -3907,13 +3920,13 @@ function renderWinnersScreen() {
 async function setEmailNotifPref(enabled) {
   var { error } = await supabaseClient.auth.updateUser({ data: { email_notifications: enabled } });
   if (error) {
-    showToast('Erreur lors de l\'enregistrement', 'error');
+    showToast(t('toast_save_error'), 'error');
     document.getElementById('emailNotifToggle').checked = !enabled;
     return;
   }
   currentUser.user_metadata = currentUser.user_metadata || {};
   currentUser.user_metadata.email_notifications = enabled;
-  showToast(enabled ? 'Notifications par email activées' : 'Notifications par email désactivées', 'success');
+  showToast(enabled ? t('toast_email_notif_on') : t('toast_email_notif_off'), 'success');
 }
 
 // Fire-and-forget: called right after a winner is revealed. Never blocks
@@ -4086,6 +4099,134 @@ var TRANSLATIONS = {
     "brand_card2": "Import CSV ou copier-coller",
     "brand_card3": "Historique de tous tes tirages",
     "auth_back_home": "← Accueil",
+    "err_invalid_credentials": "Email ou mot de passe incorrect.",
+    "err_already_registered": "Un compte existe déjà avec cet email.",
+    "err_email_not_confirmed": "Confirme ton email avant de te connecter.",
+    "err_password_too_short": "Le mot de passe doit contenir au moins 6 caractères.",
+    "err_invalid_email_format": "Format d'email invalide.",
+    "err_signup_disabled": "Les inscriptions sont temporairement désactivées.",
+    "err_generic_prefix": "Une erreur est survenue : {msg}",
+    "val_email_required": "Renseigne ton email.",
+    "val_password_required": "Renseigne ton mot de passe.",
+    "val_name_required": "Renseigne ton nom.",
+    "val_password_choose": "Choisis un mot de passe.",
+    "val_password_criteria": "Le mot de passe ne respecte pas tous les critères ci-dessous.",
+    "val_accept_terms": "Tu dois accepter les CGU et la politique de confidentialité pour continuer.",
+    "toast_login_success": "Connexion réussie",
+    "toast_check_email": "Vérifie ta boîte mail pour confirmer ton compte",
+    "toast_account_created": "Compte créé avec succès",
+    "toast_reset_email_sent": "Email de réinitialisation envoyé",
+    "toast_logged_out": "Déconnecté",
+    "toast_update_error": "Erreur lors de la mise à jour",
+    "toast_color_updated": "Couleur mise à jour",
+    "toast_name_updated": "Nom mis à jour",
+    "toast_load_giveaways_error": "Impossible de charger tes tirages",
+    "toast_delete_error": "Erreur lors de la suppression",
+    "toast_giveaway_deleted": "Tirage supprimé",
+    "toast_account_deleted": "Compte supprimé",
+    "toast_error_prefix": "Erreur : {msg}",
+    "toast_no_participants_export": "Aucun participant à exporter",
+    "toast_csv_downloaded": "Export CSV téléchargé",
+    "toast_no_winners_export": "Aucun gagnant à exporter",
+    "toast_save_error": "Erreur lors de l'enregistrement",
+    "toast_email_notif_on": "Notifications par email activées",
+    "toast_email_notif_off": "Notifications par email désactivées",
+    "toast_add_participant": "Ajoute au moins un participant",
+    "toast_image_too_large": "Image trop lourde (max 4 Mo)",
+    "toast_upload_error": "Upload image : {msg}",
+    "toast_youtube_invalid_link": "Lien YouTube invalide — colle l'URL complète de la vidéo",
+    "toast_youtube_imported": "{count} participants importés depuis YouTube",
+    "toast_youtube_error": "Erreur YouTube : {msg}",
+    "toast_disconnect_error": "Erreur lors de la déconnexion : {msg}",
+    "toast_ig_disconnected": "Compte Instagram déconnecté",
+    "toast_ig_refused": "Instagram a refusé la connexion : {desc}. Vérifie que ton compte est bien ajouté comme testeur dans l'app Meta.",
+    "toast_ig_connecting": "Connexion à Instagram en cours…",
+    "toast_ig_connected": "Instagram connecté : @{username}",
+    "toast_ig_connect_error": "Erreur de connexion Instagram : {msg}",
+    "toast_ig_invalid_link": "Lien Instagram invalide — colle l'URL complète du post ou du reel",
+    "toast_ig_connect_first": "Connecte d'abord ton compte Instagram",
+    "toast_ig_imported": "{count} participants importés depuis Instagram",
+    "toast_ig_error": "Erreur Instagram : {msg}",
+    "toast_giveaway_created_participants_error": "Tirage créé, mais erreur sur les participants",
+    "toast_giveaway_created": "Tirage créé avec succès",
+    "toast_load_participants_error": "Impossible de charger les participants",
+    "toast_import_limited": "Import limité à {count} participants — les suivants ont été ignorés.",
+    "toast_choose_datetime": "Choisis une date et une heure",
+    "toast_choose_future_time": "Choisis une heure dans le futur",
+    "toast_scheduled": "Tirage programmé — garde cette page ouverte",
+    "toast_schedule_cancelled": "Programmation annulée",
+    "toast_no_winner_share": "Aucun gagnant à partager pour le moment",
+    "toast_share_copied": "Texte du résultat copié — colle-le où tu veux le partager",
+    "toast_no_winner_copy": "Aucun gagnant à copier pour le moment",
+    "toast_copy_fallback": "Impossible de copier — pseudo : {text}",
+    "toast_certificate_downloaded": "Certificat téléchargé",
+    "toast_create_giveaway_fallback": "création du tirage impossible",
+    "share_text_template": "🏆 @{name} a été désigné(e) gagnant(e) de \"{title}\" avec RerePickWinn !",
+    "share_default_title": "notre tirage",
+    "btn_copy_username": "Copier le pseudo",
+    "btn_copied": "Copié !",
+    "toast_excel_imported": "{count} participants importés depuis Excel",
+    "toast_sheets_invalid_link": "Lien Google Sheets invalide — colle l'URL complète de la feuille",
+    "toast_sheets_not_public": "Impossible de lire cette feuille — vérifie qu'elle est bien partagée en \"Toute personne disposant du lien peut afficher\".",
+    "toast_sheets_imported": "{count} participants importés depuis Google Sheets",
+    "toast_sheets_error": "Erreur Google Sheets : {msg}",
+    "legal_last_updated": "Dernière mise à jour : 7 août 2026",
+    "terms_h2": "Conditions Générales d'Utilisation",
+    "terms_h1": "1. Objet",
+    "terms_p1": "RerePickWinn (\"le Service\") est une application permettant d'organiser et de réaliser des tirages au sort (giveaways) à partir de listes de participants importées manuellement ou depuis des plateformes tierces (YouTube, Instagram).",
+    "terms_h2b": "2. Accès au service",
+    "terms_p2": "L'accès au Service nécessite la création d'un compte (email et mot de passe). Le Service est actuellement proposé gratuitement.",
+    "terms_h3": "3. Compte utilisateur",
+    "terms_p3": "L'utilisateur est seul responsable de la confidentialité de ses identifiants et de toute activité réalisée depuis son compte. Il s'engage à fournir des informations exactes lors de son inscription.",
+    "terms_h4": "4. Utilisation du service",
+    "terms_p4a": "L'utilisateur s'engage à utiliser le Service conformément à la loi et aux conditions d'utilisation des plateformes tierces concernées (notamment les CGU d'Instagram et de YouTube lors de l'import de commentaires). Il est seul responsable de la légalité et de la loyauté des tirages qu'il organise (règlement du jeu, conditions de participation, remise effective des lots aux gagnants désignés).",
+    "terms_p4b": "Sont interdits : l'utilisation du Service à des fins illégales, l'import de données obtenues de manière non autorisée, et toute tentative de contournement des mesures de sécurité du Service.",
+    "terms_h5": "5. Propriété intellectuelle",
+    "terms_p5": "Le Service, son code et son interface restent la propriété de Hermes Hounkanrin. Les données et listes de participants importées par l'utilisateur restent sa propriété.",
+    "terms_h6": "6. Disponibilité du service",
+    "terms_p6": "Le Service est fourni \"en l'état\", sans garantie de disponibilité continue. Des interruptions pour maintenance ou évolution peuvent survenir sans préavis.",
+    "terms_h7": "7. Responsabilité",
+    "terms_p7": "Le Service se limite à fournir un outil de tirage au sort et d'aide à l'organisation de giveaways. L'éditeur ne saurait être tenu responsable des litiges entre l'utilisateur organisateur et les participants ou gagnants d'un tirage, ni de l'usage fait des données importées.",
+    "terms_h8": "8. Résiliation",
+    "terms_p8": "L'utilisateur peut supprimer son compte à tout moment depuis son profil. L'éditeur se réserve le droit de suspendre ou supprimer un compte en cas de non-respect des présentes CGU.",
+    "terms_h9": "9. Modification des CGU",
+    "terms_p9": "Les présentes CGU peuvent être modifiées à tout moment. La version en vigueur est celle affichée dans l'application.",
+    "terms_h10": "10. Droit applicable",
+    "terms_p10": "Les présentes CGU sont soumises au droit béninois. Tout litige relève des tribunaux compétents.",
+    "terms_h11": "11. Contact",
+    "privacy_h2": "Politique de confidentialité",
+    "privacy_h1": "1. Responsable du traitement",
+    "privacy_h2b": "2. Données collectées",
+    "privacy_p2": "Lors de l'utilisation du Service, sont collectées : ton nom et ton email (compte), les listes de participants que tu importes (pseudos, commentaires), et, si tu connectes ton compte Instagram, un jeton d'accès permettant de lire les commentaires de tes propres publications.",
+    "privacy_h3": "3. Finalités",
+    "privacy_p3": "Ces données sont utilisées uniquement pour faire fonctionner le Service : authentification, réalisation des tirages, affichage de ton historique.",
+    "privacy_h4": "4. Destinataires des données",
+    "privacy_p4": "Les données sont hébergées par Supabase (base de données et authentification) et le Service lui-même est hébergé par GitHub Pages. Lorsque tu utilises l'import YouTube ou Instagram, une requête est faite directement aux API de Google/YouTube et de Meta/Instagram avec les identifiants que tu as toi-même configurés.",
+    "privacy_h5": "5. Durée de conservation",
+    "privacy_p5": "Les données sont conservées tant que le compte existe. Elles sont supprimées lors de la suppression du compte (voir \"Tes droits\" ci-dessous).",
+    "privacy_h6": "6. Cookies et stockage local",
+    "privacy_p6": "Le Service n'utilise pas de cookies publicitaires ou de traceurs tiers. Il utilise le stockage local de ton navigateur (localStorage) pour mémoriser tes préférences (thème clair/sombre, langue, activation du son) et ta session de connexion — ces données restent sur ton appareil.",
+    "privacy_h7": "7. Tes droits",
+    "privacy_p7": "Conformément au RGPD, tu disposes d'un droit d'accès, de rectification, d'effacement et de portabilité de tes données. Tu peux supprimer ton compte et toutes les données associées à tout moment depuis ton profil, ou nous contacter à rere50170@gmail.com.",
+    "privacy_h8": "8. Sécurité",
+    "privacy_p8": "Les mots de passe sont gérés et chiffrés par Supabase Auth ; le Service n'y a jamais accès en clair.",
+    "privacy_h9": "9. Réclamation",
+    "privacy_p9": "Tu peux introduire une réclamation auprès de la CNIL (cnil.fr) si tu estimes que tes droits ne sont pas respectés.",
+    "notice_h2": "Mentions légales",
+    "notice_h1": "Éditeur du site",
+    "notice_p1": "Hermes Hounkanrin (entrepreneur individuel — pas d'entreprise déclarée)<br>Cotonou, Bénin<br>rere50170@gmail.com<br>SIRET : non applicable",
+    "notice_h2b": "Directeur de la publication",
+    "notice_h3": "Hébergement",
+    "notice_p3": "Le site est hébergé par GitHub, Inc. (GitHub Pages) — 88 Colin P Kelly Jr St, San Francisco, CA 94107, États-Unis.<br>La base de données et l'authentification sont hébergées par Supabase.",
+    "notice_h4": "Contact",
+    "deletion_h2": "Suppression des données",
+    "deletion_h1": "Comment supprimer tes données",
+    "deletion_p1a": "Si tu as un compte RerePickWinn, tu peux supprimer définitivement ton compte et toutes les données associées (tirages, participants, historique, connexion Instagram) à tout moment, toi-même, sans attendre personne :",
+    "deletion_p1b": "Ouvre l'application → <strong>Paramètres</strong> → fais défiler jusqu'à <strong>\"Zone de danger\"</strong> → clique <strong>\"Supprimer mon compte\"</strong> → confirme avec ton mot de passe. La suppression est immédiate et irréversible.",
+    "deletion_h2b": "Données liées à Instagram",
+    "deletion_p2": "Si tu as connecté ton compte Instagram à RerePickWinn, le jeton d'accès associé est supprimé automatiquement dès que tu déconnectes ton compte depuis <strong>Paramètres → Comptes connectés → Déconnecter</strong>, ou lors de la suppression complète de ton compte RerePickWinn ci-dessus.",
+    "deletion_h3": "Si tu ne peux pas accéder à ton compte",
+    "deletion_p3": "Si tu n'arrives plus à te connecter à ton compte pour le supprimer toi-même, écris-nous à rere50170@gmail.com en précisant l'adresse email de ton compte — nous supprimerons tes données manuellement sous 30 jours.",
     "dash_subtitle": "Voici un aperçu de ton activité.",
     "btn_new_giveaway": "+ Nouveau tirage",
     "stat_participants": "Participants au total",
@@ -4145,7 +4286,12 @@ var TRANSLATIONS = {
     "wiz2_title": "Ajoute tes participants",
     "wiz2_sub": "Colle une liste ou importe un fichier CSV.",
     "tab_paste": "Coller une liste",
-    "tab_csv": "Importer un CSV",
+    "tab_csv": "Importer un fichier",
+    "tab_sheets": "Google Sheets",
+    "hint_csv_xlsx": "Fichiers acceptés : CSV ou Excel (.xlsx). La première colonne doit contenir les pseudos.",
+    "sheets_url_label": "Lien Google Sheets",
+    "sheets_share_hint": "📄 La feuille doit être partagée en \"Toute personne disposant du lien peut afficher\" (bouton Partager, en haut à droite de Google Sheets).",
+    "sheets_import_btn": "Importer la feuille",
     "btn_back": "Retour",
     "wiz3_title": "Règles du tirage",
     "wiz3_sub": "Filtre les participants avant de lancer le tirage.",
@@ -4315,6 +4461,134 @@ var TRANSLATIONS = {
     "brand_card2": "CSV import or copy-paste",
     "brand_card3": "History of every draw",
     "auth_back_home": "← Home",
+    "err_invalid_credentials": "Incorrect email or password.",
+    "err_already_registered": "An account already exists with this email.",
+    "err_email_not_confirmed": "Confirm your email before logging in.",
+    "err_password_too_short": "Password must be at least 6 characters.",
+    "err_invalid_email_format": "Invalid email format.",
+    "err_signup_disabled": "Sign-ups are temporarily disabled.",
+    "err_generic_prefix": "An error occurred: {msg}",
+    "val_email_required": "Enter your email.",
+    "val_password_required": "Enter your password.",
+    "val_name_required": "Enter your name.",
+    "val_password_choose": "Choose a password.",
+    "val_password_criteria": "Password doesn't meet all the criteria below.",
+    "val_accept_terms": "You must accept the Terms and Privacy Policy to continue.",
+    "toast_login_success": "Logged in successfully",
+    "toast_check_email": "Check your inbox to confirm your account",
+    "toast_account_created": "Account created successfully",
+    "toast_reset_email_sent": "Reset email sent",
+    "toast_logged_out": "Logged out",
+    "toast_update_error": "Update failed",
+    "toast_color_updated": "Color updated",
+    "toast_name_updated": "Name updated",
+    "toast_load_giveaways_error": "Couldn't load your giveaways",
+    "toast_delete_error": "Delete failed",
+    "toast_giveaway_deleted": "Giveaway deleted",
+    "toast_account_deleted": "Account deleted",
+    "toast_error_prefix": "Error: {msg}",
+    "toast_no_participants_export": "No participants to export",
+    "toast_csv_downloaded": "CSV export downloaded",
+    "toast_no_winners_export": "No winners to export",
+    "toast_save_error": "Save failed",
+    "toast_email_notif_on": "Email notifications enabled",
+    "toast_email_notif_off": "Email notifications disabled",
+    "toast_add_participant": "Add at least one participant",
+    "toast_image_too_large": "Image too large (max 4 MB)",
+    "toast_upload_error": "Image upload: {msg}",
+    "toast_youtube_invalid_link": "Invalid YouTube link — paste the full video URL",
+    "toast_youtube_imported": "{count} participants imported from YouTube",
+    "toast_youtube_error": "YouTube error: {msg}",
+    "toast_disconnect_error": "Disconnect failed: {msg}",
+    "toast_ig_disconnected": "Instagram account disconnected",
+    "toast_ig_refused": "Instagram refused the connection: {desc}. Check that your account has been added as a tester in the Meta app.",
+    "toast_ig_connecting": "Connecting to Instagram…",
+    "toast_ig_connected": "Instagram connected: @{username}",
+    "toast_ig_connect_error": "Instagram connection error: {msg}",
+    "toast_ig_invalid_link": "Invalid Instagram link — paste the full post or reel URL",
+    "toast_ig_connect_first": "Connect your Instagram account first",
+    "toast_ig_imported": "{count} participants imported from Instagram",
+    "toast_ig_error": "Instagram error: {msg}",
+    "toast_giveaway_created_participants_error": "Giveaway created, but there was an error with participants",
+    "toast_giveaway_created": "Giveaway created successfully",
+    "toast_load_participants_error": "Couldn't load participants",
+    "toast_import_limited": "Import limited to {count} participants — the rest were skipped.",
+    "toast_choose_datetime": "Choose a date and time",
+    "toast_choose_future_time": "Choose a time in the future",
+    "toast_scheduled": "Draw scheduled — keep this page open",
+    "toast_schedule_cancelled": "Schedule cancelled",
+    "toast_no_winner_share": "No winner to share yet",
+    "toast_share_copied": "Result text copied — paste it wherever you want to share it",
+    "toast_no_winner_copy": "No winner to copy yet",
+    "toast_copy_fallback": "Couldn't copy — handle: {text}",
+    "toast_certificate_downloaded": "Certificate downloaded",
+    "toast_create_giveaway_fallback": "couldn't create the giveaway",
+    "share_text_template": "🏆 @{name} was picked as the winner of \"{title}\" with RerePickWinn!",
+    "share_default_title": "our giveaway",
+    "btn_copy_username": "Copy handle",
+    "btn_copied": "Copied!",
+    "toast_excel_imported": "{count} participants imported from Excel",
+    "toast_sheets_invalid_link": "Invalid Google Sheets link — paste the full sheet URL",
+    "toast_sheets_not_public": "Couldn't read this sheet — check that it's shared as \"Anyone with the link can view\".",
+    "toast_sheets_imported": "{count} participants imported from Google Sheets",
+    "toast_sheets_error": "Google Sheets error: {msg}",
+    "legal_last_updated": "Last updated: August 7, 2026",
+    "terms_h2": "Terms of Service",
+    "terms_h1": "1. Purpose",
+    "terms_p1": "RerePickWinn (\"the Service\") is an application for organizing and running random draws (giveaways) from participant lists imported manually or from third-party platforms (YouTube, Instagram).",
+    "terms_h2b": "2. Access to the Service",
+    "terms_p2": "Access to the Service requires creating an account (email and password). The Service is currently offered free of charge.",
+    "terms_h3": "3. User account",
+    "terms_p3": "The user is solely responsible for the confidentiality of their credentials and for any activity carried out from their account. They agree to provide accurate information when signing up.",
+    "terms_h4": "4. Use of the Service",
+    "terms_p4a": "The user agrees to use the Service in accordance with the law and with the terms of use of the relevant third-party platforms (in particular Instagram's and YouTube's terms when importing comments). They are solely responsible for the legality and fairness of the draws they organize (contest rules, entry requirements, actually delivering prizes to the winners chosen).",
+    "terms_p4b": "The following are prohibited: using the Service for unlawful purposes, importing data obtained without authorization, and any attempt to bypass the Service's security measures.",
+    "terms_h5": "5. Intellectual property",
+    "terms_p5": "The Service, its code, and its interface remain the property of Hermes Hounkanrin. Data and participant lists imported by the user remain their property.",
+    "terms_h6": "6. Service availability",
+    "terms_p6": "The Service is provided \"as is\", with no guarantee of continuous availability. Interruptions for maintenance or updates may occur without notice.",
+    "terms_h7": "7. Liability",
+    "terms_p7": "The Service is limited to providing a random-draw tool and giveaway-organizing aid. The publisher cannot be held responsible for disputes between the organizing user and the participants or winners of a draw, nor for how imported data is used.",
+    "terms_h8": "8. Termination",
+    "terms_p8": "The user may delete their account at any time from their profile. The publisher reserves the right to suspend or delete an account in case of non-compliance with these Terms.",
+    "terms_h9": "9. Changes to these Terms",
+    "terms_p9": "These Terms may be changed at any time. The version in effect is the one displayed in the application.",
+    "terms_h10": "10. Governing law",
+    "terms_p10": "These Terms are governed by the laws of Benin. Any dispute falls under the jurisdiction of the competent courts.",
+    "terms_h11": "11. Contact",
+    "privacy_h2": "Privacy Policy",
+    "privacy_h1": "1. Data controller",
+    "privacy_h2b": "2. Data collected",
+    "privacy_p2": "When using the Service, the following is collected: your name and email (account), the participant lists you import (usernames, comments), and, if you connect your Instagram account, an access token allowing the app to read the comments on your own posts.",
+    "privacy_h3": "3. Purposes",
+    "privacy_p3": "This data is used solely to operate the Service: authentication, running draws, and displaying your history.",
+    "privacy_h4": "4. Data recipients",
+    "privacy_p4": "Data is hosted by Supabase (database and authentication), and the Service itself is hosted by GitHub Pages. When you use YouTube or Instagram import, a request is made directly to the Google/YouTube and Meta/Instagram APIs using the credentials you configured yourself.",
+    "privacy_h5": "5. Retention period",
+    "privacy_p5": "Data is kept for as long as the account exists. It is deleted when the account is deleted (see \"Your rights\" below).",
+    "privacy_h6": "6. Cookies and local storage",
+    "privacy_p6": "The Service does not use advertising cookies or third-party trackers. It uses your browser's local storage (localStorage) to remember your preferences (light/dark theme, language, sound on/off) and your login session — this data stays on your device.",
+    "privacy_h7": "7. Your rights",
+    "privacy_p7": "Under GDPR, you have the right to access, rectify, erase, and port your data. You can delete your account and all associated data at any time from your profile, or contact us at rere50170@gmail.com.",
+    "privacy_h8": "8. Security",
+    "privacy_p8": "Passwords are managed and encrypted by Supabase Auth; the Service never has access to them in plain text.",
+    "privacy_h9": "9. Complaints",
+    "privacy_p9": "You can file a complaint with the CNIL (cnil.fr) if you believe your rights are not being respected.",
+    "notice_h2": "Legal Notice",
+    "notice_h1": "Site publisher",
+    "notice_p1": "Hermes Hounkanrin (sole proprietor — no registered company)<br>Cotonou, Benin<br>rere50170@gmail.com<br>Business ID: not applicable",
+    "notice_h2b": "Publication director",
+    "notice_h3": "Hosting",
+    "notice_p3": "The site is hosted by GitHub, Inc. (GitHub Pages) — 88 Colin P Kelly Jr St, San Francisco, CA 94107, USA.<br>The database and authentication are hosted by Supabase.",
+    "notice_h4": "Contact",
+    "deletion_h2": "Data Deletion",
+    "deletion_h1": "How to delete your data",
+    "deletion_p1a": "If you have a RerePickWinn account, you can permanently delete your account and all associated data (giveaways, participants, history, Instagram connection) at any time, yourself, without waiting on anyone:",
+    "deletion_p1b": "Open the app → <strong>Settings</strong> → scroll down to <strong>\"Danger zone\"</strong> → tap <strong>\"Delete my account\"</strong> → confirm with your password. Deletion is immediate and irreversible.",
+    "deletion_h2b": "Instagram-related data",
+    "deletion_p2": "If you connected your Instagram account to RerePickWinn, the associated access token is automatically deleted as soon as you disconnect your account from <strong>Settings → Connected accounts → Disconnect</strong>, or when you fully delete your RerePickWinn account above.",
+    "deletion_h3": "If you can't access your account",
+    "deletion_p3": "If you're no longer able to log in to delete your data yourself, write to us at rere50170@gmail.com with your account's email address — we'll delete your data manually within 30 days.",
     "dash_subtitle": "Here's an overview of your activity.",
     "btn_new_giveaway": "+ New giveaway",
     "stat_participants": "Total participants",
@@ -4374,7 +4648,12 @@ var TRANSLATIONS = {
     "wiz2_title": "Add your participants",
     "wiz2_sub": "Paste a list or import a CSV file.",
     "tab_paste": "Paste a list",
-    "tab_csv": "Import a CSV",
+    "tab_csv": "Import a file",
+    "tab_sheets": "Google Sheets",
+    "hint_csv_xlsx": "Accepted files: CSV or Excel (.xlsx). The first column should contain the usernames.",
+    "sheets_url_label": "Google Sheets link",
+    "sheets_share_hint": "📄 The sheet must be shared as \"Anyone with the link can view\" (Share button, top right of Google Sheets).",
+    "sheets_import_btn": "Import the sheet",
     "btn_back": "Back",
     "wiz3_title": "Draw rules",
     "wiz3_sub": "Filter participants before running the draw.",
@@ -4544,6 +4823,134 @@ var TRANSLATIONS = {
     "brand_card2": "CSV-Import oder Einfügen",
     "brand_card3": "Verlauf aller deiner Verlosungen",
     "auth_back_home": "← Startseite",
+    "err_invalid_credentials": "E-Mail oder Passwort falsch.",
+    "err_already_registered": "Es existiert bereits ein Konto mit dieser E-Mail.",
+    "err_email_not_confirmed": "Bestätige deine E-Mail, bevor du dich anmeldest.",
+    "err_password_too_short": "Das Passwort muss mindestens 6 Zeichen lang sein.",
+    "err_invalid_email_format": "Ungültiges E-Mail-Format.",
+    "err_signup_disabled": "Die Registrierung ist vorübergehend deaktiviert.",
+    "err_generic_prefix": "Ein Fehler ist aufgetreten: {msg}",
+    "val_email_required": "Gib deine E-Mail-Adresse ein.",
+    "val_password_required": "Gib dein Passwort ein.",
+    "val_name_required": "Gib deinen Namen ein.",
+    "val_password_choose": "Wähle ein Passwort.",
+    "val_password_criteria": "Das Passwort erfüllt nicht alle unten stehenden Kriterien.",
+    "val_accept_terms": "Du musst die AGB und die Datenschutzerklärung akzeptieren, um fortzufahren.",
+    "toast_login_success": "Erfolgreich angemeldet",
+    "toast_check_email": "Überprüfe dein Postfach, um dein Konto zu bestätigen",
+    "toast_account_created": "Konto erfolgreich erstellt",
+    "toast_reset_email_sent": "E-Mail zum Zurücksetzen gesendet",
+    "toast_logged_out": "Abgemeldet",
+    "toast_update_error": "Aktualisierung fehlgeschlagen",
+    "toast_color_updated": "Farbe aktualisiert",
+    "toast_name_updated": "Name aktualisiert",
+    "toast_load_giveaways_error": "Deine Verlosungen konnten nicht geladen werden",
+    "toast_delete_error": "Löschen fehlgeschlagen",
+    "toast_giveaway_deleted": "Verlosung gelöscht",
+    "toast_account_deleted": "Konto gelöscht",
+    "toast_error_prefix": "Fehler: {msg}",
+    "toast_no_participants_export": "Keine Teilnehmer zum Exportieren",
+    "toast_csv_downloaded": "CSV-Export heruntergeladen",
+    "toast_no_winners_export": "Keine Gewinner zum Exportieren",
+    "toast_save_error": "Speichern fehlgeschlagen",
+    "toast_email_notif_on": "E-Mail-Benachrichtigungen aktiviert",
+    "toast_email_notif_off": "E-Mail-Benachrichtigungen deaktiviert",
+    "toast_add_participant": "Füge mindestens einen Teilnehmer hinzu",
+    "toast_image_too_large": "Bild zu groß (max. 4 MB)",
+    "toast_upload_error": "Bild-Upload: {msg}",
+    "toast_youtube_invalid_link": "Ungültiger YouTube-Link — füge die vollständige Video-URL ein",
+    "toast_youtube_imported": "{count} Teilnehmer von YouTube importiert",
+    "toast_youtube_error": "YouTube-Fehler: {msg}",
+    "toast_disconnect_error": "Trennung fehlgeschlagen: {msg}",
+    "toast_ig_disconnected": "Instagram-Konto getrennt",
+    "toast_ig_refused": "Instagram hat die Verbindung abgelehnt: {desc}. Überprüfe, ob dein Konto als Tester in der Meta-App hinzugefügt wurde.",
+    "toast_ig_connecting": "Verbindung zu Instagram wird hergestellt…",
+    "toast_ig_connected": "Instagram verbunden: @{username}",
+    "toast_ig_connect_error": "Fehler bei der Instagram-Verbindung: {msg}",
+    "toast_ig_invalid_link": "Ungültiger Instagram-Link — füge die vollständige URL des Beitrags oder Reels ein",
+    "toast_ig_connect_first": "Verbinde zuerst dein Instagram-Konto",
+    "toast_ig_imported": "{count} Teilnehmer von Instagram importiert",
+    "toast_ig_error": "Instagram-Fehler: {msg}",
+    "toast_giveaway_created_participants_error": "Verlosung erstellt, aber Fehler bei den Teilnehmern",
+    "toast_giveaway_created": "Verlosung erfolgreich erstellt",
+    "toast_load_participants_error": "Teilnehmer konnten nicht geladen werden",
+    "toast_import_limited": "Import auf {count} Teilnehmer begrenzt — der Rest wurde übersprungen.",
+    "toast_choose_datetime": "Wähle ein Datum und eine Uhrzeit",
+    "toast_choose_future_time": "Wähle eine Uhrzeit in der Zukunft",
+    "toast_scheduled": "Verlosung geplant — lasse diese Seite geöffnet",
+    "toast_schedule_cancelled": "Planung abgebrochen",
+    "toast_no_winner_share": "Noch kein Gewinner zum Teilen",
+    "toast_share_copied": "Ergebnistext kopiert — füge ihn ein, wo du ihn teilen möchtest",
+    "toast_no_winner_copy": "Noch kein Gewinner zum Kopieren",
+    "toast_copy_fallback": "Kopieren nicht möglich — Name: {text}",
+    "toast_certificate_downloaded": "Zertifikat heruntergeladen",
+    "toast_create_giveaway_fallback": "Verlosung konnte nicht erstellt werden",
+    "share_text_template": "🏆 @{name} wurde als Gewinner von \"{title}\" mit RerePickWinn ausgewählt!",
+    "share_default_title": "unsere Verlosung",
+    "btn_copy_username": "Namen kopieren",
+    "btn_copied": "Kopiert!",
+    "toast_excel_imported": "{count} Teilnehmer von Excel importiert",
+    "toast_sheets_invalid_link": "Ungültiger Google-Sheets-Link — füge die vollständige URL des Tabellenblatts ein",
+    "toast_sheets_not_public": "Dieses Tabellenblatt konnte nicht gelesen werden — überprüfe, ob es mit \"Jeder mit dem Link kann ansehen\" freigegeben ist.",
+    "toast_sheets_imported": "{count} Teilnehmer von Google Sheets importiert",
+    "toast_sheets_error": "Google-Sheets-Fehler: {msg}",
+    "legal_last_updated": "Zuletzt aktualisiert: 7. August 2026",
+    "terms_h2": "Allgemeine Geschäftsbedingungen",
+    "terms_h1": "1. Gegenstand",
+    "terms_p1": "RerePickWinn (\"der Dienst\") ist eine Anwendung zur Organisation und Durchführung von Verlosungen (Giveaways) anhand von Teilnehmerlisten, die manuell oder von Drittplattformen (YouTube, Instagram) importiert werden.",
+    "terms_h2b": "2. Zugang zum Dienst",
+    "terms_p2": "Der Zugang zum Dienst erfordert die Erstellung eines Kontos (E-Mail und Passwort). Der Dienst wird derzeit kostenlos angeboten.",
+    "terms_h3": "3. Benutzerkonto",
+    "terms_p3": "Der Nutzer ist allein verantwortlich für die Vertraulichkeit seiner Zugangsdaten und für jede von seinem Konto aus durchgeführte Aktivität. Er verpflichtet sich, bei der Registrierung wahrheitsgemäße Angaben zu machen.",
+    "terms_h4": "4. Nutzung des Dienstes",
+    "terms_p4a": "Der Nutzer verpflichtet sich, den Dienst im Einklang mit dem Gesetz und den Nutzungsbedingungen der betreffenden Drittplattformen zu nutzen (insbesondere die AGB von Instagram und YouTube beim Importieren von Kommentaren). Er ist allein verantwortlich für die Rechtmäßigkeit und Fairness der von ihm organisierten Verlosungen (Teilnahmebedingungen, tatsächliche Übergabe der Preise an die ermittelten Gewinner).",
+    "terms_p4b": "Untersagt sind: die Nutzung des Dienstes zu rechtswidrigen Zwecken, der Import unrechtmäßig erlangter Daten sowie jeder Versuch, die Sicherheitsmaßnahmen des Dienstes zu umgehen.",
+    "terms_h5": "5. Geistiges Eigentum",
+    "terms_p5": "Der Dienst, sein Code und seine Oberfläche bleiben Eigentum von Hermes Hounkanrin. Die vom Nutzer importierten Daten und Teilnehmerlisten bleiben sein Eigentum.",
+    "terms_h6": "6. Verfügbarkeit des Dienstes",
+    "terms_p6": "Der Dienst wird \"wie besehen\" bereitgestellt, ohne Garantie einer durchgehenden Verfügbarkeit. Unterbrechungen für Wartung oder Weiterentwicklung können ohne Vorankündigung auftreten.",
+    "terms_h7": "7. Haftung",
+    "terms_p7": "Der Dienst beschränkt sich darauf, ein Werkzeug für Verlosungen und die Organisation von Giveaways bereitzustellen. Der Herausgeber haftet nicht für Streitigkeiten zwischen dem veranstaltenden Nutzer und den Teilnehmern oder Gewinnern einer Verlosung, noch für die Verwendung der importierten Daten.",
+    "terms_h8": "8. Kündigung",
+    "terms_p8": "Der Nutzer kann sein Konto jederzeit über sein Profil löschen. Der Herausgeber behält sich das Recht vor, ein Konto bei Verstoß gegen diese AGB zu sperren oder zu löschen.",
+    "terms_h9": "9. Änderung der AGB",
+    "terms_p9": "Diese AGB können jederzeit geändert werden. Es gilt die in der Anwendung angezeigte Fassung.",
+    "terms_h10": "10. Anwendbares Recht",
+    "terms_p10": "Diese AGB unterliegen dem Recht von Benin. Für Streitigkeiten sind die zuständigen Gerichte zuständig.",
+    "terms_h11": "11. Kontakt",
+    "privacy_h2": "Datenschutzerklärung",
+    "privacy_h1": "1. Verantwortlicher für die Datenverarbeitung",
+    "privacy_h2b": "2. Erhobene Daten",
+    "privacy_p2": "Bei der Nutzung des Dienstes werden erhoben: dein Name und deine E-Mail-Adresse (Konto), die von dir importierten Teilnehmerlisten (Benutzernamen, Kommentare) sowie, falls du dein Instagram-Konto verbindest, ein Zugriffstoken, das es ermöglicht, die Kommentare zu deinen eigenen Beiträgen zu lesen.",
+    "privacy_h3": "3. Zwecke",
+    "privacy_p3": "Diese Daten werden ausschließlich zum Betrieb des Dienstes verwendet: Authentifizierung, Durchführung von Verlosungen, Anzeige deines Verlaufs.",
+    "privacy_h4": "4. Empfänger der Daten",
+    "privacy_p4": "Die Daten werden von Supabase gehostet (Datenbank und Authentifizierung), und der Dienst selbst wird von GitHub Pages gehostet. Wenn du den YouTube- oder Instagram-Import nutzt, wird eine Anfrage direkt an die APIs von Google/YouTube und Meta/Instagram gesendet, mit den von dir selbst konfigurierten Zugangsdaten.",
+    "privacy_h5": "5. Aufbewahrungsdauer",
+    "privacy_p5": "Die Daten werden aufbewahrt, solange das Konto besteht. Sie werden bei der Löschung des Kontos gelöscht (siehe \"Deine Rechte\" unten).",
+    "privacy_h6": "6. Cookies und lokaler Speicher",
+    "privacy_p6": "Der Dienst verwendet keine Werbe-Cookies oder Tracker von Drittanbietern. Er nutzt den lokalen Speicher deines Browsers (localStorage), um deine Einstellungen zu speichern (helles/dunkles Design, Sprache, Ton an/aus) sowie deine Anmeldesitzung — diese Daten verbleiben auf deinem Gerät.",
+    "privacy_h7": "7. Deine Rechte",
+    "privacy_p7": "Gemäß der DSGVO hast du ein Recht auf Auskunft, Berichtigung, Löschung und Übertragbarkeit deiner Daten. Du kannst dein Konto und alle zugehörigen Daten jederzeit über dein Profil löschen oder uns unter rere50170@gmail.com kontaktieren.",
+    "privacy_h8": "8. Sicherheit",
+    "privacy_p8": "Passwörter werden von Supabase Auth verwaltet und verschlüsselt; der Dienst hat niemals Zugriff auf sie im Klartext.",
+    "privacy_h9": "9. Beschwerde",
+    "privacy_p9": "Du kannst eine Beschwerde bei der CNIL (cnil.fr) einreichen, wenn du der Meinung bist, dass deine Rechte nicht eingehalten werden.",
+    "notice_h2": "Impressum",
+    "notice_h1": "Herausgeber der Website",
+    "notice_p1": "Hermes Hounkanrin (Einzelunternehmer — kein eingetragenes Unternehmen)<br>Cotonou, Benin<br>rere50170@gmail.com<br>Handelsregisternummer: nicht zutreffend",
+    "notice_h2b": "Verantwortlicher für die Veröffentlichung",
+    "notice_h3": "Hosting",
+    "notice_p3": "Die Website wird von GitHub, Inc. (GitHub Pages) gehostet — 88 Colin P Kelly Jr St, San Francisco, CA 94107, USA.<br>Die Datenbank und Authentifizierung werden von Supabase gehostet.",
+    "notice_h4": "Kontakt",
+    "deletion_h2": "Datenlöschung",
+    "deletion_h1": "Wie du deine Daten löschst",
+    "deletion_p1a": "Wenn du ein RerePickWinn-Konto hast, kannst du dein Konto und alle zugehörigen Daten (Verlosungen, Teilnehmer, Verlauf, Instagram-Verbindung) jederzeit selbst und endgültig löschen, ohne auf jemanden warten zu müssen:",
+    "deletion_p1b": "Öffne die App → <strong>Einstellungen</strong> → scrolle zur <strong>\"Gefahrenzone\"</strong> → tippe auf <strong>\"Mein Konto löschen\"</strong> → bestätige mit deinem Passwort. Die Löschung erfolgt sofort und ist unwiderruflich.",
+    "deletion_h2b": "Daten im Zusammenhang mit Instagram",
+    "deletion_p2": "Wenn du dein Instagram-Konto mit RerePickWinn verbunden hast, wird das zugehörige Zugriffstoken automatisch gelöscht, sobald du dein Konto über <strong>Einstellungen → Verbundene Konten → Trennen</strong> trennst, oder wenn du dein RerePickWinn-Konto wie oben beschrieben vollständig löschst.",
+    "deletion_h3": "Wenn du keinen Zugriff mehr auf dein Konto hast",
+    "deletion_p3": "Wenn du dich nicht mehr anmelden kannst, um deine Daten selbst zu löschen, schreibe uns an rere50170@gmail.com mit der E-Mail-Adresse deines Kontos — wir löschen deine Daten dann manuell innerhalb von 30 Tagen.",
     "dash_subtitle": "Hier ist ein Überblick über deine Aktivität.",
     "btn_new_giveaway": "+ Neue Verlosung",
     "stat_participants": "Teilnehmer insgesamt",
@@ -4603,7 +5010,12 @@ var TRANSLATIONS = {
     "wiz2_title": "Füge deine Teilnehmer hinzu",
     "wiz2_sub": "Füge eine Liste ein oder importiere eine CSV-Datei.",
     "tab_paste": "Liste einfügen",
-    "tab_csv": "CSV importieren",
+    "tab_csv": "Datei importieren",
+    "tab_sheets": "Google Sheets",
+    "hint_csv_xlsx": "Akzeptierte Dateien: CSV oder Excel (.xlsx). Die erste Spalte sollte die Benutzernamen enthalten.",
+    "sheets_url_label": "Google Sheets-Link",
+    "sheets_share_hint": "📄 Das Tabellenblatt muss mit \"Jeder mit dem Link kann ansehen\" freigegeben sein (Schaltfläche \"Freigeben\" oben rechts in Google Sheets).",
+    "sheets_import_btn": "Tabelle importieren",
     "btn_back": "Zurück",
     "wiz3_title": "Regeln der Verlosung",
     "wiz3_sub": "Filtere die Teilnehmer, bevor du die Verlosung startest.",
@@ -4713,6 +5125,25 @@ var TRANSLATIONS = {
     "footer_copyright": "© 2026 RerePickWinn. Alle Rechte vorbehalten."
   }
 };
+
+// Small helper for dynamic, code-generated strings (toasts, validation
+// errors, share text) — as opposed to the data-i18n/data-i18n-html/
+// data-i18n-placeholder attributes above, which only handle static HTML
+// content. Same TRANSLATIONS dictionary, same current-language logic.
+// Supports {placeholder} substitution: t('toast_x_imported', {count: 5}).
+function currentLang() {
+  try { return localStorage.getItem('repickwinn-lang') || 'fr'; } catch (e) { return 'fr'; }
+}
+function t(key, vars) {
+  var dict = TRANSLATIONS[currentLang()] || TRANSLATIONS.fr;
+  var str = dict[key] || TRANSLATIONS.fr[key] || key;
+  if (vars) {
+    Object.keys(vars).forEach(function(k) {
+      str = str.replace('{' + k + '}', vars[k]);
+    });
+  }
+  return str;
+}
 
 function applyLanguage(lang) {
   var dict = TRANSLATIONS[lang] || TRANSLATIONS.fr;
@@ -4899,7 +5330,7 @@ function wizardNext(fromStep) {
       }));
     }
     if (wizardData.participants.length === 0) {
-      showToast('Ajoute au moins un participant', 'error');
+      showToast(t('toast_add_participant'), 'error');
       return;
     }
   }
@@ -4921,10 +5352,12 @@ function wizardBack(fromStep) {
 function wizardSwitchTab(tab) {
   document.getElementById('wizTabPaste').classList.toggle('active', tab === 'paste');
   document.getElementById('wizTabCsv').classList.toggle('active', tab === 'csv');
+  document.getElementById('wizTabSheets').classList.toggle('active', tab === 'sheets');
   document.getElementById('wizTabYoutube').classList.toggle('active', tab === 'youtube');
   document.getElementById('wizTabInstagram').classList.toggle('active', tab === 'instagram');
   document.getElementById('wizPastePanel').style.display = tab === 'paste' ? 'block' : 'none';
   document.getElementById('wizCsvPanel').style.display = tab === 'csv' ? 'block' : 'none';
+  document.getElementById('wizSheetsPanel').style.display = tab === 'sheets' ? 'block' : 'none';
   document.getElementById('wizYoutubePanel').style.display = tab === 'youtube' ? 'block' : 'none';
   document.getElementById('wizInstagramPanel').style.display = tab === 'instagram' ? 'block' : 'none';
   if (tab === 'instagram') renderInstagramWizardState();
@@ -4934,7 +5367,7 @@ function handleWizardImageSelect(evt) {
   var file = evt.target.files && evt.target.files[0];
   if (!file) return;
   if (file.size > 4 * 1024 * 1024) {
-    showToast('Image trop lourde (max 4 Mo)', 'error');
+    showToast(t('toast_image_too_large'), 'error');
     return;
   }
   wizardData.imageFile = file;
@@ -5012,7 +5445,7 @@ async function uploadWizardImage(file) {
   }
 
   setImageUploadStatus('error');
-  showToast('Upload image : ' + (lastError && lastError.message ? lastError.message : 'échec après plusieurs tentatives'), 'error');
+  showToast(t('toast_upload_error', { msg: (lastError && lastError.message ? lastError.message : t('toast_create_giveaway_fallback')) }), 'error');
   return null;
 }
 
@@ -5044,9 +5477,38 @@ function parseCsvLines(raw) {
   return raw.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
 }
 
+// Handles both CSV (plain text) and Excel (.xlsx/.xls, parsed with the
+// SheetJS library loaded in the page head) — same result either way: a
+// participant list built from the first column of the file.
 function handleWizardCsvChange(evt) {
   var file = evt.target.files && evt.target.files[0];
   if (!file) return;
+  var isExcel = /\.xlsx?$/i.test(file.name);
+
+  if (isExcel) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var data = new Uint8Array(e.target.result);
+        var workbook = XLSX.read(data, { type: 'array' });
+        var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, blankrows: false });
+        var participants = rows.map(function(row) {
+          var name = String(row[0] || '').replace(/^@/, '').trim();
+          var raw = row.join(', ');
+          return { name: name, raw: raw, mentions: countMentions(raw) };
+        }).filter(function(p) { return p.name; });
+        setWizardParticipants(participants);
+        document.getElementById('wizardParticipantPreview').textContent =
+          t('toast_excel_imported', { count: wizardData.participants.length });
+      } catch (err) {
+        showToast(t('toast_upload_error', { msg: err.message }), 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+
   var reader = new FileReader();
   reader.onload = function(e) {
     var text = String(e.target.result || '');
@@ -5059,6 +5521,75 @@ function handleWizardCsvChange(evt) {
     document.getElementById('wizardParticipantPreview').textContent = wizardData.participants.length + ' participants importés du CSV';
   };
   reader.readAsText(file);
+}
+
+// ============================================================
+// GOOGLE SHEETS IMPORT
+// No OAuth needed: a publicly-shared sheet ("Anyone with the link can
+// view") can be fetched directly as CSV via Google's own export
+// endpoint. If the sheet isn't shared that way, this request gets
+// redirected to a Google login page instead of CSV data — we can't
+// tell the two apart from the response alone, so we just ask the
+// person to double-check sharing if the import comes back empty.
+// ============================================================
+function extractGoogleSheetId(url) {
+  if (!url) return null;
+  var m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return m ? m[1] : null;
+}
+function extractGoogleSheetGid(url) {
+  if (!url) return '0';
+  var m = url.match(/[?#&]gid=([0-9]+)/);
+  return m ? m[1] : '0';
+}
+
+async function fetchGoogleSheet() {
+  var url = document.getElementById('wizardSheetsUrl').value.trim();
+  var sheetId = extractGoogleSheetId(url);
+  var statusEl = document.getElementById('wizardSheetsStatus');
+  var btn = document.getElementById('wizardSheetsFetchBtn');
+
+  if (!sheetId) {
+    showToast(t('toast_sheets_invalid_link'), 'error');
+    return;
+  }
+
+  setBtnLoading(btn, true);
+  statusEl.style.display = 'none';
+
+  try {
+    var gid = extractGoogleSheetGid(url);
+    var exportUrl = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/export?format=csv&gid=' + gid;
+    var resp = await fetch(exportUrl);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var text = await resp.text();
+
+    // A sheet that isn't actually public comes back as Google's HTML
+    // login page, not CSV — this is the most reliable signal we have.
+    if (/<html/i.test(text.slice(0, 200))) {
+      throw new Error(t('toast_sheets_not_public'));
+    }
+
+    var lines = parseCsvLines(text);
+    var participants = lines.map(function(line) {
+      var cols = line.split(',');
+      var name = cols[0].replace(/"/g, '').trim().replace(/^@/, '');
+      return { name: name, raw: line, mentions: countMentions(line) };
+    }).filter(function(p) { return p.name; });
+
+    if (participants.length === 0) throw new Error(t('toast_sheets_not_public'));
+
+    setWizardParticipants(participants);
+    document.getElementById('wizardParticipantPreview').textContent =
+      t('toast_sheets_imported', { count: wizardData.participants.length });
+    showToast(t('toast_sheets_imported', { count: wizardData.participants.length }), 'success');
+  } catch (err) {
+    statusEl.textContent = t('toast_sheets_error', { msg: err.message });
+    statusEl.style.display = 'block';
+    showToast(t('toast_sheets_error', { msg: err.message }), 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
 function handleWizardRawTextInput() {
@@ -5107,7 +5638,7 @@ async function fetchYoutubeComments() {
   var btn = document.getElementById('wizardYoutubeFetchBtn');
 
   if (!videoId) {
-    showToast('Lien YouTube invalide — colle l\'URL complète de la vidéo', 'error');
+    showToast(t('toast_youtube_invalid_link'), 'error');
     return;
   }
 
@@ -5158,12 +5689,12 @@ async function fetchYoutubeComments() {
     setWizardParticipants(rawEntries);
     setYoutubeFetchStatus('✓ ' + rawEntries.length + ' participant(s) importé(s)', false);
     document.getElementById('wizardYoutubeStatus').style.color = 'var(--green)';
-    showToast(rawEntries.length + ' participants importés depuis YouTube', 'success');
+    showToast(t('toast_youtube_imported', { count: rawEntries.length }), 'success');
   } catch (err) {
     console.error('YouTube fetch error:', err);
     setYoutubeLoading(false);
     setYoutubeFetchStatus('Erreur : ' + err.message, true);
-    showToast('Erreur YouTube : ' + err.message, 'error');
+    showToast(t('toast_youtube_error', { msg: err.message }), 'error');
   } finally {
     setBtnLoading(btn, false);
   }
@@ -5255,13 +5786,13 @@ async function disconnectInstagramAccount() {
   if (!currentUser) return;
   var { error } = await supabaseClient.from('instagram_accounts').delete().eq('user_id', currentUser.id);
   if (error) {
-    showToast('Erreur lors de la déconnexion : ' + error.message, 'error');
+    showToast(t('toast_disconnect_error', { msg: error.message }), 'error');
     return;
   }
   instagramAccount = null;
   renderInstagramSettingsState();
   renderInstagramWizardState();
-  showToast('Compte Instagram déconnecté', 'success');
+  showToast(t('toast_ig_disconnected'), 'success');
 }
 
 // Called once at startup: if the URL contains ?code=... we just came back
@@ -5288,11 +5819,11 @@ async function handleInstagramOAuthRedirect() {
     // account hasn't been added as a tester yet. Surface that clearly
     // instead of silently doing nothing.
     console.error('Instagram OAuth error param:', oauthError, oauthErrorDesc);
-    showToast('Instagram a refusé la connexion : ' + (oauthErrorDesc || oauthError) + '. Vérifie que ton compte est bien ajouté comme testeur dans l\'app Meta.', 'error');
+    showToast(t('toast_ig_refused', { desc: (oauthErrorDesc || oauthError) }), 'error');
     return;
   }
 
-  showToast('Connexion à Instagram en cours…', 'success');
+  showToast(t('toast_ig_connecting'), 'success');
   try {
     var { data: sessionData } = await supabaseClient.auth.getSession();
     var accessToken = sessionData && sessionData.session && sessionData.session.access_token;
@@ -5319,11 +5850,11 @@ async function handleInstagramOAuthRedirect() {
     if (!resp.ok || result.error) {
       throw new Error((result && (result.error || (result.details && JSON.stringify(result.details)))) || 'Échec de la connexion Instagram');
     }
-    showToast('Instagram connecté : @' + result.username, 'success');
+    showToast(t('toast_ig_connected', { username: result.username }), 'success');
     await loadInstagramAccountStatus();
   } catch (err) {
     console.error('Instagram OAuth error:', err);
-    showToast('Erreur de connexion Instagram : ' + err.message, 'error');
+    showToast(t('toast_ig_connect_error', { msg: err.message }), 'error');
   }
 }
 
@@ -5431,11 +5962,11 @@ async function fetchInstagramComments() {
   var btn = document.getElementById('wizardInstagramFetchBtn');
 
   if (!shortcode) {
-    showToast('Lien Instagram invalide — colle l\'URL complète du post ou du reel', 'error');
+    showToast(t('toast_ig_invalid_link'), 'error');
     return;
   }
   if (!instagramAccount) {
-    showToast('Connecte d\'abord ton compte Instagram', 'error');
+    showToast(t('toast_ig_connect_first'), 'error');
     return;
   }
 
@@ -5471,12 +6002,12 @@ async function fetchInstagramComments() {
     setWizardParticipants(rawEntries);
     setInstagramFetchStatus('✓ ' + rawEntries.length + ' participant(s) importé(s)', false);
     document.getElementById('wizardInstagramStatus').style.color = 'var(--green)';
-    showToast(rawEntries.length + ' participants importés depuis Instagram', 'success');
+    showToast(t('toast_ig_imported', { count: rawEntries.length }), 'success');
   } catch (err) {
     console.error('Instagram fetch error:', err);
     setInstagramLoading(false);
     setInstagramFetchStatus('Erreur : ' + err.message, true);
-    showToast('Erreur Instagram : ' + err.message, 'error');
+    showToast(t('toast_ig_error', { msg: err.message }), 'error');
   } finally {
     setBtnLoading(btn, false);
   }
@@ -5621,7 +6152,7 @@ async function wizardCreate() {
   if (gErr && !giveaway) {
     setBtnLoading(btn, false);
     console.error('Giveaway creation error:', gErr);
-    showToast('Erreur : ' + (gErr.message || 'création du tirage impossible'), 'error');
+    showToast(t('toast_error_prefix', { msg: (gErr.message || t('toast_create_giveaway_fallback')) }), 'error');
     return;
   }
 
@@ -5633,9 +6164,9 @@ async function wizardCreate() {
   setBtnLoading(btn, false);
 
   if (pErr) {
-    showToast('Tirage créé, mais erreur sur les participants', 'error');
+    showToast(t('toast_giveaway_created_participants_error'), 'error');
   } else {
-    showToast('Tirage créé avec succès', 'success');
+    showToast(t('toast_giveaway_created'), 'success');
   }
 
   await loadDashboardData();
@@ -5658,7 +6189,7 @@ async function openGiveaway(giveawayId, prefetched) {
     .eq('giveaway_id', giveawayId);
 
   if (error) {
-    showToast('Impossible de charger les participants', 'error');
+    showToast(t('toast_load_participants_error'), 'error');
     return;
   }
   activeParticipants = (participants || []).map(function(p) {
@@ -5788,7 +6319,7 @@ var MAX_PARTICIPANTS_PER_IMPORT = 10000;
 
 function setWizardParticipants(list) {
   if (list.length > MAX_PARTICIPANTS_PER_IMPORT) {
-    showToast('Import limité à ' + MAX_PARTICIPANTS_PER_IMPORT.toLocaleString('fr-FR') + ' participants — les suivants ont été ignorés.', 'error');
+    showToast(t('toast_import_limited', { count: MAX_PARTICIPANTS_PER_IMPORT.toLocaleString(currentLang()) }), 'error');
     list = list.slice(0, MAX_PARTICIPANTS_PER_IMPORT);
   }
   wizardData.participants = list;
@@ -6229,12 +6760,12 @@ function confirmSchedule() {
   var input = document.getElementById('scheduleDateInput');
   var value = input.value;
   if (!value) {
-    showToast('Choisis une date et une heure', 'error');
+    showToast(t('toast_choose_datetime'), 'error');
     return;
   }
   var targetTime = new Date(value).getTime();
   if (targetTime <= Date.now()) {
-    showToast('Choisis une heure dans le futur', 'error');
+    showToast(t('toast_choose_future_time'), 'error');
     return;
   }
 
@@ -6251,7 +6782,7 @@ function confirmSchedule() {
     if (!isSpinning) runDraw();
   }, targetTime - Date.now());
 
-  showToast('Tirage programmé — garde cette page ouverte', 'success');
+  showToast(t('toast_scheduled'), 'success');
 }
 
 function updateScheduleCountdown(targetTime) {
@@ -6283,7 +6814,7 @@ function cancelSchedule() {
   clearSchedule();
   document.getElementById('scheduleActive').style.display = 'none';
   document.getElementById('scheduleDateInput').value = '';
-  showToast('Programmation annulée', 'success');
+  showToast(t('toast_schedule_cancelled'), 'success');
 }
 
 // ============================================================
@@ -7220,11 +7751,11 @@ function playDuckQuack() {
 
 async function shareWinner() {
   if (!winner) {
-    showToast('Aucun gagnant à partager pour le moment', 'error');
+    showToast(t('toast_no_winner_share'), 'error');
     return;
   }
-  var giveawayTitle = (activeGiveaway && activeGiveaway.title) || 'notre tirage';
-  var shareText = '🏆 @' + winner.name + ' a été désigné(e) gagnant(e) de "' + giveawayTitle + '" avec RerePickWinn !';
+  var giveawayTitle = (activeGiveaway && activeGiveaway.title) || t('share_default_title');
+  var shareText = t('share_text_template', { name: winner.name, title: giveawayTitle });
 
   if (navigator.share) {
     try {
@@ -7240,7 +7771,7 @@ async function shareWinner() {
   // No native share support (or it failed): copy the text instead.
   try {
     await navigator.clipboard.writeText(shareText);
-    showToast('Texte du résultat copié — colle-le où tu veux le partager', 'success');
+    showToast(t('toast_share_copied'), 'success');
   } catch (e) {
     showToast(shareText, 'success');
   }
@@ -7248,15 +7779,15 @@ async function shareWinner() {
 
 function copyWinner() {
   if (!winner) {
-    showToast('Aucun gagnant à copier pour le moment', 'error');
+    showToast(t('toast_no_winner_copy'), 'error');
     return;
   }
   var text = '@' + winner.name;
   var btn = document.getElementById('copyBtn');
-  var originalLabel = 'Copier le pseudo';
+  var originalLabel = t('btn_copy_username');
 
   function flashCopied() {
-    btn.textContent = 'Copié !';
+    btn.textContent = t('btn_copied');
     setTimeout(function() { btn.textContent = originalLabel; }, 1600);
   }
 
@@ -7284,13 +7815,13 @@ function copyWinner() {
       if (fallbackCopy()) {
         flashCopied();
       } else {
-        showToast('Impossible de copier — pseudo : ' + text, 'error');
+        showToast(t('toast_copy_fallback', { text: text }), 'error');
       }
     });
   } else if (fallbackCopy()) {
     flashCopied();
   } else {
-    showToast('Impossible de copier — pseudo : ' + text, 'error');
+    showToast(t('toast_copy_fallback', { text: text }), 'error');
   }
 }
 
@@ -7454,7 +7985,7 @@ function downloadCertificate() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  showToast('Certificat téléchargé', 'success');
+  showToast(t('toast_certificate_downloaded'), 'success');
 }
 
 // ============================================================
