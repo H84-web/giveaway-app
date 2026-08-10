@@ -1691,7 +1691,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
   </section>
 
   <!-- ============ PRICING ============ -->
-  <section class="lp-section lp-section-alt" id="lp-pricing" style="display:none;"> <!-- TEMPORARILY HIDDEN — billing disabled for testing -->
+  <section class="lp-section lp-section-alt" id="lp-pricing">
     <div class="lp-section-head lp-reveal">
       <span class="lp-kicker" data-i18n="pricing_kicker">Tarifs</span>
       <h2 class="lp-section-title" data-i18n="pricing_title">Simple, sans surprise.</h2>
@@ -2290,7 +2290,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
         </div>
       </div>
 
-      <div class="card" id="billingCard" style="display:none;"> <!-- TEMPORARILY HIDDEN — billing disabled for testing -->
+      <div class="card" id="billingCard">
         <h3 class="card-section-title" data-i18n="billing_title">Abonnement</h3>
         <div id="billingFreeState">
           <p class="hint" style="margin-bottom:14px;" data-i18n="billing_free_desc">Plan gratuit : jusqu'à 3 tirages actifs, 100 participants par tirage.</p>
@@ -2818,7 +2818,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
           <canvas id="marbleCanvas" class="duck-canvas"></canvas>
         </div>
 
-        <!-- Live stats bar, shown only once the game has actually started (replaces the lobby's static stats) -->
+        <!-- Live stats bar, shown once the game stage is revealed (both before and during the actual draw) -->
         <div class="draw-live-stats" id="drawLiveStats" style="display:none;">
           <div class="stat"><span class="stat-value" id="liveStatTotal">0</span><span class="stat-label" data-i18n="lobby_stat_total">Participants totaux</span></div>
           <div class="stat"><span class="stat-value" id="liveStatRacing">0</span><span class="stat-label" data-i18n="lobby_stat_racing">En course</span></div>
@@ -2826,7 +2826,13 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
           <div class="stat"><span class="stat-value" id="liveStatElapsed">00:00</span><span class="stat-label" data-i18n="lobby_stat_elapsed">Temps écoulé</span></div>
         </div>
 
-        <button class="btn btn-primary" id="drawSpinBtn" onclick="runDraw()" style="margin-top:18px;">
+        <!-- Step 1: leaves the lobby, sets up and reveals the chosen game — does NOT start the draw yet. -->
+        <button class="btn btn-primary" id="drawContinueBtn" onclick="proceedToGameStage()" style="margin-top:18px;">
+          <span class="btn-label" data-i18n="lobby_continue_btn">Continuer</span>
+        </button>
+
+        <!-- Step 2: only appears once the game is visible and ready — this is the one that actually starts the random draw. -->
+        <button class="btn btn-primary" id="drawSpinBtn" onclick="runDraw()" style="margin-top:18px; display:none;">
           <span class="btn-label" data-i18n="draw_launch">Lancer le tirage</span>
         </button>
 
@@ -4545,6 +4551,7 @@ var TRANSLATIONS = {
     "lobby_activity_filtered": "{count} exclus par les règles du tirage",
     "lobby_activity_min_mentions": "Minimum {count} mentions requis",
     "lobby_activity_ready": "{count} participants prêts pour le tirage",
+    "lobby_continue_btn": "Continuer",
     "toast_free_participant_limit": "Plan gratuit limité à {count} participants par tirage — passe Pro pour lever cette limite.",
     "toast_free_giveaway_limit": "Plan gratuit limité à {count} tirages actifs en même temps — passe Pro pour lever cette limite.",
     "legal_last_updated": "Dernière mise à jour : 7 août 2026",
@@ -4972,6 +4979,7 @@ var TRANSLATIONS = {
     "lobby_activity_filtered": "{count} excluded by the draw's rules",
     "lobby_activity_min_mentions": "Minimum {count} mentions required",
     "lobby_activity_ready": "{count} participants ready for the draw",
+    "lobby_continue_btn": "Continue",
     "toast_free_participant_limit": "Free plan limited to {count} participants per giveaway — upgrade to Pro to remove this limit.",
     "toast_free_giveaway_limit": "Free plan limited to {count} active giveaways at once — upgrade to Pro to remove this limit.",
     "legal_last_updated": "Last updated: August 7, 2026",
@@ -5399,6 +5407,7 @@ var TRANSLATIONS = {
     "lobby_activity_filtered": "{count} durch die Verlosungsregeln ausgeschlossen",
     "lobby_activity_min_mentions": "Mindestens {count} Erwähnungen erforderlich",
     "lobby_activity_ready": "{count} Teilnehmer bereit für die Verlosung",
+    "lobby_continue_btn": "Weiter",
     "toast_free_participant_limit": "Kostenloser Plan auf {count} Teilnehmer pro Verlosung begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "toast_free_giveaway_limit": "Kostenloser Plan auf {count} aktive Verlosungen gleichzeitig begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "legal_last_updated": "Zuletzt aktualisiert: 7. August 2026",
@@ -6751,12 +6760,16 @@ async function openGiveaway(giveawayId, prefetched) {
   // cause of the duck race rendering blank.
   showScreen('drawScreen');
 
-  // The game itself only gets set up once "Lancer le tirage" is
-  // actually clicked (see runDraw()) — on arrival, everyone sees the
-  // lobby first: how many are in, a quick summary of what the import
-  // filtered out, and the full list, browsable at their own pace.
+  // The game itself only gets set up once "Continuer" is clicked (see
+  // proceedToGameStage()) — on arrival, everyone sees the lobby first:
+  // how many are in, a quick summary of what the import filtered out,
+  // and the full list, browsable at their own pace. The actual draw
+  // (runDraw()) needs its own separate confirmation after that, so
+  // reading through the lobby never accidentally starts it.
   document.getElementById('drawLobby').style.display = 'block';
   document.getElementById('drawLiveStats').style.display = 'none';
+  document.getElementById('drawContinueBtn').style.display = 'inline-flex';
+  document.getElementById('drawSpinBtn').style.display = 'none';
   ['Wheel', 'Instant', 'Slot', 'Duck', 'Plinko', 'Marble'].forEach(function(m) {
     document.getElementById('drawStage' + m).style.display = 'none';
   });
@@ -6929,7 +6942,12 @@ function renderLobbyStats(totalCount) {
 var liveStatsTimerId = null;
 var liveStatsStartTime = null;
 
-function startLiveStats(poolSize) {
+// Reveals the live-stats bar in a "ready, not started yet" state — the
+// elapsed timer only actually starts ticking once the draw itself
+// begins (see startLiveStatsTimer, called from runDraw), so someone
+// who reads the lobby stats for a while before continuing doesn't see
+// the clock already running.
+function revealLiveStatsBar(poolSize) {
   document.getElementById('drawLobby').style.display = 'none';
   var barEl = document.getElementById('drawLiveStats');
   if (!barEl) return;
@@ -6938,7 +6956,9 @@ function startLiveStats(poolSize) {
   document.getElementById('liveStatRacing').textContent = poolSize;
   document.getElementById('liveStatFinished').textContent = '0';
   document.getElementById('liveStatElapsed').textContent = '00:00';
+}
 
+function startLiveStatsTimer() {
   liveStatsStartTime = performance.now();
   if (liveStatsTimerId) clearInterval(liveStatsTimerId);
   liveStatsTimerId = setInterval(function() {
@@ -7065,11 +7085,6 @@ function currentTier() {
 }
 
 function currentTierLimits() {
-  // TEMPORARILY DISABLED FOR TESTING — billing/limits are turned off
-  // site-wide so nothing blocks testing giveaways/participants. To
-  // turn the paywall back on later, just remove this early return
-  // (the real logic below is untouched and ready to go).
-  return { giveaways: Infinity, participants: Infinity };
   return TIER_LIMITS[currentTier()] || TIER_LIMITS.free;
 }
 
@@ -7809,6 +7824,33 @@ function renderSessionWinners() {
   });
 }
 
+// Step 1 — "Continuer": leaves the lobby and reveals the chosen game,
+// fully set up and ready, but doesn't start the actual draw. Split out
+// on purpose so pressing through the stats never accidentally starts
+// the draw itself — that's a deliberate second action (runDraw, below).
+function proceedToGameStage() {
+  var pool = getDrawFilteredEntries();
+  if (pool.length === 0) return;
+
+  // The per-mode stage is set up right here — not earlier, while it was
+  // still hidden behind the lobby — because measuring a display:none
+  // canvas's container reports 0 width/height (the exact bug that once
+  // made the duck race render blank).
+  document.getElementById('drawStage' + drawMode.charAt(0).toUpperCase() + drawMode.slice(1)).style.display = 'block';
+  if (drawMode === 'wheel') drawWheel(0, null, pool.slice(0, MAX_WHEEL_SEGMENTS));
+  if (drawMode === 'slot') setupSlotStage(pool);
+  if (drawMode === 'instant') resetInstantStage();
+  if (drawMode === 'duck') setupDuckRace(pool);
+  if (drawMode === 'plinko') setupPlinkoStage(pool);
+  if (drawMode === 'marble') setupMarbleStage(pool);
+  revealLiveStatsBar(pool.length);
+
+  document.getElementById('drawContinueBtn').style.display = 'none';
+  document.getElementById('drawSpinBtn').style.display = 'inline-flex';
+}
+
+// Step 2 — "Lancer le tirage": the actual random draw. Only reachable
+// after proceedToGameStage() above, once the game is already visible.
 function runDraw() {
   var pool = getDrawFilteredEntries();
   if (pool.length === 0 || isSpinning) return;
@@ -7820,19 +7862,7 @@ function runDraw() {
   if (drawMode === 'plinko') unlockPlinkoAudio();
   if (drawMode === 'marble') unlockMarbleAudio();
 
-  // Transition from the lobby to the actual game, full screen. The
-  // per-mode stage is set up right here — not earlier, while it was
-  // still hidden behind the lobby — because measuring a display:none
-  // canvas's container reports 0 width/height (the exact bug that once
-  // made the duck race render blank).
-  document.getElementById('drawStage' + drawMode.charAt(0).toUpperCase() + drawMode.slice(1)).style.display = 'block';
-  if (drawMode === 'wheel') drawWheel(0, null, pool.slice(0, MAX_WHEEL_SEGMENTS));
-  if (drawMode === 'slot') setupSlotStage(pool);
-  if (drawMode === 'instant') resetInstantStage();
-  if (drawMode === 'duck') setupDuckRace(pool);
-  if (drawMode === 'plinko') setupPlinkoStage(pool);
-  if (drawMode === 'marble') setupMarbleStage(pool);
-  startLiveStats(pool.length);
+  startLiveStatsTimer();
 
   var totalWinnersWanted = Math.min((activeGiveaway && activeGiveaway.winner_count) || 1, pool.length);
   runDrawRound(pool, 1, totalWinnersWanted);
@@ -8255,16 +8285,19 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
 
     if (!finished && winnerHasCrossed) {
       finished = true;
-      overshootUntil = elapsed + 550;
       playDuckQuack();
     }
 
     drawDuckScene(elapsed, finished ? actualWinnerIndex : null);
 
-    if (!finished || elapsed < overshootUntil) {
+    // Stops the instant the winner crosses the line — no extra "swim
+    // past the flag" animation afterward, per how confusing it looked
+    // to have the race visibly keep going after a result was already
+    // decided.
+    if (!finished) {
       duckAnimId = requestAnimationFrame(tick);
     } else {
-      setTimeout(onDone, 300);
+      onDone();
     }
   }
   duckAnimId = requestAnimationFrame(tick);
@@ -9646,6 +9679,8 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
 
     var bw = timeProgress <= SPRINT_START ? 0 : smoothstep((timeProgress - SPRINT_START) / (1 - SPRINT_START));
 
+    var winnerHasCrossed = finished || Math.min(Math.pow(Math.min(timeProgress * speedFactors[actualWinnerIndex], 1), 1.7), 1) >= FINISH_FRACTION;
+
     for (var i = 0; i < count; i++) {
       var gEased = Math.pow(Math.min(timeProgress * speedFactors[i], 1), 1.7);
       guaranteedPos[i] = Math.min(gEased, 1);
@@ -9660,6 +9695,17 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
       var mult = speedMultiplier(i, timeProgress) * sprintBoost;
       positions[i] = Math.min(positions[i] + mult * dtFrac, 1);
 
+      // Same rule as the duck race: nobody's visual position is allowed
+      // to reach the real finish line before the actual winner's
+      // official crossing fires below — otherwise an early speed swing
+      // could let the wrong marble visibly arrive first while the race
+      // quietly kept running for the real winner.
+      if (i === actualWinnerIndex) {
+        if (!winnerHasCrossed) positions[i] = Math.min(positions[i], FINISH_FRACTION);
+      } else {
+        positions[i] = Math.min(positions[i], FINISH_FRACTION - 0.006);
+      }
+
       // Fire the clink the instant this marble's drawn position actually
       // passes an obstacle — sound tied to a real visual event.
       for (var o = 0; o < MARBLE_OBSTACLES.length; o++) {
@@ -9670,18 +9716,19 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
       }
     }
 
-    if (!finished && guaranteedPos[actualWinnerIndex] >= FINISH_FRACTION) {
+    if (!finished && winnerHasCrossed) {
       finished = true;
-      overshootUntil = elapsed + 500;
       playMarbleWinChime();
     }
 
     drawMarbleScene(positions, finished ? actualWinnerIndex : null, elapsed, table);
 
-    if (!finished || elapsed < overshootUntil) {
+    // Stops the instant the winner crosses — no extra animation after
+    // the result is already decided, matching the duck race.
+    if (!finished) {
       marbleAnimId = requestAnimationFrame(tick);
     } else {
-      setTimeout(onDone, 300);
+      onDone();
     }
   }
   marbleAnimId = requestAnimationFrame(tick);
