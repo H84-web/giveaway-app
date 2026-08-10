@@ -1073,6 +1073,53 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 .stat-value { font-size: 26px; font-weight: 800; line-height: 1; color: var(--ink); }
 .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 4px; }
 
+/* ---- Draw lobby: shown before any game starts, same layout for all 6 modes ---- */
+.draw-lobby { width: 100%; }
+.draw-lobby-badge {
+  display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 700;
+  color: var(--ink); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 99px;
+  padding: 10px 20px; margin: 0 auto 18px; width: fit-content; text-align: center;
+}
+.draw-lobby-track { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.draw-lobby-track-label { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; color: var(--muted); flex: 0 0 auto; }
+.draw-lobby-track-line {
+  flex: 1; height: 10px; border-radius: 4px;
+  background: repeating-linear-gradient(45deg, #16181D, #16181D 6px, #fff 6px, #fff 12px);
+  opacity: 0.85;
+}
+.draw-lobby-grid { display: grid; grid-template-columns: 1fr; gap: 16px; text-align: left; }
+.draw-lobby-main { min-width: 0; }
+.draw-lobby-list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.lobby-perpage-select { font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--card); color: var(--ink-soft); }
+.draw-lobby-list { border: 1px solid var(--line); border-radius: 12px; max-height: 320px; overflow-y: auto; background: var(--card); }
+.lobby-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.lobby-row:last-child { border-bottom: none; }
+.lobby-row-rank { width: 24px; flex: 0 0 auto; font-size: 11.5px; font-weight: 700; color: var(--muted); text-align: right; }
+.lobby-row-avatar { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #fff; }
+.lobby-row-name { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.draw-lobby-pagination { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+.lobby-page-btn {
+  min-width: 28px; height: 28px; padding: 0 6px; border-radius: 7px; border: 1px solid var(--line); background: var(--card);
+  font-size: 12px; font-weight: 700; color: var(--ink-soft); cursor: pointer;
+}
+.lobby-page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.lobby-page-btn:disabled { opacity: 0.35; cursor: default; }
+.lobby-page-ellipsis { font-size: 12px; color: var(--muted); padding: 0 2px; }
+.draw-lobby-side { display: flex; flex-direction: column; gap: 12px; }
+.draw-lobby-panel { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--card); }
+.draw-lobby-panel h4 { font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 10px; }
+.lobby-activity-item { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--ink-soft); padding: 5px 0; line-height: 1.4; }
+.lobby-activity-icon { color: #16A34A; font-weight: 700; flex: 0 0 auto; }
+.lobby-stat-row { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--ink-soft); padding: 6px 0; border-bottom: 1px solid var(--line); }
+.lobby-stat-row:last-child { border-bottom: none; }
+.lobby-stat-row strong { color: var(--ink); font-weight: 700; }
+@media (min-width: 720px) {
+  .draw-lobby-grid { grid-template-columns: 1.5fr 1fr; }
+}
+
+/* ---- Live stats bar: same 4 fields for every mode, shown once the game starts ---- */
+.draw-live-stats { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin: 16px 0 4px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); width: 100%; }
+
 .wheel-wrap { position: relative; width: 100%; max-width: 480px; margin-bottom: 8px; }
 .wheel-canvas { width: 100%; height: auto; display: block; filter: drop-shadow(0 8px 20px rgba(16,24,40,0.12)); }
 
@@ -2684,14 +2731,47 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
           <span class="draw-mode-name" id="drawModeName">Roue</span>
         </div>
 
-        <div class="stats-row">
-          <div class="stat"><span class="stat-value" id="drawStatParticipants">0</span><span class="stat-label">Participants</span></div>
-          <div class="stat"><span class="stat-value" id="drawStatMentions">0</span><span class="stat-label">Mentions</span></div>
-          <div class="stat"><span class="stat-value" id="drawStatDup">0</span><span class="stat-label">Doublons retirés</span></div>
+        <!-- ============ DRAW LOBBY — shown before the game starts ============ -->
+        <div id="drawLobby" class="draw-lobby">
+          <div class="draw-lobby-badge">
+            🏁 <span id="drawLobbyCount">0</span> <span data-i18n="lobby_badge_ready">participants prêts pour le tirage</span>
+          </div>
+
+          <div class="draw-lobby-track" id="drawLobbyTrack" style="display:none;">
+            <span class="draw-lobby-track-label" data-i18n="lobby_track_start">DÉPART</span>
+            <div class="draw-lobby-track-line"></div>
+            <span class="draw-lobby-track-label" data-i18n="lobby_track_finish">ARRIVÉE</span>
+          </div>
+
+          <div class="draw-lobby-grid">
+            <div class="draw-lobby-main">
+              <div class="draw-lobby-list-header">
+                <span data-i18n="lobby_list_title">Participants</span>
+                <select id="lobbyPerPageSelect" class="lobby-perpage-select" onchange="setLobbyPerPage(this.value)">
+                  <option value="10">10 / page</option>
+                  <option value="25">25 / page</option>
+                  <option value="50">50 / page</option>
+                </select>
+              </div>
+              <div class="draw-lobby-list" id="drawLobbyList"></div>
+              <div class="draw-lobby-pagination" id="drawLobbyPagination"></div>
+            </div>
+
+            <div class="draw-lobby-side">
+              <div class="draw-lobby-panel">
+                <h4 data-i18n="lobby_activity_title">Résumé de l'import</h4>
+                <div id="drawLobbyActivity"></div>
+              </div>
+              <div class="draw-lobby-panel">
+                <h4 data-i18n="lobby_stats_title">Statistiques</h4>
+                <div class="draw-lobby-stats" id="drawLobbyStats"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- WHEEL MODE -->
-        <div id="drawStageWheel" class="draw-stage">
+        <div id="drawStageWheel" class="draw-stage" style="display:none;">
           <div class="wheel-wrap">
             <canvas id="wheelCanvas" width="320" height="320" class="wheel-canvas"></canvas>
           </div>
@@ -2736,6 +2816,14 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
         <div id="drawStageMarble" class="draw-stage" style="display:none; position:relative;">
           <button type="button" class="duck-sound-toggle" id="marbleSoundToggle" onclick="toggleMarbleSound()" title="Activer/désactiver le son">🔊</button>
           <canvas id="marbleCanvas" class="duck-canvas"></canvas>
+        </div>
+
+        <!-- Live stats bar, shown only once the game has actually started (replaces the lobby's static stats) -->
+        <div class="draw-live-stats" id="drawLiveStats" style="display:none;">
+          <div class="stat"><span class="stat-value" id="liveStatTotal">0</span><span class="stat-label" data-i18n="lobby_stat_total">Participants totaux</span></div>
+          <div class="stat"><span class="stat-value" id="liveStatRacing">0</span><span class="stat-label" data-i18n="lobby_stat_racing">En course</span></div>
+          <div class="stat"><span class="stat-value" id="liveStatFinished">0</span><span class="stat-label" data-i18n="lobby_stat_finished">Déjà arrivés</span></div>
+          <div class="stat"><span class="stat-value" id="liveStatElapsed">00:00</span><span class="stat-label" data-i18n="lobby_stat_elapsed">Temps écoulé</span></div>
         </div>
 
         <button class="btn btn-primary" id="drawSpinBtn" onclick="runDraw()" style="margin-top:18px;">
@@ -4439,6 +4527,24 @@ var TRANSLATIONS = {
     "pricing_medium_f1": "25 tirages actifs",
     "pricing_medium_f2": "2 000 participants / tirage",
     "pricing_at_year": "à l'année",
+    "lobby_badge_ready": "participants prêts pour le tirage",
+    "lobby_track_start": "DÉPART",
+    "lobby_track_finish": "ARRIVÉE",
+    "lobby_list_title": "Participants",
+    "lobby_list_empty": "Aucun participant éligible pour l'instant.",
+    "lobby_activity_title": "Résumé de l'import",
+    "lobby_stats_title": "Statistiques",
+    "lobby_stat_total": "Participants totaux",
+    "lobby_stat_mode": "Mode de tirage",
+    "lobby_stat_duration": "Durée prévue",
+    "lobby_stat_racing": "En course",
+    "lobby_stat_finished": "Déjà arrivés",
+    "lobby_stat_elapsed": "Temps écoulé",
+    "lobby_activity_imported": "{count} participants importés",
+    "lobby_activity_dedup": "{count} doublons retirés",
+    "lobby_activity_filtered": "{count} exclus par les règles du tirage",
+    "lobby_activity_min_mentions": "Minimum {count} mentions requis",
+    "lobby_activity_ready": "{count} participants prêts pour le tirage",
     "toast_free_participant_limit": "Plan gratuit limité à {count} participants par tirage — passe Pro pour lever cette limite.",
     "toast_free_giveaway_limit": "Plan gratuit limité à {count} tirages actifs en même temps — passe Pro pour lever cette limite.",
     "legal_last_updated": "Dernière mise à jour : 7 août 2026",
@@ -4848,6 +4954,24 @@ var TRANSLATIONS = {
     "pricing_medium_f1": "25 active giveaways",
     "pricing_medium_f2": "2,000 participants / giveaway",
     "pricing_at_year": "billed yearly",
+    "lobby_badge_ready": "participants ready for the draw",
+    "lobby_track_start": "START",
+    "lobby_track_finish": "FINISH",
+    "lobby_list_title": "Participants",
+    "lobby_list_empty": "No eligible participants yet.",
+    "lobby_activity_title": "Import summary",
+    "lobby_stats_title": "Statistics",
+    "lobby_stat_total": "Total participants",
+    "lobby_stat_mode": "Draw mode",
+    "lobby_stat_duration": "Expected duration",
+    "lobby_stat_racing": "Racing",
+    "lobby_stat_finished": "Already finished",
+    "lobby_stat_elapsed": "Elapsed time",
+    "lobby_activity_imported": "{count} participants imported",
+    "lobby_activity_dedup": "{count} duplicates removed",
+    "lobby_activity_filtered": "{count} excluded by the draw's rules",
+    "lobby_activity_min_mentions": "Minimum {count} mentions required",
+    "lobby_activity_ready": "{count} participants ready for the draw",
     "toast_free_participant_limit": "Free plan limited to {count} participants per giveaway — upgrade to Pro to remove this limit.",
     "toast_free_giveaway_limit": "Free plan limited to {count} active giveaways at once — upgrade to Pro to remove this limit.",
     "legal_last_updated": "Last updated: August 7, 2026",
@@ -5257,6 +5381,24 @@ var TRANSLATIONS = {
     "pricing_medium_f1": "25 aktive Verlosungen",
     "pricing_medium_f2": "2.000 Teilnehmer / Verlosung",
     "pricing_at_year": "jährlich abgerechnet",
+    "lobby_badge_ready": "Teilnehmer bereit für die Verlosung",
+    "lobby_track_start": "START",
+    "lobby_track_finish": "ZIEL",
+    "lobby_list_title": "Teilnehmer",
+    "lobby_list_empty": "Noch keine teilnahmeberechtigten Teilnehmer.",
+    "lobby_activity_title": "Import-Zusammenfassung",
+    "lobby_stats_title": "Statistiken",
+    "lobby_stat_total": "Teilnehmer insgesamt",
+    "lobby_stat_mode": "Verlosungsmodus",
+    "lobby_stat_duration": "Voraussichtliche Dauer",
+    "lobby_stat_racing": "Im Rennen",
+    "lobby_stat_finished": "Bereits angekommen",
+    "lobby_stat_elapsed": "Verstrichene Zeit",
+    "lobby_activity_imported": "{count} Teilnehmer importiert",
+    "lobby_activity_dedup": "{count} Duplikate entfernt",
+    "lobby_activity_filtered": "{count} durch die Verlosungsregeln ausgeschlossen",
+    "lobby_activity_min_mentions": "Mindestens {count} Erwähnungen erforderlich",
+    "lobby_activity_ready": "{count} Teilnehmer bereit für die Verlosung",
     "toast_free_participant_limit": "Kostenloser Plan auf {count} Teilnehmer pro Verlosung begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "toast_free_giveaway_limit": "Kostenloser Plan auf {count} aktive Verlosungen gleichzeitig begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "legal_last_updated": "Zuletzt aktualisiert: 7. August 2026",
@@ -6609,13 +6751,16 @@ async function openGiveaway(giveawayId, prefetched) {
   // cause of the duck race rendering blank.
   showScreen('drawScreen');
 
-  renderDrawStats();
-  if (drawMode === 'wheel') drawWheel(0, null, getDrawFilteredEntries().slice(0, MAX_WHEEL_SEGMENTS));
-  if (drawMode === 'slot') setupSlotStage(getDrawFilteredEntries());
-  if (drawMode === 'instant') resetInstantStage();
-  if (drawMode === 'duck') setupDuckRace(getDrawFilteredEntries());
-  if (drawMode === 'plinko') setupPlinkoStage(getDrawFilteredEntries());
-  if (drawMode === 'marble') setupMarbleStage(getDrawFilteredEntries());
+  // The game itself only gets set up once "Lancer le tirage" is
+  // actually clicked (see runDraw()) — on arrival, everyone sees the
+  // lobby first: how many are in, a quick summary of what the import
+  // filtered out, and the full list, browsable at their own pace.
+  document.getElementById('drawLobby').style.display = 'block';
+  document.getElementById('drawLiveStats').style.display = 'none';
+  ['Wheel', 'Instant', 'Slot', 'Duck', 'Plinko', 'Marble'].forEach(function(m) {
+    document.getElementById('drawStage' + m).style.display = 'none';
+  });
+  renderDrawLobby();
 }
 
 function getDrawFilteredEntries() {
@@ -6630,14 +6775,194 @@ function getDrawFilteredEntries() {
 }
 
 function renderDrawStats() {
+  // Kept as a thin alias — renderDrawLobby() (below) is the real thing
+  // now, but a couple of older call sites still expect this name.
+  renderDrawLobby();
+}
+
+// ============================================================
+// DRAW LOBBY — the "starting line" screen everyone sees before a game
+// actually begins: how many are in, a plain-language summary of what
+// the import filtered (never fabricated — every line here comes
+// straight from real filter results, nothing simulated), the full
+// browsable list, and the same 4-stat panel every mode shares. The
+// race track banner only shows for duck/marble, per how those two
+// modes actually present a race; everything else in this lobby is
+// identical across all 6 modes on purpose.
+// ============================================================
+var lobbyPage = 1;
+var lobbyPerPage = 10;
+
+function renderDrawLobby() {
+  if (!activeGiveaway) return;
   var filtered = getDrawFilteredEntries();
-  document.getElementById('drawStatParticipants').textContent = filtered.length;
-  document.getElementById('drawStatMentions').textContent = filtered.reduce(function(s, e) { return s + e.mentions; }, 0);
+
+  var countEl = document.getElementById('drawLobbyCount');
+  if (countEl) countEl.textContent = filtered.length.toLocaleString(currentLang());
+
+  var trackEl = document.getElementById('drawLobbyTrack');
+  if (trackEl) trackEl.style.display = (drawMode === 'duck' || drawMode === 'marble') ? 'flex' : 'none';
+
+  lobbyPage = 1;
+  renderLobbyList();
+  renderLobbyActivity();
+  renderLobbyStats(filtered.length);
+
+  var spinBtn = document.getElementById('drawSpinBtn');
+  if (spinBtn) spinBtn.disabled = filtered.length === 0;
+}
+
+function renderLobbyList() {
+  var filtered = getDrawFilteredEntries();
+  var totalPages = Math.max(1, Math.ceil(filtered.length / lobbyPerPage));
+  lobbyPage = Math.min(Math.max(1, lobbyPage), totalPages);
+  var start = (lobbyPage - 1) * lobbyPerPage;
+  var pageItems = filtered.slice(start, start + lobbyPerPage);
+
+  var listEl = document.getElementById('drawLobbyList');
+  if (!listEl) return;
+  if (pageItems.length === 0) {
+    listEl.innerHTML = '<p class="hint" style="text-align:center; padding:20px 0;" data-i18n="lobby_list_empty">Aucun participant éligible pour l\'instant.</p>';
+  } else {
+    listEl.innerHTML = pageItems.map(function(entry, i) {
+      var rank = start + i + 1;
+      var initial = (entry.name || '?').charAt(0).toUpperCase();
+      var color = DUCK_COLORS[(start + i) % DUCK_COLORS.length];
+      return '<div class="lobby-row">' +
+        '<span class="lobby-row-rank">' + rank + '</span>' +
+        '<span class="lobby-row-avatar" style="background:' + color + ';">' + escapeHtml(initial) + '</span>' +
+        '<span class="lobby-row-name">@' + escapeHtml(entry.name) + '</span>' +
+        '</div>';
+    }).join('');
+  }
+  renderLobbyPagination(totalPages);
+}
+
+function renderLobbyPagination(totalPages) {
+  var el = document.getElementById('drawLobbyPagination');
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  var html = '<button class="lobby-page-btn" ' + (lobbyPage <= 1 ? 'disabled' : '') +
+    ' onclick="goToLobbyPage(' + (lobbyPage - 1) + ')" aria-label="Précédent">‹</button>';
+
+  lobbyPaginationWindow(lobbyPage, totalPages).forEach(function(p) {
+    if (p === '…') {
+      html += '<span class="lobby-page-ellipsis">…</span>';
+    } else {
+      html += '<button class="lobby-page-btn' + (p === lobbyPage ? ' active' : '') + '" onclick="goToLobbyPage(' + p + ')">' + p + '</button>';
+    }
+  });
+
+  html += '<button class="lobby-page-btn" ' + (lobbyPage >= totalPages ? 'disabled' : '') +
+    ' onclick="goToLobbyPage(' + (lobbyPage + 1) + ')" aria-label="Suivant">›</button>';
+  el.innerHTML = html;
+}
+
+// Classic "1 … 4 5 [6] 7 8 … 42" windowed pagination — avoids ever
+// rendering hundreds of page buttons for a huge participant list.
+function lobbyPaginationWindow(current, total) {
+  var pages = [];
+  var windowSize = 1;
+  for (var p = 1; p <= total; p++) {
+    if (p === 1 || p === total || (p >= current - windowSize && p <= current + windowSize)) {
+      pages.push(p);
+    } else if (pages[pages.length - 1] !== '…') {
+      pages.push('…');
+    }
+  }
+  return pages;
+}
+
+function goToLobbyPage(p) {
+  lobbyPage = p;
+  renderLobbyList();
+}
+
+function setLobbyPerPage(val) {
+  lobbyPerPage = parseInt(val, 10) || 10;
+  lobbyPage = 1;
+  renderLobbyList();
+}
+
+function renderLobbyActivity() {
+  var el = document.getElementById('drawLobbyActivity');
+  if (!el || !activeGiveaway) return;
+
+  var totalRaw = activeParticipants.length;
   var uniqueNames = {};
   activeParticipants.forEach(function(e) { uniqueNames[e.name.toLowerCase()] = true; });
-  var dupCount = activeGiveaway.remove_duplicates ? Math.max(0, activeParticipants.length - Object.keys(uniqueNames).length) : 0;
-  document.getElementById('drawStatDup').textContent = dupCount;
-  document.getElementById('drawSpinBtn').disabled = filtered.length === 0;
+  var dupCount = activeGiveaway.remove_duplicates ? Math.max(0, totalRaw - Object.keys(uniqueNames).length) : 0;
+  var afterDedup = activeGiveaway.remove_duplicates ? Object.keys(uniqueNames).length : totalRaw;
+  var filtered = getDrawFilteredEntries();
+  var excludedByFilters = Math.max(0, afterDedup - filtered.length);
+
+  var items = [];
+  items.push(t('lobby_activity_imported', { count: totalRaw }));
+  if (dupCount > 0) items.push(t('lobby_activity_dedup', { count: dupCount }));
+  if (excludedByFilters > 0) items.push(t('lobby_activity_filtered', { count: excludedByFilters }));
+  if (activeGiveaway.min_mentions > 0) items.push(t('lobby_activity_min_mentions', { count: activeGiveaway.min_mentions }));
+  items.push(t('lobby_activity_ready', { count: filtered.length }));
+
+  el.innerHTML = items.map(function(text) {
+    return '<div class="lobby-activity-item"><span class="lobby-activity-icon">✓</span>' + escapeHtml(text) + '</div>';
+  }).join('');
+}
+
+function renderLobbyStats(totalCount) {
+  var el = document.getElementById('drawLobbyStats');
+  if (!el) return;
+  var duration = (activeGiveaway && activeGiveaway.duration_seconds) || 4;
+  el.innerHTML =
+    '<div class="lobby-stat-row"><span>' + t('lobby_stat_total') + '</span><strong>' + totalCount + '</strong></div>' +
+    '<div class="lobby-stat-row"><span>' + t('lobby_stat_mode') + '</span><strong>' + escapeHtml(MODE_LABELS[drawMode] || '') + '</strong></div>' +
+    '<div class="lobby-stat-row"><span>' + t('lobby_stat_duration') + '</span><strong>' + formatDuration(duration) + '</strong></div>';
+}
+
+// ============================================================
+// LIVE STATS BAR — replaces the lobby once the game actually starts.
+// "En course" / "Déjà arrivés" only really mean something for
+// multi-winner draws (each completed round moves one person from one
+// bucket to the other); for a single-winner draw they just settle
+// straight from "all racing" to "1 arrived" the moment it ends.
+// ============================================================
+var liveStatsTimerId = null;
+var liveStatsStartTime = null;
+
+function startLiveStats(poolSize) {
+  document.getElementById('drawLobby').style.display = 'none';
+  var barEl = document.getElementById('drawLiveStats');
+  if (!barEl) return;
+  barEl.style.display = 'flex';
+  document.getElementById('liveStatTotal').textContent = poolSize;
+  document.getElementById('liveStatRacing').textContent = poolSize;
+  document.getElementById('liveStatFinished').textContent = '0';
+  document.getElementById('liveStatElapsed').textContent = '00:00';
+
+  liveStatsStartTime = performance.now();
+  if (liveStatsTimerId) clearInterval(liveStatsTimerId);
+  liveStatsTimerId = setInterval(function() {
+    var elapsed = Math.floor((performance.now() - liveStatsStartTime) / 1000);
+    var mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    var ss = String(elapsed % 60).padStart(2, '0');
+    var elapsedEl = document.getElementById('liveStatElapsed');
+    if (elapsedEl) elapsedEl.textContent = mm + ':' + ss;
+  }, 500);
+}
+
+function updateLiveStatsWinner(finishedCount) {
+  var totalEl = document.getElementById('liveStatTotal');
+  var racingEl = document.getElementById('liveStatRacing');
+  var finishedEl = document.getElementById('liveStatFinished');
+  if (finishedEl) finishedEl.textContent = finishedCount;
+  if (racingEl && totalEl) {
+    var total = parseInt(totalEl.textContent, 10) || 0;
+    racingEl.textContent = Math.max(0, total - finishedCount);
+  }
+}
+
+function stopLiveStatsTimer() {
+  if (liveStatsTimerId) { clearInterval(liveStatsTimerId); liveStatsTimerId = null; }
 }
 
 // ============================================================
@@ -7486,6 +7811,20 @@ function runDraw() {
   if (drawMode === 'plinko') unlockPlinkoAudio();
   if (drawMode === 'marble') unlockMarbleAudio();
 
+  // Transition from the lobby to the actual game, full screen. The
+  // per-mode stage is set up right here — not earlier, while it was
+  // still hidden behind the lobby — because measuring a display:none
+  // canvas's container reports 0 width/height (the exact bug that once
+  // made the duck race render blank).
+  document.getElementById('drawStage' + drawMode.charAt(0).toUpperCase() + drawMode.slice(1)).style.display = 'block';
+  if (drawMode === 'wheel') drawWheel(0, null, pool.slice(0, MAX_WHEEL_SEGMENTS));
+  if (drawMode === 'slot') setupSlotStage(pool);
+  if (drawMode === 'instant') resetInstantStage();
+  if (drawMode === 'duck') setupDuckRace(pool);
+  if (drawMode === 'plinko') setupPlinkoStage(pool);
+  if (drawMode === 'marble') setupMarbleStage(pool);
+  startLiveStats(pool.length);
+
   var totalWinnersWanted = Math.min((activeGiveaway && activeGiveaway.winner_count) || 1, pool.length);
   runDrawRound(pool, 1, totalWinnersWanted);
 }
@@ -7535,6 +7874,7 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
     notifyWinnerByEmail(winner.name, activeGiveaway.title, drawMode, remainingPool.length);
 
     var nextPool = remainingPool.filter(function(_, i) { return i !== winnerIndex; });
+    updateLiveStatsWinner(roundNumber);
 
     if (roundNumber < totalWinnersWanted && nextPool.length > 0) {
       // Brief pause so the current winner is clearly readable before the
@@ -7543,6 +7883,7 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
         runDrawRound(nextPool, roundNumber + 1, totalWinnersWanted);
       }, 1400);
     } else {
+      stopLiveStatsTimer();
       isSpinning = false;
       btn.querySelector('.btn-label').textContent = 'Lancer le tirage';
       btn.disabled = false;
