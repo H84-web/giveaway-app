@@ -778,8 +778,8 @@ body.draw-fullscreen .topnav { display: none; }
    viewport to be as big and show as many participants as it can. */
 body.draw-fullscreen #drawScreen .page-container-narrow { max-width: none; }
 body.draw-fullscreen #drawScreen .page-container { padding: 16px 16px 24px; min-height: 100vh; display: flex; flex-direction: column; }
-body.draw-fullscreen #drawScreen .card-center { flex: 1; display: flex; flex-direction: column; }
-body.draw-fullscreen #drawScreen .draw-stage { flex: 1; display: flex; align-items: center; justify-content: center; }
+body.draw-fullscreen #drawScreen .card-center { display: flex; flex-direction: column; align-items: center; }
+body.draw-fullscreen #drawScreen .draw-stage { width: 100%; display: flex; align-items: center; justify-content: center; }
 body.draw-fullscreen .wheel-wrap { max-width: min(85vw, 85vh, 640px); }
 body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 
@@ -7335,22 +7335,31 @@ function ensureWheelCanvasResolution(canvas) {
   // to match the screen's real pixel density — while keeping the CSS
   // display size and all drawing math the same — fixes that without
   // touching any of the rotation/angle logic below.
+  //
+  // The logical size is measured from the canvas's OWN actual rendered
+  // width (clientWidth) rather than a fixed constant: the wheel can now
+  // display anywhere from ~280px (small phone) up to 640px (fullscreen
+  // draw mode on a large screen) via CSS alone, and a fixed internal
+  // resolution stretched up to a bigger CSS size is exactly what caused
+  // "bigger = blurrier" once the fullscreen draw mode was introduced.
   var dpr = window.devicePixelRatio || 1;
-  var targetSize = WHEEL_LOGICAL_SIZE * dpr;
+  var size = Math.round(canvas.clientWidth) || WHEEL_LOGICAL_SIZE;
+  var targetSize = size * dpr;
   if (canvas.width !== targetSize) {
     canvas.width = targetSize;
     canvas.height = targetSize;
   }
   var ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return ctx;
+  return { ctx: ctx, size: size };
 }
 
 function drawWheel(currentRotation, highlightIndex, list) {
   var canvas = document.getElementById('wheelCanvas');
   if (!canvas || !canvas.getContext) return;
-  var ctx = ensureWheelCanvasResolution(canvas);
-  var size = WHEEL_LOGICAL_SIZE;
+  var resolved = ensureWheelCanvasResolution(canvas);
+  var ctx = resolved.ctx;
+  var size = resolved.size;
   var radius = size / 2 - 6;
   var cx = size / 2;
   var cy = size / 2;
@@ -7920,6 +7929,14 @@ function showWinner(w, roundNumber, totalWinnersWanted) {
 // display:none ancestor makes offsetWidth/clientWidth report 0.
 // ============================================================
 var duckPositions = [];      // current 0–100 progress of each duck along the track
+// Single source of truth for where the checkered finish line actually
+// sits (70% of the track, on the 0–100 progress scale) — used both to
+// draw the line itself (drawDuckScene) and to decide who's allowed to
+// visually reach it (spinDuckMode). These living in two different
+// places with two different hardcoded values (78 vs 70%) is exactly
+// what let a non-winner duck swim past the real drawn line before the
+// "who actually won" check ever caught up to it.
+var DUCK_FLAG_POSITION = 70;
 var duckPool = [];           // participants in the current race
 var duckProfiles = [];       // per-duck { color, accessory, pattern } — see pickDuckProfile()
 var duckSplashes = [];       // active water-splash particles, redrawn every frame
@@ -8024,7 +8041,7 @@ function initDuckCanvas(pool) {
 
   var duckCount = Math.max(1, Math.min(pool.length, MAX_DUCKS));
   var laneHeight = duckCount <= 3 ? 92 : duckCount <= 5 ? 76 : duckCount <= 6 ? 64 : 54;
-  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(900, window.innerHeight - 220) : 560;
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(700, window.innerHeight - 340) : 560;
   var displayHeight = Math.min(maxHeight, Math.max(300, duckCount * laneHeight + 90));
 
   var dpr = window.devicePixelRatio || 1;
@@ -8140,7 +8157,7 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
   var finished = false;
   var overshootUntil = null; // set once the winner crosses; keeps animating a bit longer so it visibly swims past the line
   var FINISH = 100;
-  var FLAG_POSITION = 78; // matches the checkered line placement in drawDuckScene
+  var FLAG_POSITION = DUCK_FLAG_POSITION;
   var SPRINT_START = 0.72; // race stays genuinely unpredictable before this point — see below
 
   // Two parallel tracks per duck, kept deliberately separate:
@@ -8297,7 +8314,7 @@ function drawDuckScene(elapsed, winnerIndex) {
   var duckSize = Math.max(9, Math.min(22, rowH * 0.3));
   var trackStart = 34;
   var duckMaxX = w - 26;                                   // rightmost a duck can swim, near the canvas edge
-  var flagX = trackStart + (duckMaxX - trackStart) * 0.7;  // checkered line sits before the end, so the winner visibly swims past it
+  var flagX = trackStart + (duckMaxX - trackStart) * (DUCK_FLAG_POSITION / 100);  // checkered line sits before the end, so the winner visibly swims past it
 
   // Sky
   var sky = ctx.createLinearGradient(0, 0, 0, h);
@@ -9166,7 +9183,7 @@ function initPlinkoCanvas(slotCount) {
   if (!canvas) return null;
   var container = canvas.parentElement;
   var displayWidth = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
-  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(820, window.innerHeight - 220) : 520;
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(640, window.innerHeight - 340) : 520;
   var displayHeight = Math.min(maxHeight, Math.max(360, 300 + slotCount * 10));
 
   var dpr = window.devicePixelRatio || 1;
@@ -9477,7 +9494,7 @@ function initMarbleCanvas(marbleCount) {
   if (!canvas) return null;
   var container = canvas.parentElement;
   var displayWidth = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
-  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(1000, window.innerHeight - 220) : 760;
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(760, window.innerHeight - 340) : 760;
   var displayHeight = Math.min(maxHeight, Math.max(480, 380 + marbleCount * 9));
 
   var dpr = window.devicePixelRatio || 1;
