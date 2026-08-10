@@ -1,55 +1,32 @@
 <!--
 ============================================================
-CONFIGURATION SERVEUR — ABONNEMENT PRO (NOWPayments, crypto)
+MISE À JOUR — 3 NIVEAUX (Basique/Medium/Pro) + correctif double-clic
 ============================================================
 
---- Étape 1 — Compte NOWPayments ---
-1. Crée un compte sur nowpayments.io
-2. Dans leur dashboard → Store settings → récupère ta clé API
-3. Toujours dans Store settings → Instant Payment Notifications →
-   active-les, et note le "IPN Secret" (tu en auras besoin étape 3)
-
---- Étape 2 — SQL (une fois) ---
+--- Étape 1 — SQL (nouvelle colonne "tier") ---
 SQL Editor → colle et Run :
--- Table de suivi des abonnements Pro (paiement crypto via NOWPayments)
-create table if not exists subscriptions (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  status text not null default 'inactive',  -- 'inactive' | 'active' | 'cancelled' | 'expired'
-  plan text not null default 'pro',
-  nowpayments_subscription_id text,
-  nowpayments_plan_id text,
-  current_period_end timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-alter table subscriptions enable row level security;
-
-create policy "select_own_subscription"
-  on subscriptions for select
-  using (auth.uid() = user_id);
-
--- No insert/update policy for regular users: only the Edge Functions
--- (using the service role key, which bypasses RLS) are allowed to
--- create or change subscription status. This is deliberate — a user
--- must never be able to grant themselves "active" by editing client-side
--- data; only a confirmed NOWPayments webhook can do that.
+-- À exécuter en plus du SQL précédent — ajoute le support des 3 niveaux
+-- (Basique / Medium / Pro).
+alter table subscriptions add column if not exists tier text;
 
 
---- Étape 3 — Edge Function : create-nowpayments-subscription ---
-Edge Functions → crée "create-nowpayments-subscription" → colle :
+--- Étape 2 — Remplace ENTIÈREMENT le code de "create-nowpayments-subscription" ---
+Edge Functions → create-nowpayments-subscription → Code → tout remplacer par :
 // Supabase Edge Function : create-nowpayments-subscription
 //
-// Called when a logged-in user clicks "Passer Pro". Creates (or reuses)
-// the RerePickWinn Pro subscription plan on NOWPayments, subscribes this
-// user's email to it, and returns the payment link they need to open to
-// pay their first invoice. NOWPayments then bills them automatically at
-// the same interval going forward and notifies us via the IPN webhook
-// (see nowpayments-webhook) — this function never marks anyone as
-// "active" itself, it only kicks off the very first payment.
+// Called when a logged-in user picks a tier + billing period and clicks
+// "Passer [Tier]". Creates (or reuses) the matching RerePickWinn plan
+// on NOWPayments for that tier+period, subscribes this user's email to
+// it, and returns the payment link they need to open to pay their
+// first invoice. NOWPayments then bills them automatically at the same
+// interval going forward and notifies us via the IPN webhook (see
+// nowpayments-webhook) — this function never marks anyone as "active"
+// itself, it only kicks off the very first payment.
 //
 // Secrets to configure (Edge Functions → create-nowpayments-subscription → Secrets):
-//   NOWPAYMENTS_API_KEY = <ta clé API NOWPayments>
+//   NOWPAYMENTS_API_KEY  = <ta clé API NOWPayments>
+//   NOWPAYMENTS_EMAIL    = <l'email de ton compte NOWPayments>
+//   NOWPAYMENTS_PASSWORD = <le mot de passe de ton compte NOWPayments>
 //
 // Déploiement : supabase functions deploy create-nowpayments-subscription
 
@@ -58,16 +35,38 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const NOWPAYMENTS_API_KEY = Deno.env.get("NOWPAYMENTS_API_KEY")!;
+const NOWPAYMENTS_EMAIL = Deno.env.get("NOWPAYMENTS_EMAIL")!;
+const NOWPAYMENTS_PASSWORD = Deno.env.get("NOWPAYMENTS_PASSWORD")!;
 
-const PLAN_TITLE = "RerePickWinn Pro";
-const PLAN_AMOUNT = 7.99;
+// 3 tiers × 4 billing periods = 12 possible (tier, period) combos.
+// Each combo is its own NOWPayments plan (their API bills a plan at a
+// single fixed price+interval), cached in billing_plans_cache the
+// first time it's ever purchased so we never create duplicates.
+const TIERS: Record<string, { label: string; prices: Record<string, number> }> = {
+  basic:  { label: "Basique", prices: { monthly: 3.99, quarterly: 9.99,  semiannual: 17.99, annual: 29.99 } },
+  medium: { label: "Medium",  prices: { monthly: 5.99, quarterly: 14.99, semiannual: 26.99, annual: 44.99 } },
+  pro:    { label: "Pro",     prices: { monthly: 7.99, quarterly: 19.99, semiannual: 35.99, annual: 59.99 } },
+};
+const INTERVAL_DAYS: Record<string, number> = { monthly: 30, quarterly: 90, semiannual: 180, annual: 365 };
 const PLAN_CURRENCY = "usd";
-const PLAN_INTERVAL_DAYS = 30;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+async function getNowPaymentsJwt(): Promise<string> {
+  const resp = await fetch("https://api.nowpayments.io/v1/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: NOWPAYMENTS_EMAIL, password: NOWPAYMENTS_PASSWORD }),
+  });
+  const data = await resp.json();
+  if (!resp.ok || !data.token) {
+    throw new Error("Échec de connexion NOWPayments : " + JSON.stringify(data));
+  }
+  return data.token;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -84,63 +83,92 @@ Deno.serve(async (req) => {
     }
     const user = userData.user;
 
-    // Step 1 — find or create the shared subscription plan. NOWPayments
-    // doesn't have a "get or create" endpoint, so we cache the plan id
-    // in a settings row the very first time this runs, and reuse it
-    // after that instead of creating a duplicate plan on every signup.
-    let planId: string | null = null;
-    const { data: existingSub } = await supabase
+    const body = await req.json().catch(() => ({}));
+    const tier = TIERS[body.tier] ? body.tier : "pro";
+    const period = INTERVAL_DAYS[body.period] ? body.period : "monthly";
+    const amount = TIERS[tier].prices[period];
+    const planKey = tier + "_" + period;
+
+    // Guard against the exact bug that prompted this: clicking "Passer
+    // X" a second time (e.g. impatiently, before checking email) used
+    // to call NOWPayments again and get back a confusing raw
+    // "already subscribed" error. If we already have a pending or
+    // active subscription on record for this user, don't call
+    // NOWPayments again at all — just point them back to their email.
+    const { data: existingUserSub } = await supabase
       .from("subscriptions")
-      .select("nowpayments_plan_id")
-      .not("nowpayments_plan_id", "is", null)
-      .limit(1)
+      .select("status, tier, billing_period")
+      .eq("user_id", user.id)
       .maybeSingle();
-    planId = existingSub?.nowpayments_plan_id || null;
+    if (existingUserSub && (existingUserSub.status === "inactive" || existingUserSub.status === "active")) {
+      return json({
+        success: true,
+        already_pending: true,
+        status: existingUserSub.status,
+      });
+    }
+
+    const npJwt = await getNowPaymentsJwt();
+    const npHeaders = {
+      "x-api-key": NOWPAYMENTS_API_KEY,
+      "Authorization": "Bearer " + npJwt,
+      "Content-Type": "application/json",
+    };
+
+    // Step 1 — find or create this (tier, period) plan.
+    let planId: string | null = null;
+    const { data: cachedPlan } = await supabase
+      .from("billing_plans_cache")
+      .select("nowpayments_plan_id")
+      .eq("period", planKey)
+      .maybeSingle();
+    planId = cachedPlan?.nowpayments_plan_id || null;
 
     if (!planId) {
       const planResp = await fetch("https://api.nowpayments.io/v1/subscriptions/plans", {
         method: "POST",
-        headers: { "x-api-key": NOWPAYMENTS_API_KEY, "Content-Type": "application/json" },
+        headers: npHeaders,
         body: JSON.stringify({
-          title: PLAN_TITLE,
-          interval_day: PLAN_INTERVAL_DAYS,
-          amount: PLAN_AMOUNT,
+          title: "RerePickWinn " + TIERS[tier].label + " — " + period,
+          interval_day: INTERVAL_DAYS[period],
+          amount: amount,
           currency: PLAN_CURRENCY,
         }),
       });
       const planData = await planResp.json();
       if (!planResp.ok || !planData.result?.id) {
-        return json({ error: "Échec de création du plan NOWPayments", details: planData }, 500);
+        return json({ error: "Échec de création du plan NOWPayments : " + JSON.stringify(planData) }, 500);
       }
       planId = planData.result.id;
+      await supabase.from("billing_plans_cache").upsert({ period: planKey, nowpayments_plan_id: planId });
     }
 
-    // Step 2 — subscribe this user's email to the plan. NOWPayments
-    // sends them an invoice by email, AND returns the same info here so
-    // we can send the person straight to the payment page ourselves.
-    const subResp = await fetch(
-      `https://api.nowpayments.io/v1/subscriptions/plans/${planId}/subscribe`,
-      {
-        method: "POST",
-        headers: { "x-api-key": NOWPAYMENTS_API_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscriber_email: user.email,
-          // The user id travels with the subscription so the webhook
-          // can find them again without guessing from an email match.
-          order_id: user.id,
-        }),
-      }
-    );
+    // Step 2 — subscribe this user's email to the plan.
+    const subResp = await fetch(`https://api.nowpayments.io/v1/subscriptions`, {
+      method: "POST",
+      headers: npHeaders,
+      body: JSON.stringify({
+        subscription_plan_id: planId,
+        email: user.email,
+      }),
+    });
     const subData = await subResp.json();
     if (!subResp.ok || !subData.result?.[0]?.id) {
-      return json({ error: "Échec de création de l'abonnement NOWPayments", details: subData }, 500);
+      // Translate NOWPayments' own duplicate-subscription error into
+      // something the UI can show as a calm message instead of raw JSON.
+      const rawMsg = JSON.stringify(subData);
+      if (rawMsg.toLowerCase().includes("already subscribed")) {
+        return json({ error: "ALREADY_SUBSCRIBED" }, 409);
+      }
+      return json({ error: "Échec de création de l'abonnement NOWPayments : " + rawMsg }, 500);
     }
     const subscription = subData.result[0];
 
     await supabase.from("subscriptions").upsert({
       user_id: user.id,
       status: "inactive", // becomes "active" only once the webhook confirms payment
-      plan: "pro",
+      tier: tier,
+      billing_period: period,
       nowpayments_subscription_id: subscription.id,
       nowpayments_plan_id: planId,
       updated_at: new Date().toISOString(),
@@ -159,113 +187,16 @@ function json(body: unknown, status = 200) {
   });
 }
 
-Secret de cette fonction :
-  NOWPAYMENTS_API_KEY = <ta clé API de l'étape 1>
+(Secrets inchangés : NOWPAYMENTS_API_KEY, NOWPAYMENTS_EMAIL, NOWPAYMENTS_PASSWORD.)
 
---- Étape 4 — Edge Function : nowpayments-webhook ---
-Edge Functions → crée "nowpayments-webhook" → colle :
-// Supabase Edge Function : nowpayments-webhook
-//
-// NOWPayments calls this URL (their "IPN callback") every time a
-// subscription payment succeeds, fails, or a subscription's status
-// changes. This is the ONLY place that ever marks a user's
-// subscription as "active" — never the client, never
-// create-nowpayments-subscription. The request is verified using the
-// IPN secret before anything is trusted, so nobody can fake a payment
-// by just calling this URL themselves.
-//
-// Secrets to configure (Edge Functions → nowpayments-webhook → Secrets):
-//   NOWPAYMENTS_IPN_SECRET = <ton secret IPN NOWPayments>
-//
-// Une fois déployée, copie son URL et colle-la dans NOWPayments :
-// Store settings → Instant Payment Notifications → IPN callback URL.
-//
-// Déploiement : supabase functions deploy nowpayments-webhook --no-verify-jwt
-// (--no-verify-jwt est nécessaire : NOWPayments n'envoie pas de jeton Supabase)
+Redéploie cette fonction. La fonction "nowpayments-webhook" n'a PAS
+besoin d'être retouchée cette fois — elle marche déjà avec les niveaux.
 
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { createHmac } from "node:crypto";
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const NOWPAYMENTS_IPN_SECRET = Deno.env.get("NOWPAYMENTS_IPN_SECRET")!;
-
-// NOWPayments signs the JSON body with keys sorted alphabetically —
-// this exact ordering is required for the signature to match.
-function sortedStringify(obj: unknown): string {
-  if (Array.isArray(obj)) return "[" + obj.map(sortedStringify).join(",") + "]";
-  if (obj && typeof obj === "object") {
-    const keys = Object.keys(obj as Record<string, unknown>).sort();
-    return "{" + keys.map((k) => JSON.stringify(k) + ":" + sortedStringify((obj as Record<string, unknown>)[k])).join(",") + "}";
-  }
-  return JSON.stringify(obj);
-}
-
-Deno.serve(async (req) => {
-  try {
-    const rawBody = await req.text();
-    const signature = req.headers.get("x-nowpayments-sig");
-    if (!signature) return json({ error: "Signature manquante" }, 401);
-
-    const payload = JSON.parse(rawBody);
-    const expectedSig = createHmac("sha512", NOWPAYMENTS_IPN_SECRET)
-      .update(sortedStringify(payload))
-      .digest("hex");
-
-    if (expectedSig !== signature) {
-      return json({ error: "Signature invalide" }, 401);
-    }
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // order_id was set to the user's id when we created the subscription.
-    const userId = payload.order_id;
-    const paymentStatus = payload.payment_status; // 'finished', 'confirmed', 'failed', 'expired', ...
-
-    if (!userId) return json({ error: "order_id manquant" }, 400);
-
-    if (paymentStatus === "finished" || paymentStatus === "confirmed") {
-      const periodEnd = new Date();
-      periodEnd.setDate(periodEnd.getDate() + 30);
-      await supabase.from("subscriptions").update({
-        status: "active",
-        current_period_end: periodEnd.toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq("user_id", userId);
-    } else if (paymentStatus === "failed" || paymentStatus === "expired") {
-      await supabase.from("subscriptions").update({
-        status: "expired",
-        updated_at: new Date().toISOString(),
-      }).eq("user_id", userId);
-    }
-
-    return json({ success: true });
-  } catch (err) {
-    return json({ error: err instanceof Error ? err.message : "Erreur inconnue" }, 500);
-  }
-});
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-Secret de cette fonction :
-  NOWPAYMENTS_IPN_SECRET = <le IPN Secret de l'étape 1>
-
-IMPORTANT : cette fonction doit être déployée avec l'option
-"pas de vérification JWT" (--no-verify-jwt) car NOWPayments ne
-lui envoie pas de jeton Supabase. Cherche cette option dans les
-paramètres de la fonction sur le dashboard (souvent une case à
-cocher "Verify JWT" à décocher).
-
---- Étape 5 — Copier l'URL de la fonction dans NOWPayments ---
-Une fois déployée, copie l'URL de "nowpayments-webhook"
-(visible dans le dashboard Supabase → Edge Functions) et colle-la
-dans NOWPayments → Store settings → Instant Payment
-Notifications → "IPN callback URL".
+IMPORTANT : si tu as déjà un abonnement de test "inactive" en base
+depuis tes essais précédents, il faudra le supprimer avant de retester
+(SQL Editor : delete from subscriptions where user_id = 'TON_ID';)
+sinon le nouveau garde-fou anti-double-clic bloquera aussi les
+nouveaux essais.
 ============================================================
 -->
 <!DOCTYPE html>
@@ -645,6 +576,29 @@ button { font-family: inherit; }
 @media (min-width: 800px) { .lp-trust-section { grid-template-columns: 1fr 1fr; } }
 
 /* ---- Final CTA ---- */
+.lp-pricing-grid { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 14px; }
+.lp-price-card {
+  background: var(--lp-card); border: 1px solid rgba(var(--lp-border-rgb),0.1); border-radius: 16px;
+  padding: 22px 18px; text-align: center; position: relative; display: flex; flex-direction: column;
+}
+.lp-price-card-featured { border-color: #6C63FF; border-width: 1.5px; }
+.lp-price-featured-badge {
+  position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+  background: linear-gradient(135deg, #7A73FF, #6355E0); color: #fff; font-size: 10.5px; font-weight: 800;
+  padding: 4px 12px; border-radius: 99px; letter-spacing: 0.03em;
+}
+.lp-price-period { font-size: 12.5px; font-weight: 700; color: rgba(var(--lp-ink-rgb),0.6); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: block; }
+.lp-price-amount { font-size: 26px; font-weight: 800; color: var(--lp-ink); margin-bottom: 4px; }
+.lp-price-amount span { font-size: 13px; font-weight: 500; color: rgba(var(--lp-ink-rgb),0.5); }
+.lp-price-note { font-size: 12px; min-height: 18px; margin: 0 0 16px; }
+.lp-price-save { color: #4ADE80; font-weight: 700; }
+.lp-price-features { list-style: none; padding: 0; margin: 0 0 16px; text-align: left; display: flex; flex-direction: column; gap: 5px; }
+.lp-price-features li { font-size: 12.5px; color: rgba(var(--lp-ink-rgb),0.65); padding-left: 18px; position: relative; }
+.lp-price-features li::before { content: '✓'; position: absolute; left: 0; color: #4ADE80; font-weight: 700; }
+.lp-price-btn { width: 100%; margin-top: auto; }
+.lp-pricing-footnote { text-align: center; font-size: 12.5px; color: rgba(var(--lp-ink-rgb),0.45); max-width: 480px; margin: 20px auto 0; }
+@media (min-width: 800px) { .lp-pricing-grid { grid-template-columns: repeat(4, 1fr); } }
+
 .lp-final-cta { padding: 44px 24px; text-align: left; border-top: 1px solid rgba(var(--lp-border-rgb),0.07); }
 .lp-final-cta-inner { max-width: 1180px; margin: 0 auto; }
 .lp-final-cta-inner h2, .lp-final-cta-inner p { max-width: 480px; }
@@ -1519,6 +1473,27 @@ button { font-family: inherit; }
 
 /* ---- theme switch (Settings screen) ---- */
 .theme-toggle-row { display: flex; align-items: center; justify-content: space-between; }
+.billing-tier-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.billing-tier-tab {
+  background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 4px;
+  font-size: 13px; font-weight: 700; color: var(--ink-soft); cursor: pointer; text-align: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.billing-tier-tab:hover { border-color: var(--accent); }
+.billing-tier-tab.active { background: var(--ink); border-color: var(--ink); color: var(--card); }
+.billing-period-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+.billing-period-tab {
+  background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 4px;
+  font-size: 12px; font-weight: 700; color: var(--ink-soft); cursor: pointer; text-align: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.billing-period-tab:hover { border-color: var(--accent); }
+.billing-period-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.billing-save-badge {
+  display: inline-block; background: rgba(34,197,94,0.15); color: #16A34A; font-size: 11px; font-weight: 800;
+  padding: 3px 9px; border-radius: 99px; margin: 0 0 10px 8px; vertical-align: middle;
+}
+.billing-price-sub { display: block; font-size: 12.5px; color: var(--muted); margin: -8px 0 12px; }
 .billing-pro-box {
   background: linear-gradient(160deg, var(--accent-soft), rgba(139,92,246,0.08));
   border: 1.5px solid var(--accent); border-radius: 14px; padding: 18px;
@@ -1635,6 +1610,7 @@ button { font-family: inherit; }
       <div class="lp-nav-links">
         <a href="#lp-product" class="lp-nav-link" data-i18n="nav_product">Produit</a>
         <a href="#lp-features" class="lp-nav-link" data-i18n="nav_features">Fonctionnalités</a>
+        <a href="#lp-pricing" class="lp-nav-link" data-i18n="nav_pricing">Tarifs</a>
         <a href="#lp-features" class="lp-nav-link" data-i18n="nav_how">Comment ça marche</a>
         <a href="#lp-faq" class="lp-nav-link" data-i18n="nav_faq">FAQ</a>
       </div>
@@ -1655,6 +1631,7 @@ button { font-family: inherit; }
     <div class="lp-mobile-menu" id="lpMobileMenu">
       <a href="#lp-product" onclick="closeLpMobileMenu()" data-i18n="nav_product">Produit</a>
       <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_features">Fonctionnalités</a>
+      <a href="#lp-pricing" onclick="closeLpMobileMenu()" data-i18n="nav_pricing">Tarifs</a>
       <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_how">Comment ça marche</a>
       <a href="#lp-faq" onclick="closeLpMobileMenu()" data-i18n="nav_faq">FAQ</a>
       <button class="lp-theme-toggle lp-theme-toggle-mobile" id="lpThemeToggleMobile" onclick="toggleLandingTheme()">☀️ <span data-i18n="theme_toggle_label">Thème clair/sombre</span></button>
@@ -1856,6 +1833,60 @@ button { font-family: inherit; }
     </div>
   </section>
 
+  <!-- ============ PRICING ============ -->
+  <section class="lp-section lp-section-alt" id="lp-pricing">
+    <div class="lp-section-head lp-reveal">
+      <span class="lp-kicker" data-i18n="pricing_kicker">Tarifs</span>
+      <h2 class="lp-section-title" data-i18n="pricing_title">Simple, sans surprise.</h2>
+      <p class="lp-showcase-text" data-i18n="pricing_sub">Commence gratuitement. Passe à un forfait supérieur quand tu en as besoin, paiement en crypto, sans engagement.</p>
+    </div>
+
+    <div class="lp-pricing-grid lp-reveal lp-reveal-delay">
+      <div class="lp-price-card">
+        <span class="lp-price-period" data-i18n="tier_free">Gratuit</span>
+        <div class="lp-price-amount">0$<span data-i18n="billing_total_for_monthly">/mois</span></div>
+        <p class="lp-price-note">&nbsp;</p>
+        <ul class="lp-price-features">
+          <li data-i18n="pricing_free_f1">3 tirages actifs</li>
+          <li data-i18n="pricing_free_f2">100 participants / tirage</li>
+        </ul>
+        <button class="lp-ui-btn-ghost lp-price-btn" onclick="showAuthFromLanding('signupView')" data-i18n="pricing_start_free">Commencer gratuitement</button>
+      </div>
+      <div class="lp-price-card">
+        <span class="lp-price-period" data-i18n="tier_basic">Basique</span>
+        <div class="lp-price-amount">3,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
+        <p class="lp-price-note"><span class="lp-price-save">-37%</span> <span data-i18n="pricing_at_year">à l'année</span></p>
+        <ul class="lp-price-features">
+          <li data-i18n="pricing_basic_f1">10 tirages actifs</li>
+          <li data-i18n="pricing_basic_f2">500 participants / tirage</li>
+        </ul>
+        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('basic', 'monthly')" data-i18n="pricing_start">Commencer</button>
+      </div>
+      <div class="lp-price-card lp-price-card-featured">
+        <span class="lp-price-featured-badge" data-i18n="pricing_popular">Populaire</span>
+        <span class="lp-price-period" data-i18n="tier_medium">Medium</span>
+        <div class="lp-price-amount">5,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
+        <p class="lp-price-note"><span class="lp-price-save">-37%</span> <span data-i18n="pricing_at_year">à l'année</span></p>
+        <ul class="lp-price-features">
+          <li data-i18n="pricing_medium_f1">25 tirages actifs</li>
+          <li data-i18n="pricing_medium_f2">2 000 participants / tirage</li>
+        </ul>
+        <button class="lp-btn-primary lp-price-btn" onclick="startProFromLanding('medium', 'monthly')" data-i18n="pricing_start">Commencer</button>
+      </div>
+      <div class="lp-price-card">
+        <span class="lp-price-period" data-i18n="tier_pro">Pro</span>
+        <div class="lp-price-amount">7,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
+        <p class="lp-price-note"><span class="lp-price-save">-37%</span> <span data-i18n="pricing_at_year">à l'année</span></p>
+        <ul class="lp-price-features">
+          <li data-i18n="billing_feature_unlimited_giveaways">Tirages illimités</li>
+          <li data-i18n="billing_feature_unlimited_participants">Participants illimités</li>
+        </ul>
+        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('pro', 'monthly')" data-i18n="pricing_start">Commencer</button>
+      </div>
+    </div>
+    <p class="lp-pricing-footnote lp-reveal" data-i18n="pricing_footnote">Chaque formule est aussi disponible en 3 mois, 6 mois ou 1 an, avec jusqu'à -37% — choisis la durée une fois connecté(e), dans Paramètres.</p>
+  </section>
+
   <!-- ============ FINAL CTA ============ -->
   <section class="lp-final-cta">
     <div class="lp-final-cta-inner lp-reveal">
@@ -1917,6 +1948,7 @@ button { font-family: inherit; }
         <a href="#lp-product" onclick="closeLpMobileMenu()" data-i18n="nav_product">Produit</a>
         <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_how">Comment ça marche</a>
         <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_features">Fonctionnalités</a>
+      <a href="#lp-pricing" onclick="closeLpMobileMenu()" data-i18n="nav_pricing">Tarifs</a>
         <a href="#lp-faq" onclick="closeLpMobileMenu()" data-i18n="nav_faq">FAQ</a>
       </div>
       <div class="lp-footer-col">
@@ -2405,21 +2437,38 @@ button { font-family: inherit; }
         <h3 class="card-section-title" data-i18n="billing_title">Abonnement</h3>
         <div id="billingFreeState">
           <p class="hint" style="margin-bottom:14px;" data-i18n="billing_free_desc">Plan gratuit : jusqu'à 3 tirages actifs, 100 participants par tirage.</p>
+
+          <div class="billing-tier-tabs" id="billingTierTabs">
+            <button type="button" class="billing-tier-tab" data-tier="basic" onclick="selectBillingTier('basic')" data-i18n="tier_basic">Basique</button>
+            <button type="button" class="billing-tier-tab" data-tier="medium" onclick="selectBillingTier('medium')" data-i18n="tier_medium">Medium</button>
+            <button type="button" class="billing-tier-tab active" data-tier="pro" onclick="selectBillingTier('pro')" data-i18n="tier_pro">Pro</button>
+          </div>
+
+          <div class="billing-period-tabs" id="billingPeriodTabs">
+            <button type="button" class="billing-period-tab active" data-period="monthly" onclick="selectBillingPeriod('monthly')" data-i18n="period_monthly">Mensuel</button>
+            <button type="button" class="billing-period-tab" data-period="quarterly" onclick="selectBillingPeriod('quarterly')" data-i18n="period_quarterly">3 mois</button>
+            <button type="button" class="billing-period-tab" data-period="semiannual" onclick="selectBillingPeriod('semiannual')" data-i18n="period_semiannual">6 mois</button>
+            <button type="button" class="billing-period-tab" data-period="annual" onclick="selectBillingPeriod('annual')" data-i18n="period_annual">1 an</button>
+          </div>
+
           <div class="billing-pro-box">
-            <span class="billing-pro-badge" data-i18n="billing_pro_badge">PRO</span>
-            <span class="billing-pro-price">7,99$<span data-i18n="billing_per_month">/mois</span></span>
-            <ul class="billing-pro-list">
+            <span class="billing-pro-badge" id="billingSelectedTierBadge" data-i18n="tier_pro">Pro</span>
+            <span class="billing-save-badge" id="billingSaveBadge" style="display:none;"></span>
+            <span class="billing-pro-price" id="billingPriceDisplay">7,99$<span data-i18n="billing_per_month">/mois</span></span>
+            <span class="billing-price-sub" id="billingPriceSub" style="display:none;"></span>
+            <ul class="billing-pro-list" id="billingFeatureList">
               <li data-i18n="billing_feature_unlimited_giveaways">Tirages illimités</li>
               <li data-i18n="billing_feature_unlimited_participants">Participants illimités</li>
             </ul>
             <button class="btn btn-primary btn-block" id="billingUpgradeBtn" onclick="upgradeToProClicked()">
               <span class="btn-label" data-i18n="billing_upgrade_btn">Passer Pro (paiement crypto)</span>
             </button>
+            <button class="link-btn" id="billingRefreshBtn" onclick="refreshBillingStatusClicked()" style="display:block; margin-top:10px; width:100%; text-align:center;" data-i18n="billing_refresh_btn">J'ai payé — vérifier mon statut</button>
           </div>
         </div>
         <div id="billingProState" style="display:none;">
           <div class="billing-active-row">
-            <span class="billing-pro-badge" data-i18n="billing_pro_badge">PRO</span>
+            <span class="billing-pro-badge" id="billingActiveTierLabel" data-i18n="tier_pro">Pro</span>
             <span data-i18n="billing_active_desc">Ton abonnement est actif — merci !</span>
           </div>
         </div>
@@ -3196,6 +3245,12 @@ function showScreen(screenId) {
   document.getElementById('notifMenu').style.display = 'none';
   document.getElementById('navMobileMenu').style.display = 'none';
 
+  // Re-check subscription status every time Settings is opened — a
+  // payment made in the NOWPayments email tab (or on another device)
+  // wouldn't otherwise be reflected until the next full login, which
+  // could easily look like "it didn't work" right after paying.
+  if (screenId === 'settingsScreen') loadSubscriptionStatus();
+
   // Only primary destinations are remembered as "the screen to come back
   // to" — transient screens (wizard, draw, profile, settings) must never
   // overwrite that memory, otherwise the back button would loop on itself.
@@ -3340,6 +3395,20 @@ function showAuthFromLanding(viewId) {
   document.getElementById('landingScreen').style.display = 'none';
   document.getElementById('authScreen').style.display = 'grid';
   showView(viewId);
+}
+
+// Clicking a pricing card on the landing page (logged-out) can't pay
+// directly — payment only happens from inside Settings, once
+// logged in. So we just remember which tier+period they picked and
+// send them to sign up; onAuthSuccess picks it back up and pre-selects
+// the matching tabs in the billing card, so it's exactly where they
+// left off instead of defaulting back to Pro/Monthly.
+function startProFromLanding(tier, period) {
+  try {
+    localStorage.setItem('repickwinn-intended-tier', tier);
+    localStorage.setItem('repickwinn-intended-period', period || 'monthly');
+  } catch (e) { /* ignore */ }
+  showAuthFromLanding('signupView');
 }
 
 // ============================================================
@@ -3503,6 +3572,18 @@ function onAuthSuccess(user) {
   initTheme();
   initLanguage();
   loadSubscriptionStatus();
+  try {
+    var intendedTier = localStorage.getItem('repickwinn-intended-tier');
+    var intendedPeriod = localStorage.getItem('repickwinn-intended-period');
+    if (intendedTier && TIER_PRICES[intendedTier]) {
+      selectBillingTier(intendedTier);
+      localStorage.removeItem('repickwinn-intended-tier');
+    }
+    if (intendedPeriod && PERIOD_MONTHS[intendedPeriod]) {
+      selectBillingPeriod(intendedPeriod); // syncs both the active tab and the price display
+      localStorage.removeItem('repickwinn-intended-period');
+    }
+  } catch (e) { /* ignore */ }
   var lastScreen = 'dashboardScreen';
   try {
     var saved = localStorage.getItem('repickwinn-last-screen');
@@ -4503,6 +4584,42 @@ var TRANSLATIONS = {
     "billing_upgrade_btn": "Passer Pro (paiement crypto)",
     "billing_active_desc": "Ton abonnement est actif — merci !",
     "billing_check_email": "Vérifie ton email pour le lien de paiement",
+    "billing_refresh_btn": "J'ai payé — vérifier mon statut",
+    "billing_still_pending": "Pas encore reçu — un paiement crypto peut prendre quelques minutes à être confirmé. Réessaie dans un instant.",
+    "period_monthly": "Mensuel",
+    "period_quarterly": "3 mois",
+    "period_semiannual": "6 mois",
+    "period_annual": "1 an",
+    "billing_total_for_monthly": "/mois",
+    "billing_total_for_quarterly": " / 3 mois",
+    "billing_total_for_semiannual": " / 6 mois",
+    "billing_total_for_annual": " / an",
+    "billing_equivalent_per_month": "soit {amount}$/mois",
+    "billing_save_percent": "-{percent}%",
+    "nav_pricing": "Tarifs",
+    "pricing_kicker": "Tarifs",
+    "pricing_title": "Simple, sans surprise.",
+    "pricing_sub": "Commence gratuitement. Passe à un forfait supérieur quand tu en as besoin, paiement en crypto, sans engagement.",
+    "pricing_start": "Commencer",
+    "pricing_popular": "Populaire",
+    "pricing_footnote": "Chaque formule est aussi disponible en 3 mois, 6 mois ou 1 an, avec jusqu'à -37% — choisis la durée une fois connecté(e), dans Paramètres.",
+    "tier_basic": "Basique",
+    "tier_medium": "Medium",
+    "tier_pro": "Pro",
+    "billing_upgrade_btn_tier": "Passer {tier} (paiement crypto)",
+    "billing_feature_giveaways": "{count} tirages actifs",
+    "billing_feature_participants": "{count} participants par tirage",
+    "billing_already_subscribed": "Tu as déjà une demande en attente — vérifie ton email pour le lien de paiement.",
+    "billing_already_active": "Ton abonnement est déjà actif !",
+    "tier_free": "Gratuit",
+    "pricing_free_f1": "3 tirages actifs",
+    "pricing_free_f2": "100 participants / tirage",
+    "pricing_start_free": "Commencer gratuitement",
+    "pricing_basic_f1": "10 tirages actifs",
+    "pricing_basic_f2": "500 participants / tirage",
+    "pricing_medium_f1": "25 tirages actifs",
+    "pricing_medium_f2": "2 000 participants / tirage",
+    "pricing_at_year": "à l'année",
     "toast_free_participant_limit": "Plan gratuit limité à {count} participants par tirage — passe Pro pour lever cette limite.",
     "toast_free_giveaway_limit": "Plan gratuit limité à {count} tirages actifs en même temps — passe Pro pour lever cette limite.",
     "legal_last_updated": "Dernière mise à jour : 7 août 2026",
@@ -4876,6 +4993,42 @@ var TRANSLATIONS = {
     "billing_upgrade_btn": "Upgrade to Pro (crypto payment)",
     "billing_active_desc": "Your subscription is active — thank you!",
     "billing_check_email": "Check your email for the payment link",
+    "billing_refresh_btn": "I've paid — check my status",
+    "billing_still_pending": "Not received yet — a crypto payment can take a few minutes to confirm. Try again shortly.",
+    "period_monthly": "Monthly",
+    "period_quarterly": "3 months",
+    "period_semiannual": "6 months",
+    "period_annual": "1 year",
+    "billing_total_for_monthly": "/month",
+    "billing_total_for_quarterly": " / 3 months",
+    "billing_total_for_semiannual": " / 6 months",
+    "billing_total_for_annual": " / year",
+    "billing_equivalent_per_month": "equivalent to {amount}$/month",
+    "billing_save_percent": "-{percent}%",
+    "nav_pricing": "Pricing",
+    "pricing_kicker": "Pricing",
+    "pricing_title": "Simple, no surprises.",
+    "pricing_sub": "Start for free. Upgrade whenever you need to, pay in crypto, no commitment.",
+    "pricing_start": "Get started",
+    "pricing_popular": "Popular",
+    "pricing_footnote": "Every plan is also available for 3, 6 or 12 months, with up to 37% off — pick the length once you're logged in, in Settings.",
+    "tier_basic": "Basic",
+    "tier_medium": "Medium",
+    "tier_pro": "Pro",
+    "billing_upgrade_btn_tier": "Upgrade to {tier} (crypto payment)",
+    "billing_feature_giveaways": "{count} active giveaways",
+    "billing_feature_participants": "{count} participants per giveaway",
+    "billing_already_subscribed": "You already have a request pending — check your email for the payment link.",
+    "billing_already_active": "Your subscription is already active!",
+    "tier_free": "Free",
+    "pricing_free_f1": "3 active giveaways",
+    "pricing_free_f2": "100 participants / giveaway",
+    "pricing_start_free": "Start for free",
+    "pricing_basic_f1": "10 active giveaways",
+    "pricing_basic_f2": "500 participants / giveaway",
+    "pricing_medium_f1": "25 active giveaways",
+    "pricing_medium_f2": "2,000 participants / giveaway",
+    "pricing_at_year": "billed yearly",
     "toast_free_participant_limit": "Free plan limited to {count} participants per giveaway — upgrade to Pro to remove this limit.",
     "toast_free_giveaway_limit": "Free plan limited to {count} active giveaways at once — upgrade to Pro to remove this limit.",
     "legal_last_updated": "Last updated: August 7, 2026",
@@ -5249,6 +5402,42 @@ var TRANSLATIONS = {
     "billing_upgrade_btn": "Auf Pro upgraden (Krypto-Zahlung)",
     "billing_active_desc": "Dein Abonnement ist aktiv — danke!",
     "billing_check_email": "Überprüfe deine E-Mail für den Zahlungslink",
+    "billing_refresh_btn": "Ich habe bezahlt — Status prüfen",
+    "billing_still_pending": "Noch nicht eingegangen — eine Krypto-Zahlung kann einige Minuten zur Bestätigung brauchen. Versuche es gleich noch einmal.",
+    "period_monthly": "Monatlich",
+    "period_quarterly": "3 Monate",
+    "period_semiannual": "6 Monate",
+    "period_annual": "1 Jahr",
+    "billing_total_for_monthly": "/Monat",
+    "billing_total_for_quarterly": " / 3 Monate",
+    "billing_total_for_semiannual": " / 6 Monate",
+    "billing_total_for_annual": " / Jahr",
+    "billing_equivalent_per_month": "entspricht {amount}$/Monat",
+    "billing_save_percent": "-{percent}%",
+    "nav_pricing": "Preise",
+    "pricing_kicker": "Preise",
+    "pricing_title": "Einfach, ohne Überraschungen.",
+    "pricing_sub": "Starte kostenlos. Wechsle den Tarif, wann immer du willst, Zahlung in Krypto, ohne Verpflichtung.",
+    "pricing_start": "Loslegen",
+    "pricing_popular": "Beliebt",
+    "pricing_footnote": "Jeder Tarif ist auch für 3, 6 oder 12 Monate verfügbar, mit bis zu 37% Rabatt — wähle die Laufzeit, sobald du angemeldet bist, in den Einstellungen.",
+    "tier_basic": "Basis",
+    "tier_medium": "Medium",
+    "tier_pro": "Pro",
+    "billing_upgrade_btn_tier": "Auf {tier} upgraden (Krypto-Zahlung)",
+    "billing_feature_giveaways": "{count} aktive Verlosungen",
+    "billing_feature_participants": "{count} Teilnehmer pro Verlosung",
+    "billing_already_subscribed": "Du hast bereits eine ausstehende Anfrage — überprüfe deine E-Mail für den Zahlungslink.",
+    "billing_already_active": "Dein Abonnement ist bereits aktiv!",
+    "tier_free": "Kostenlos",
+    "pricing_free_f1": "3 aktive Verlosungen",
+    "pricing_free_f2": "100 Teilnehmer / Verlosung",
+    "pricing_start_free": "Kostenlos starten",
+    "pricing_basic_f1": "10 aktive Verlosungen",
+    "pricing_basic_f2": "500 Teilnehmer / Verlosung",
+    "pricing_medium_f1": "25 aktive Verlosungen",
+    "pricing_medium_f2": "2.000 Teilnehmer / Verlosung",
+    "pricing_at_year": "jährlich abgerechnet",
     "toast_free_participant_limit": "Kostenloser Plan auf {count} Teilnehmer pro Verlosung begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "toast_free_giveaway_limit": "Kostenloser Plan auf {count} aktive Verlosungen gleichzeitig begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "legal_last_updated": "Zuletzt aktualisiert: 7. August 2026",
@@ -5525,6 +5714,10 @@ function applyLanguage(lang) {
     select.value = lang;
   });
   document.documentElement.setAttribute('lang', lang);
+  // The billing price display isn't a plain data-i18n element (it's
+  // built dynamically from BILLING_PERIODS + t()), so it needs its own
+  // explicit refresh whenever the language changes.
+  if (document.getElementById('billingPriceDisplay')) renderBillingPriceDisplay();
 }
 
 function setLanguage(lang) {
@@ -6474,10 +6667,11 @@ function reviewRow(label, value) {
 async function wizardCreate() {
   var btn = document.getElementById('wizardCreateBtn');
 
-  if (!isPro()) {
+  var giveawayLimit = currentTierLimits().giveaways;
+  if (giveawayLimit !== Infinity) {
     var activeCount = currentGiveaways.filter(function(g) { return getGiveawayStatus(g) === 'active'; }).length;
-    if (activeCount >= FREE_ACTIVE_GIVEAWAYS_LIMIT) {
-      showToast(t('toast_free_giveaway_limit', { count: FREE_ACTIVE_GIVEAWAYS_LIMIT }), 'error');
+    if (activeCount >= giveawayLimit) {
+      showToast(t('toast_free_giveaway_limit', { count: giveawayLimit }), 'error');
       return;
     }
   }
@@ -6682,12 +6876,47 @@ function looksLikeUsername(line) {
 // both the browser (rendering/animating tens of thousands of entries)
 // and the database from an accidental or intentional oversized import.
 var MAX_PARTICIPANTS_PER_IMPORT = 10000;
-var FREE_ACTIVE_GIVEAWAYS_LIMIT = 3;
-var FREE_PARTICIPANT_LIMIT = 100;
 var currentSubscription = null;
 
+// ============================================================
+// BILLING — 3 tiers (Basique / Medium / Pro) × 4 billing periods
+// (monthly / 3mo / 6mo / 1yr) = 12 combinations. Prices and feature
+// limits are kept in one place so the UI (prices, savings badges,
+// gating messages) and the request sent to
+// create-nowpayments-subscription always agree.
+// ============================================================
+var TIER_LIMITS = {
+  free:   { giveaways: 3,  participants: 100 },
+  basic:  { giveaways: 10, participants: 500 },
+  medium: { giveaways: 25, participants: 2000 },
+  pro:    { giveaways: Infinity, participants: Infinity }
+};
+var TIER_PRICES = {
+  basic:  { monthly: 3.99, quarterly: 9.99,  semiannual: 17.99, annual: 29.99 },
+  medium: { monthly: 5.99, quarterly: 14.99, semiannual: 26.99, annual: 44.99 },
+  pro:    { monthly: 7.99, quarterly: 19.99, semiannual: 35.99, annual: 59.99 }
+};
+var PERIOD_MONTHS = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
+var selectedTier = 'pro';
+var selectedBillingPeriod = 'monthly';
+
 function isPro() {
+  // "Pro" here means "has any paid, active subscription" — used where
+  // the app just needs a yes/no (e.g. which half of the billing card
+  // to show), as opposed to currentTier()/currentTierLimits() below,
+  // which care about exactly which tier for gating purposes.
   return !!(currentSubscription && currentSubscription.status === 'active');
+}
+
+function currentTier() {
+  if (currentSubscription && currentSubscription.status === 'active' && currentSubscription.tier) {
+    return currentSubscription.tier;
+  }
+  return 'free';
+}
+
+function currentTierLimits() {
+  return TIER_LIMITS[currentTier()] || TIER_LIMITS.free;
 }
 
 async function loadSubscriptionStatus() {
@@ -6695,7 +6924,7 @@ async function loadSubscriptionStatus() {
   try {
     var { data } = await supabaseClient
       .from('subscriptions')
-      .select('status, current_period_end')
+      .select('status, tier, current_period_end')
       .eq('user_id', currentUser.id)
       .maybeSingle();
     currentSubscription = data || null;
@@ -6712,6 +6941,83 @@ function renderBillingCard() {
   var pro = isPro();
   freeEl.style.display = pro ? 'none' : 'block';
   proEl.style.display = pro ? 'block' : 'none';
+  if (pro) {
+    var tierLabelEl = document.getElementById('billingActiveTierLabel');
+    if (tierLabelEl) tierLabelEl.textContent = t('tier_' + currentSubscription.tier);
+  } else {
+    renderBillingPriceDisplay();
+  }
+}
+
+async function refreshBillingStatusClicked() {
+  var btn = document.getElementById('billingRefreshBtn');
+  var originalText = btn.textContent;
+  btn.textContent = '…';
+  await loadSubscriptionStatus();
+  if (!isPro()) {
+    // Still free after refreshing — the webhook probably just hasn't
+    // arrived yet (crypto confirmations can take a few minutes), not
+    // necessarily a failure. Say so instead of leaving them guessing.
+    showToast(t('billing_still_pending'), 'success');
+  }
+  btn.textContent = originalText;
+}
+
+function selectBillingTier(tier) {
+  if (!TIER_PRICES[tier]) return;
+  selectedTier = tier;
+  document.querySelectorAll('.billing-tier-tab').forEach(function(tab) {
+    tab.classList.toggle('active', tab.getAttribute('data-tier') === tier);
+  });
+  renderBillingPriceDisplay();
+}
+
+function selectBillingPeriod(period) {
+  if (!PERIOD_MONTHS[period]) return;
+  selectedBillingPeriod = period;
+  document.querySelectorAll('.billing-period-tab').forEach(function(tab) {
+    tab.classList.toggle('active', tab.getAttribute('data-period') === period);
+  });
+  renderBillingPriceDisplay();
+}
+
+function renderBillingPriceDisplay() {
+  var priceEl = document.getElementById('billingPriceDisplay');
+  var subEl = document.getElementById('billingPriceSub');
+  var saveBadge = document.getElementById('billingSaveBadge');
+  var upgradeBtn = document.getElementById('billingUpgradeBtn');
+  var tierBadge = document.getElementById('billingSelectedTierBadge');
+  var featureList = document.getElementById('billingFeatureList');
+  if (!priceEl) return;
+
+  var months = PERIOD_MONTHS[selectedBillingPeriod];
+  var price = TIER_PRICES[selectedTier][selectedBillingPeriod];
+  var monthlyEquivalent = price / months;
+  var fullPriceAtMonthlyRate = TIER_PRICES[selectedTier].monthly * months;
+  var savedPercent = Math.round(100 - (price / fullPriceAtMonthlyRate) * 100);
+
+  priceEl.innerHTML = price.toFixed(2) + '$<span>' + t('billing_total_for_' + selectedBillingPeriod) + '</span>';
+  if (tierBadge) tierBadge.textContent = t('tier_' + selectedTier);
+
+  if (featureList) {
+    var limits = TIER_LIMITS[selectedTier];
+    var giveawaysText = limits.giveaways === Infinity ? t('billing_feature_unlimited_giveaways') : t('billing_feature_giveaways', { count: limits.giveaways });
+    var participantsText = limits.participants === Infinity ? t('billing_feature_unlimited_participants') : t('billing_feature_participants', { count: limits.participants });
+    featureList.innerHTML = '<li>' + giveawaysText + '</li><li>' + participantsText + '</li>';
+  }
+
+  if (months > 1) {
+    subEl.style.display = 'block';
+    subEl.textContent = t('billing_equivalent_per_month', { amount: monthlyEquivalent.toFixed(2) });
+    saveBadge.style.display = 'inline-block';
+    saveBadge.textContent = t('billing_save_percent', { percent: savedPercent });
+  } else {
+    subEl.style.display = 'none';
+    saveBadge.style.display = 'none';
+  }
+
+  var upgradeLabel = upgradeBtn && upgradeBtn.querySelector('.btn-label');
+  if (upgradeLabel) upgradeLabel.textContent = t('billing_upgrade_btn_tier', { tier: t('tier_' + selectedTier) });
 }
 
 async function upgradeToProClicked() {
@@ -6728,12 +7034,20 @@ async function upgradeToProClicked() {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + accessToken,
         'apikey': SUPABASE_ANON_KEY
-      }
+      },
+      body: JSON.stringify({ tier: selectedTier, period: selectedBillingPeriod })
     });
     var data = await resp.json();
+
+    if (resp.status === 409 && data.error === 'ALREADY_SUBSCRIBED') {
+      showToast(t('billing_already_subscribed'), 'success');
+      return;
+    }
     if (!resp.ok || !data.success) throw new Error((data && data.error) || 'unknown');
 
-    if (data.payment_url) {
+    if (data.already_pending) {
+      showToast(t(data.status === 'active' ? 'billing_already_active' : 'billing_already_subscribed'), 'success');
+    } else if (data.payment_url) {
       window.location.href = data.payment_url;
     } else {
       showToast(t('billing_check_email'), 'success');
@@ -6750,9 +7064,10 @@ function setWizardParticipants(list) {
     showToast(t('toast_import_limited', { count: MAX_PARTICIPANTS_PER_IMPORT.toLocaleString(currentLang()) }), 'error');
     list = list.slice(0, MAX_PARTICIPANTS_PER_IMPORT);
   }
-  if (!isPro() && list.length > FREE_PARTICIPANT_LIMIT) {
-    showToast(t('toast_free_participant_limit', { count: FREE_PARTICIPANT_LIMIT }), 'error');
-    list = list.slice(0, FREE_PARTICIPANT_LIMIT);
+  var participantLimit = currentTierLimits().participants;
+  if (participantLimit !== Infinity && list.length > participantLimit) {
+    showToast(t('toast_free_participant_limit', { count: participantLimit }), 'error');
+    list = list.slice(0, participantLimit);
   }
   wizardData.participants = list;
 }
