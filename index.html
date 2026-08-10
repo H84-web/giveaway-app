@@ -1,204 +1,3 @@
-<!--
-============================================================
-MISE À JOUR — 3 NIVEAUX (Basique/Medium/Pro) + correctif double-clic
-============================================================
-
---- Étape 1 — SQL (nouvelle colonne "tier") ---
-SQL Editor → colle et Run :
--- À exécuter en plus du SQL précédent — ajoute le support des 3 niveaux
--- (Basique / Medium / Pro).
-alter table subscriptions add column if not exists tier text;
-
-
---- Étape 2 — Remplace ENTIÈREMENT le code de "create-nowpayments-subscription" ---
-Edge Functions → create-nowpayments-subscription → Code → tout remplacer par :
-// Supabase Edge Function : create-nowpayments-subscription
-//
-// Called when a logged-in user picks a tier + billing period and clicks
-// "Passer [Tier]". Creates (or reuses) the matching RerePickWinn plan
-// on NOWPayments for that tier+period, subscribes this user's email to
-// it, and returns the payment link they need to open to pay their
-// first invoice. NOWPayments then bills them automatically at the same
-// interval going forward and notifies us via the IPN webhook (see
-// nowpayments-webhook) — this function never marks anyone as "active"
-// itself, it only kicks off the very first payment.
-//
-// Secrets to configure (Edge Functions → create-nowpayments-subscription → Secrets):
-//   NOWPAYMENTS_API_KEY  = <ta clé API NOWPayments>
-//   NOWPAYMENTS_EMAIL    = <l'email de ton compte NOWPayments>
-//   NOWPAYMENTS_PASSWORD = <le mot de passe de ton compte NOWPayments>
-//
-// Déploiement : supabase functions deploy create-nowpayments-subscription
-
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const NOWPAYMENTS_API_KEY = Deno.env.get("NOWPAYMENTS_API_KEY")!;
-const NOWPAYMENTS_EMAIL = Deno.env.get("NOWPAYMENTS_EMAIL")!;
-const NOWPAYMENTS_PASSWORD = Deno.env.get("NOWPAYMENTS_PASSWORD")!;
-
-// 3 tiers × 4 billing periods = 12 possible (tier, period) combos.
-// Each combo is its own NOWPayments plan (their API bills a plan at a
-// single fixed price+interval), cached in billing_plans_cache the
-// first time it's ever purchased so we never create duplicates.
-const TIERS: Record<string, { label: string; prices: Record<string, number> }> = {
-  basic:  { label: "Basique", prices: { monthly: 3.99, quarterly: 9.99,  semiannual: 17.99, annual: 29.99 } },
-  medium: { label: "Medium",  prices: { monthly: 5.99, quarterly: 14.99, semiannual: 26.99, annual: 44.99 } },
-  pro:    { label: "Pro",     prices: { monthly: 7.99, quarterly: 19.99, semiannual: 35.99, annual: 59.99 } },
-};
-const INTERVAL_DAYS: Record<string, number> = { monthly: 30, quarterly: 90, semiannual: 180, annual: 365 };
-const PLAN_CURRENCY = "usd";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-async function getNowPaymentsJwt(): Promise<string> {
-  const resp = await fetch("https://api.nowpayments.io/v1/auth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: NOWPAYMENTS_EMAIL, password: NOWPAYMENTS_PASSWORD }),
-  });
-  const data = await resp.json();
-  if (!resp.ok || !data.token) {
-    throw new Error("Échec de connexion NOWPayments : " + JSON.stringify(data));
-  }
-  return data.token;
-}
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
-  try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Non authentifié" }, 401);
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const jwt = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
-    if (userErr || !userData.user || !userData.user.email) {
-      return json({ error: "Session invalide" }, 401);
-    }
-    const user = userData.user;
-
-    const body = await req.json().catch(() => ({}));
-    const tier = TIERS[body.tier] ? body.tier : "pro";
-    const period = INTERVAL_DAYS[body.period] ? body.period : "monthly";
-    const amount = TIERS[tier].prices[period];
-    const planKey = tier + "_" + period;
-
-    // Guard against the exact bug that prompted this: clicking "Passer
-    // X" a second time (e.g. impatiently, before checking email) used
-    // to call NOWPayments again and get back a confusing raw
-    // "already subscribed" error. If we already have a pending or
-    // active subscription on record for this user, don't call
-    // NOWPayments again at all — just point them back to their email.
-    const { data: existingUserSub } = await supabase
-      .from("subscriptions")
-      .select("status, tier, billing_period")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (existingUserSub && (existingUserSub.status === "inactive" || existingUserSub.status === "active")) {
-      return json({
-        success: true,
-        already_pending: true,
-        status: existingUserSub.status,
-      });
-    }
-
-    const npJwt = await getNowPaymentsJwt();
-    const npHeaders = {
-      "x-api-key": NOWPAYMENTS_API_KEY,
-      "Authorization": "Bearer " + npJwt,
-      "Content-Type": "application/json",
-    };
-
-    // Step 1 — find or create this (tier, period) plan.
-    let planId: string | null = null;
-    const { data: cachedPlan } = await supabase
-      .from("billing_plans_cache")
-      .select("nowpayments_plan_id")
-      .eq("period", planKey)
-      .maybeSingle();
-    planId = cachedPlan?.nowpayments_plan_id || null;
-
-    if (!planId) {
-      const planResp = await fetch("https://api.nowpayments.io/v1/subscriptions/plans", {
-        method: "POST",
-        headers: npHeaders,
-        body: JSON.stringify({
-          title: "RerePickWinn " + TIERS[tier].label + " — " + period,
-          interval_day: INTERVAL_DAYS[period],
-          amount: amount,
-          currency: PLAN_CURRENCY,
-        }),
-      });
-      const planData = await planResp.json();
-      if (!planResp.ok || !planData.result?.id) {
-        return json({ error: "Échec de création du plan NOWPayments : " + JSON.stringify(planData) }, 500);
-      }
-      planId = planData.result.id;
-      await supabase.from("billing_plans_cache").upsert({ period: planKey, nowpayments_plan_id: planId });
-    }
-
-    // Step 2 — subscribe this user's email to the plan.
-    const subResp = await fetch(`https://api.nowpayments.io/v1/subscriptions`, {
-      method: "POST",
-      headers: npHeaders,
-      body: JSON.stringify({
-        subscription_plan_id: planId,
-        email: user.email,
-      }),
-    });
-    const subData = await subResp.json();
-    if (!subResp.ok || !subData.result?.[0]?.id) {
-      // Translate NOWPayments' own duplicate-subscription error into
-      // something the UI can show as a calm message instead of raw JSON.
-      const rawMsg = JSON.stringify(subData);
-      if (rawMsg.toLowerCase().includes("already subscribed")) {
-        return json({ error: "ALREADY_SUBSCRIBED" }, 409);
-      }
-      return json({ error: "Échec de création de l'abonnement NOWPayments : " + rawMsg }, 500);
-    }
-    const subscription = subData.result[0];
-
-    await supabase.from("subscriptions").upsert({
-      user_id: user.id,
-      status: "inactive", // becomes "active" only once the webhook confirms payment
-      tier: tier,
-      billing_period: period,
-      nowpayments_subscription_id: subscription.id,
-      nowpayments_plan_id: planId,
-      updated_at: new Date().toISOString(),
-    });
-
-    return json({ success: true, payment_url: subscription.payment_url || null, subscription_id: subscription.id });
-  } catch (err) {
-    return json({ error: err instanceof Error ? err.message : "Erreur inconnue" }, 500);
-  }
-});
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-(Secrets inchangés : NOWPAYMENTS_API_KEY, NOWPAYMENTS_EMAIL, NOWPAYMENTS_PASSWORD.)
-
-Redéploie cette fonction. La fonction "nowpayments-webhook" n'a PAS
-besoin d'être retouchée cette fois — elle marche déjà avec les niveaux.
-
-IMPORTANT : si tu as déjà un abonnement de test "inactive" en base
-depuis tes essais précédents, il faudra le supprimer avant de retester
-(SQL Editor : delete from subscriptions where user_id = 'TON_ID';)
-sinon le nouveau garde-fou anti-double-clic bloquera aussi les
-nouveaux essais.
-============================================================
--->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -1262,7 +1061,7 @@ button { font-family: inherit; }
 .stat-value { font-size: 26px; font-weight: 800; line-height: 1; color: var(--ink); }
 .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 4px; }
 
-.wheel-wrap { position: relative; width: 100%; max-width: 320px; margin-bottom: 8px; }
+.wheel-wrap { position: relative; width: 100%; max-width: 480px; margin-bottom: 8px; }
 .wheel-canvas { width: 100%; height: auto; display: block; filter: drop-shadow(0 8px 20px rgba(16,24,40,0.12)); }
 
 .instant-stage { width: 100%; max-width: 320px; min-height: 220px; display: flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 8px; }
@@ -6791,7 +6590,7 @@ async function openGiveaway(giveawayId, prefetched) {
   showScreen('drawScreen');
 
   renderDrawStats();
-  if (drawMode === 'wheel') drawWheel(0, null, getDrawFilteredEntries());
+  if (drawMode === 'wheel') drawWheel(0, null, getDrawFilteredEntries().slice(0, MAX_WHEEL_SEGMENTS));
   if (drawMode === 'slot') setupSlotStage(getDrawFilteredEntries());
   if (drawMode === 'instant') resetInstantStage();
   if (drawMode === 'duck') setupDuckRace(getDrawFilteredEntries());
@@ -7171,7 +6970,7 @@ var WHEEL_COLORS = ['#FFFFFF', '#5B5BF6'];
 var WHEEL_TEXT_COLORS = ['#16181D', '#FFFFFF'];
 
 var wheelCanvasConfigured = false;
-var WHEEL_LOGICAL_SIZE = 320; // logical drawing size in CSS pixels — all angle/position math stays based on this
+var WHEEL_LOGICAL_SIZE = 480; // bumped up from 320 to use noticeably more screen space
 
 function ensureWheelCanvasResolution(canvas) {
   // Canvas pixel buffers default to a 1:1 mapping with CSS pixels. On
@@ -7206,6 +7005,16 @@ function drawWheel(currentRotation, highlightIndex, list) {
   var segments = (list && list.length > 0) ? list : [{ name: 'ajoute des participants', mentions: 0 }];
   var segAngle = (2 * Math.PI) / segments.length;
 
+  // Past a certain density, individual names can't be read no matter
+  // how big the wheel is (the slice itself is thinner than the text),
+  // and per-segment strokes/text become the main cost of every frame.
+  // Dropping them at high counts keeps the spin smooth and honest
+  // instead of drawing illegible detail nobody can actually see —
+  // the winner's name is always shown clearly at the end regardless
+  // (see the highlight branch below, and the winner ticket after).
+  var showLabels = segments.length <= 90;
+  var showStroke = segments.length <= 220;
+
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(currentRotation);
@@ -7221,21 +7030,25 @@ function drawWheel(currentRotation, highlightIndex, list) {
     ctx.closePath();
     ctx.fillStyle = isHighlight ? '#F5A524' : (i % 2 === 0 ? '#FFFFFF' : currentDrawAccentColor);
     ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.stroke();
+    if (showStroke || isHighlight) {
+      ctx.lineWidth = isHighlight ? 2 : 1.5;
+      ctx.strokeStyle = isHighlight ? '#F5A524' : '#FFFFFF';
+      ctx.stroke();
+    }
 
-    ctx.save();
-    ctx.rotate(startAngle + segAngle / 2);
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = isHighlight ? '#16181D' : WHEEL_TEXT_COLORS[i % 2];
-    var fontSize = segments.length > 24 ? 9 : segments.length > 12 ? 11 : 13;
-    ctx.font = '600 ' + fontSize + 'px -apple-system, sans-serif';
-    var maxLabelWidth = radius - 30;
-    var label = wrapText(ctx, '@' + entry.name, maxLabelWidth);
-    ctx.fillText(label, radius - 12, 0);
-    ctx.restore();
+    if (showLabels || isHighlight) {
+      ctx.save();
+      ctx.rotate(startAngle + segAngle / 2);
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = isHighlight ? '#16181D' : WHEEL_TEXT_COLORS[i % 2];
+      var fontSize = segments.length > 24 ? 9 : segments.length > 12 ? 11 : 13;
+      ctx.font = '600 ' + fontSize + 'px -apple-system, sans-serif';
+      var maxLabelWidth = radius - 30;
+      var label = wrapText(ctx, '@' + entry.name, maxLabelWidth);
+      ctx.fillText(label, radius - 12, 0);
+      ctx.restore();
+    }
   });
 
   ctx.restore();
@@ -7280,9 +7093,42 @@ function drawWheel(currentRotation, highlightIndex, list) {
   ctx.fill();
 }
 
+// Caps how many segments the wheel actually draws — matches the same
+// pattern already used for ducks/marbles/Plinko. drawWheel() drops
+// per-segment labels and strokes past certain densities (see
+// showLabels/showStroke there), so 1000 thin colored slices stays
+// fast and still reads as "a wheel with a ton of entries" instead of
+// freezing the tab — individual names just aren't legible at that
+// density regardless of screen size, which is exactly why they're
+// dropped rather than forced. The real winner is always guaranteed
+// to be among the segments shown and is always labeled at the end,
+// even when everyone else isn't — this only trims which *other*
+// names are visible mid-spin, never who can actually win.
+var MAX_WHEEL_SEGMENTS = 1000;
+
+function selectWheelSegments(pool, winnerIndex) {
+  var winnerEntry = pool[winnerIndex];
+  if (pool.length <= MAX_WHEEL_SEGMENTS) {
+    return { segments: pool.slice(), winnerIndex: winnerIndex };
+  }
+  var others = pool.filter(function(_, i) { return i !== winnerIndex; });
+  for (var i = others.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = others[i]; others[i] = others[j]; others[j] = tmp;
+  }
+  var segments = others.slice(0, MAX_WHEEL_SEGMENTS - 1);
+  var insertAt = Math.floor(Math.random() * (segments.length + 1));
+  segments.splice(insertAt, 0, winnerEntry);
+  return { segments: segments, winnerIndex: insertAt };
+}
+
 function spinWheelMode(pool, winnerIndex, durationSeconds, onDone) {
-  var segAngle = (2 * Math.PI) / pool.length;
-  var targetCenter = winnerIndex * segAngle + segAngle / 2;
+  var selection = selectWheelSegments(pool, winnerIndex);
+  var wheelPool = selection.segments;
+  var wheelWinnerIndex = selection.winnerIndex;
+
+  var segAngle = (2 * Math.PI) / wheelPool.length;
+  var targetCenter = wheelWinnerIndex * segAngle + segAngle / 2;
 
   var duration = (durationSeconds || 4.2) * 1000;
 
@@ -7309,12 +7155,12 @@ function spinWheelMode(pool, winnerIndex, durationSeconds, onDone) {
     var eased = 1 - Math.pow(1 - t, 4);
     var current = startRotation + (finalRotation - startRotation) * eased;
     rotation = current;
-    drawWheel(current, null, pool);
+    drawWheel(current, null, wheelPool);
 
     if (t < 1) {
       spinFrame = requestAnimationFrame(animate);
     } else {
-      drawWheel(current, winnerIndex, pool);
+      drawWheel(current, wheelWinnerIndex, wheelPool);
       onDone();
     }
   }
@@ -7715,7 +7561,7 @@ var duckCanvasH = 0;
 // full-width lane; above it, ducks share a multi-row "swarm" layout
 // (see laneLayoutFor) so a 100-participant race stays watchable.
 var MAX_DUCKS_SMALL = 12;
-var MAX_DUCKS = 100;
+var MAX_DUCKS = 1000; // the row/size math below already scales gracefully — see drawDuckScene's sqrt-based row count and drawDuck's showDetail/showAccessory cutoffs
 
 var DUCK_QUACK_SOUND = 'data:audio/wav;base64,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';
 
@@ -8805,7 +8651,13 @@ try {
   if (__savedPlinkoSound !== null) plinkoSoundEnabled = __savedPlinkoSound === '1';
 } catch (e) { /* ignore */ }
 
-var MAX_PLINKO_SLOTS = 9; // odd, so there's always a true center slot
+// Plinko is structurally different from the wheel/ducks/marbles: each
+// extra slot needs a whole extra row of pegs ABOVE it (the board grows
+// taller, not just more crowded), so this can't scale to the same
+// numbers as the others without the board becoming thousands of
+// pixels tall. 31 keeps every peg row clearly spaced within a normal
+// screen height while still comfortably beating the old 9.
+var MAX_PLINKO_SLOTS = 31; // odd, so there's always a true center slot
 
 function togglePlinkoSound() {
   plinkoSoundEnabled = !plinkoSoundEnabled;
@@ -9146,7 +8998,7 @@ try {
   if (__savedMarbleSound !== null) marbleSoundEnabled = __savedMarbleSound === '1';
 } catch (e) { /* ignore */ }
 
-var MAX_MARBLES = 100; // matches the duck race's cap — multi-lane grouping below keeps it readable at any size
+var MAX_MARBLES = 1000; // matches the duck race's cap — multi-lane grouping below keeps it readable at any size
 
 function toggleMarbleSound() {
   marbleSoundEnabled = !marbleSoundEnabled;
@@ -9275,8 +9127,8 @@ function marbleTrackPoint(t, w, h) {
 // become absurdly wide.
 function marbleLaneLayout(count) {
   var numLanes = Math.min(count, Math.max(3, Math.round(Math.sqrt(count * 1.3))));
-  var laneSpacing = 20;
-  var roadWidth = Math.min(240, numLanes * laneSpacing + 34);
+  var roadWidth = 240; // fixed visible track width — laneSpacing (below) adapts to fit within it, not the other way around
+  var laneSpacing = numLanes > 1 ? Math.min(20, (roadWidth - 34) / (numLanes - 1)) : 20;
   return { numLanes: numLanes, laneSpacing: laneSpacing, roadWidth: roadWidth };
 }
 
@@ -9535,6 +9387,17 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
 
   // ---- Marbles: real glass-marble rendering with a swirl core, sharp
   // specular highlight, and a neon rim matching each marble's color. ----
+  // Past a certain count, the full glass-marble treatment (radial
+  // gradient + blurred glow + swirl clip + specular highlight, all
+  // recomputed every frame) is far more render cost than anyone can
+  // actually appreciate on marbles a few pixels wide — and at real
+  // scale (hundreds+) it's what would turn a smooth race into a
+  // slideshow. Past the threshold, marbles fall back to flat colored
+  // circles: still readable as "a marble", a fraction of the cost.
+  var showDetail = marblePool.length <= 120;
+  var showLabels = marblePool.length <= 150;
+  var radius = showDetail ? 7.5 : Math.max(3, 7.5 - (marblePool.length / 250));
+
   marblePool.forEach(function(participant, i) {
     var dist = (positions && positions[i]) || 0;
     var t = marbleDistanceToT(Math.min(dist, 1), table);
@@ -9553,13 +9416,38 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
 
     var color = DUCK_COLORS[i % DUCK_COLORS.length];
     var isWinner = winnerIndex === i;
-    var radius = 7.5;
 
     if (isWinner) {
       ctx.beginPath();
       ctx.arc(mx, my, radius + 8, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255, 215, 90, 0.5)';
       ctx.fill();
+    }
+
+    if (!showDetail) {
+      // Flat, cheap version: shadow + solid circle + thin outline. No
+      // gradients, no shadowBlur, no clip path — the parts that scale
+      // badly are exactly the parts skipped here.
+      ctx.beginPath();
+      ctx.ellipse(mx, my + radius * 0.75, radius * 0.9, radius * 0.32, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(mx, my, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 0.75;
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.stroke();
+
+      if (showLabels) {
+        ctx.font = '600 7px "Courier New", monospace';
+        ctx.fillStyle = isWinner ? '#FFE8A3' : 'rgba(207,232,255,0.85)';
+        ctx.textAlign = 'center';
+        ctx.fillText('@' + participant.name, mx, my - radius - 5, 60);
+      }
+      return;
     }
 
     // Shadow on the track.
@@ -9618,15 +9506,22 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
 
     // Every marble carries its pseudo — smaller and lighter for big
     // fields so it stays out of the way, but never hidden.
-    var nameSize = marblePool.length <= 15 ? 10 : marblePool.length <= 40 ? 8.5 : 7.5;
-    ctx.font = (isWinner ? 'bold ' : '600 ') + nameSize + 'px "Courier New", monospace';
-    ctx.fillStyle = isWinner ? '#FFE8A3' : 'rgba(207,232,255,0.85)';
-    ctx.textAlign = 'center';
-    ctx.fillText('@' + participant.name, mx, my - radius - (isWinner ? 8 : 6), 80);
+    if (showLabels) {
+      var nameSize = marblePool.length <= 15 ? 10 : marblePool.length <= 40 ? 8.5 : 7.5;
+      ctx.font = (isWinner ? 'bold ' : '600 ') + nameSize + 'px "Courier New", monospace';
+      ctx.fillStyle = isWinner ? '#FFE8A3' : 'rgba(207,232,255,0.85)';
+      ctx.textAlign = 'center';
+      ctx.fillText('@' + participant.name, mx, my - radius - (isWinner ? 8 : 6), 80);
 
-    if (isWinner) {
-      ctx.font = '15px system-ui, sans-serif';
-      ctx.fillText('👑', mx, my - radius - 8 - nameSize - 4);
+      if (isWinner) {
+        ctx.font = '15px system-ui, sans-serif';
+        ctx.fillText('👑', mx, my - radius - 8 - nameSize - 4);
+      }
+    } else if (isWinner) {
+      ctx.font = 'bold 8px "Courier New", monospace';
+      ctx.fillStyle = '#FFE8A3';
+      ctx.textAlign = 'center';
+      ctx.fillText('@' + participant.name, mx, my - radius - 6, 60);
     }
   });
 }
