@@ -1633,7 +1633,7 @@ button { font-family: inherit; }
   </section>
 
   <!-- ============ PRICING ============ -->
-  <section class="lp-section lp-section-alt" id="lp-pricing">
+  <section class="lp-section lp-section-alt" id="lp-pricing" style="display:none;"> <!-- TEMPORARILY HIDDEN — billing disabled for testing -->
     <div class="lp-section-head lp-reveal">
       <span class="lp-kicker" data-i18n="pricing_kicker">Tarifs</span>
       <h2 class="lp-section-title" data-i18n="pricing_title">Simple, sans surprise.</h2>
@@ -2232,7 +2232,7 @@ button { font-family: inherit; }
         </div>
       </div>
 
-      <div class="card" id="billingCard">
+      <div class="card" id="billingCard" style="display:none;"> <!-- TEMPORARILY HIDDEN — billing disabled for testing -->
         <h3 class="card-section-title" data-i18n="billing_title">Abonnement</h3>
         <div id="billingFreeState">
           <p class="hint" style="margin-bottom:14px;" data-i18n="billing_free_desc">Plan gratuit : jusqu'à 3 tirages actifs, 100 participants par tirage.</p>
@@ -6715,6 +6715,11 @@ function currentTier() {
 }
 
 function currentTierLimits() {
+  // TEMPORARILY DISABLED FOR TESTING — billing/limits are turned off
+  // site-wide so nothing blocks testing giveaways/participants. To
+  // turn the paywall back on later, just remove this early return
+  // (the real logic below is untouched and ready to go).
+  return { giveaways: Infinity, participants: Infinity };
   return TIER_LIMITS[currentTier()] || TIER_LIMITS.free;
 }
 
