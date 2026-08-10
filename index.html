@@ -667,6 +667,8 @@ button { font-family: inherit; }
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 100;
 }
+[data-theme="dark"] .topnav { background: rgba(20,21,29,0.85); }
+body.draw-fullscreen .topnav { display: none; }
 .topnav-inner {
   max-width: 1200px; margin: 0 auto; padding: 12px 20px;
   display: flex; align-items: center; justify-content: space-between; gap: 20px;
@@ -770,6 +772,16 @@ button { font-family: inherit; }
 
 .page-container { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
 .page-container-narrow { max-width: 560px; }
+
+/* Draw screen in fullscreen mode: no narrow column, no nav bar (see
+   body.draw-fullscreen .topnav above) — every game gets the full
+   viewport to be as big and show as many participants as it can. */
+body.draw-fullscreen #drawScreen .page-container-narrow { max-width: none; }
+body.draw-fullscreen #drawScreen .page-container { padding: 16px 16px 24px; min-height: 100vh; display: flex; flex-direction: column; }
+body.draw-fullscreen #drawScreen .card-center { flex: 1; display: flex; flex-direction: column; }
+body.draw-fullscreen #drawScreen .draw-stage { flex: 1; display: flex; align-items: center; justify-content: center; }
+body.draw-fullscreen .wheel-wrap { max-width: min(85vw, 85vh, 640px); }
+body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
 .page-title { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
@@ -1326,7 +1338,6 @@ button { font-family: inherit; }
   --card: #1C1E2A;
 }
 [data-theme="dark"] body { background: var(--bg); }
-[data-theme="dark"] .topnav { background: rgba(20,21,29,0.85); }
 [data-theme="dark"] .nav-link:hover { background: #252836; }
 [data-theme="dark"] .form-input { background: #20222F; border-color: var(--line); color: var(--ink); }
 [data-theme="dark"] .form-input:focus { background: #242736; }
@@ -3043,6 +3054,15 @@ function showScreen(screenId) {
   document.getElementById('userMenu').style.display = 'none';
   document.getElementById('notifMenu').style.display = 'none';
   document.getElementById('navMobileMenu').style.display = 'none';
+
+  // The draw screen gets the whole viewport to itself — no top nav, no
+  // narrow content column — so every game mode has real room to be
+  // bigger and show more participants at once. Toggled here (not at
+  // each individual entry/exit point) so it can never get stuck on by
+  // some path we forgot, since literally every way of changing screens
+  // — a nav click, the wizard finishing, the hardware back button —
+  // funnels through this one function.
+  document.body.classList.toggle('draw-fullscreen', screenId === 'drawScreen');
 
   // Re-check subscription status every time Settings is opened — a
   // payment made in the NOWPayments email tab (or on another device)
@@ -6663,10 +6683,15 @@ function isNoiseLine(line) {
 }
 
 function looksLikeUsername(line) {
-  // A standalone username line: just handle characters, no spaces,
-  // reasonable length, optionally prefixed with @.
+  // A standalone name/username line. Broad on purpose: real Instagram
+  // handles are ASCII-only, but "Coller une liste" is also used for
+  // plain name lists (accents, apostrophes, hyphenated or two-word
+  // names) — too strict here silently swallowed legitimate names as
+  // "comments" of the previous line instead of counting them as their
+  // own entry, which is why a 1,000-line paste could quietly turn into
+  // fewer detected participants.
   var trimmed = line.trim();
-  return /^@?[a-zA-Z0-9._-]{2,30}$/.test(trimmed);
+  return /^@?[\p{L}\p{N}][\p{L}\p{N}. '-]{1,49}$/u.test(trimmed);
 }
 
 // Anti-abuse guardrail: caps how many participants a single import can
@@ -6895,7 +6920,7 @@ function parseRawInput(raw) {
       // No username line seen yet (e.g. a simple flat paste, one name
       // per line with no comment body) — fall back to treating the
       // whole line itself as a single-line entry.
-      var inlineMatch = line.match(/^@?([a-zA-Z0-9._-]{2,30})\b(.*)$/);
+      var inlineMatch = line.match(/^@?([\p{L}\p{N}._-]{2,30})\b(.*)$/u);
       if (inlineMatch) {
         blocks.push({ name: inlineMatch[1], commentLines: inlineMatch[2] ? [inlineMatch[2]] : [] });
       }
@@ -6918,9 +6943,9 @@ function extractNameFromLine(line) {
   // first word. This catches manually-typed lines that don't follow the
   // Instagram paste format exactly.
   var firstWord = trimmed.split(/\s+/)[0] || trimmed;
-  var m = firstWord.match(/^@?([a-zA-Z0-9._-]{1,20})/);
+  var m = firstWord.match(/^@?([\p{L}\p{N}._-]{1,20})/u);
   if (m) return m[1];
-  m = trimmed.match(/^@?([a-zA-Z0-9._-]{2,20})/);
+  m = trimmed.match(/^@?([\p{L}\p{N}._-]{2,20})/u);
   return m ? m[1] : trimmed.slice(0, 20);
 }
 function countMentions(text) {
@@ -7658,7 +7683,8 @@ function initDuckCanvas(pool) {
 
   var duckCount = Math.max(1, Math.min(pool.length, MAX_DUCKS));
   var laneHeight = duckCount <= 3 ? 92 : duckCount <= 5 ? 76 : duckCount <= 6 ? 64 : 54;
-  var displayHeight = Math.min(560, Math.max(300, duckCount * laneHeight + 90));
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(900, window.innerHeight - 220) : 560;
+  var displayHeight = Math.min(maxHeight, Math.max(300, duckCount * laneHeight + 90));
 
   var dpr = window.devicePixelRatio || 1;
   canvas.style.width = displayWidth + 'px';
@@ -7821,6 +7847,15 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
     var dtFrac = Math.max(0, elapsed - lastElapsed) / duration; // this frame's slice of the total race
     var bw = timeProgress <= SPRINT_START ? 0 : smoothstep((timeProgress - SPRINT_START) / (1 - SPRINT_START));
 
+    // Timing/correctness is driven by guaranteedPos, never by the
+    // wobbly visual one — so an early speed swing can never falsely end
+    // the round for the wrong duck. A short overshoot window afterward
+    // keeps the animation running a little longer so the winner visibly
+    // swims past the flag instead of freezing exactly on it.
+    var winnerGEased = Math.pow(Math.min(timeProgress * speedFactors[actualWinnerIndex], 1), 1.7);
+    var winnerGuaranteed = Math.min(winnerGEased * FINISH, FINISH);
+    var winnerHasCrossed = finished || winnerGuaranteed >= FLAG_POSITION;
+
     for (var i = 0; i < duckCount; i++) {
       var gEased = Math.pow(Math.min(timeProgress * speedFactors[i], 1), 1.7);
       guaranteedPos[i] = Math.min(gEased * FINISH, FINISH);
@@ -7831,6 +7866,20 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
       var mult = speedMultiplier(i, timeProgress) * sprintBoost;
       var prevPos = duckPositions[i];
       duckPositions[i] = Math.min(duckPositions[i] + mult * dtFrac * 82, FINISH); // *82 ≈ average pace needed to comfortably reach FLAG_POSITION by the end
+
+      // Hard rule, not just a speed suggestion: NOBODY is allowed to
+      // visually reach the finish line before the actual winner's
+      // official crossing fires above — otherwise an early lucky speed
+      // swing (this is a genuinely wobbly race pre-sprint) could let a
+      // random duck sail across the flag first while the round quietly
+      // keeps running for the "real" winner, which looked exactly like
+      // the wrong duck won. Once winnerHasCrossed, the cap lifts for
+      // the winner only, so it — and only it — actually swims past.
+      if (i === actualWinnerIndex) {
+        if (!winnerHasCrossed) duckPositions[i] = Math.min(duckPositions[i], FLAG_POSITION);
+      } else {
+        duckPositions[i] = Math.min(duckPositions[i], FLAG_POSITION - 0.6);
+      }
 
       // Spawn a small water-splash trail behind each duck while it's
       // actively moving — purely cosmetic, capped so it never piles up.
@@ -7846,12 +7895,7 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
       nextAmbientQuackAt = elapsed + 450 + Math.random() * 550;
     }
 
-    // Timing/correctness is driven by guaranteedPos, never by the
-    // wobbly visual one — so an early speed swing can never falsely end
-    // the round for the wrong duck. A short overshoot window afterward
-    // keeps the animation running a little longer so the winner visibly
-    // swims past the flag instead of freezing exactly on it.
-    if (!finished && guaranteedPos[actualWinnerIndex] >= FLAG_POSITION) {
+    if (!finished && winnerHasCrossed) {
       finished = true;
       overshootUntil = elapsed + 550;
       playDuckQuack();
@@ -8781,7 +8825,8 @@ function initPlinkoCanvas(slotCount) {
   if (!canvas) return null;
   var container = canvas.parentElement;
   var displayWidth = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
-  var displayHeight = Math.min(520, Math.max(360, 300 + slotCount * 10));
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(820, window.innerHeight - 220) : 520;
+  var displayHeight = Math.min(maxHeight, Math.max(360, 300 + slotCount * 10));
 
   var dpr = window.devicePixelRatio || 1;
   canvas.style.width = displayWidth + 'px';
@@ -9091,7 +9136,8 @@ function initMarbleCanvas(marbleCount) {
   if (!canvas) return null;
   var container = canvas.parentElement;
   var displayWidth = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
-  var displayHeight = Math.min(760, Math.max(480, 380 + marbleCount * 9));
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(1000, window.innerHeight - 220) : 760;
+  var displayHeight = Math.min(maxHeight, Math.max(480, 380 + marbleCount * 9));
 
   var dpr = window.devicePixelRatio || 1;
   canvas.style.width = displayWidth + 'px';
