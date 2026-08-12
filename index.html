@@ -816,6 +816,19 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 
 .avatar-picker { display: flex; gap: 10px; flex-wrap: wrap; }
 
+.youtube-collecting-state {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft);
+  background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 10px;
+  padding: 10px 12px; margin-top: 12px;
+}
+.youtube-collecting-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #22C55E; flex: 0 0 auto;
+  animation: youtubeCollectPulse 1.4s ease-in-out infinite;
+}
+@keyframes youtubeCollectPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
 .youtube-loading {
   margin-top: 14px; padding: 16px; background: #F8F8FB; border-radius: var(--radius);
   border: 1px solid var(--line);
@@ -2543,9 +2556,17 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
             <p class="hint">Seuls les commentaires contenant ce mot seront importés. Laisse vide pour tout importer.</p>
           </div>
 
-          <button type="button" class="btn btn-secondary" id="wizardYoutubeFetchBtn" onclick="fetchYoutubeComments()" style="margin-top:14px;">
-            <span class="btn-label">Récupérer les commentaires</span>
+          <button type="button" class="btn btn-secondary" id="wizardYoutubeStartBtn" onclick="startYoutubeCollection()" style="margin-top:14px;">
+            <span class="btn-label" data-i18n="youtube_start_btn">Démarrer la collecte</span>
           </button>
+          <button type="button" class="btn btn-primary" id="wizardYoutubeStopBtn" onclick="stopYoutubeCollection()" style="margin-top:14px; display:none;">
+            <span class="btn-label" data-i18n="youtube_stop_btn">Terminer la collecte</span>
+          </button>
+
+          <div id="youtubeCollectingState" class="youtube-collecting-state" style="display:none;">
+            <span class="youtube-collecting-dot"></span>
+            <span data-i18n="youtube_collecting_label">Collecte en cours</span> — <strong><span id="youtubeCollectingCount">0</span></strong> <span data-i18n="youtube_collecting_found">participant(s) trouvé(s)</span>
+          </div>
 
           <div id="youtubeLoadingState" class="youtube-loading" style="display:none;">
             <div class="youtube-loading-header">
@@ -2559,8 +2580,8 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 
           <p class="hint" id="wizardYoutubeStatus" style="display:none;"></p>
           <p class="hint-box">
-            💡 Pour un live en cours, colle le lien pendant que le direct tourne — l'outil lira le tchat en temps réel.
-            Pour une vidéo déjà publiée, ça lit les commentaires classiques.
+            💡 Sur un live en cours, la collecte lit le tchat en continu tant que tu ne cliques pas sur "Terminer".
+            Sur une vidéo déjà publiée, elle revérifie régulièrement les nouveaux commentaires.
           </p>
         </div>
 
@@ -3148,6 +3169,13 @@ function showScreen(screenId) {
   // the hardware back button — all of it funnels through showScreen().
   if (currentActiveScreen === 'drawScreen' && screenId !== 'drawScreen') {
     stopAllDrawAnimations();
+  }
+  // Same idea for a YouTube collection left running in the background —
+  // leaving the wizard mid-collection shouldn't leave it silently
+  // polling the API forever with nothing to show it's happening.
+  if (currentActiveScreen === 'wizardScreen' && screenId !== 'wizardScreen' && youtubeCollecting) {
+    youtubeCollecting = false;
+    if (youtubePollTimeoutId) { clearTimeout(youtubePollTimeoutId); youtubePollTimeoutId = null; }
   }
 
   ALL_SCREENS.forEach(function(id) {
@@ -4586,6 +4614,10 @@ var TRANSLATIONS = {
     "lobby_activity_min_mentions": "Minimum {count} mentions requis",
     "lobby_activity_ready": "{count} participants prêts pour le tirage",
     "lobby_continue_btn": "Continuer",
+    "youtube_start_btn": "Démarrer la collecte",
+    "youtube_stop_btn": "Terminer la collecte",
+    "youtube_collecting_label": "Collecte en cours",
+    "youtube_collecting_found": "participant(s) trouvé(s)",
     "toast_free_participant_limit": "Plan gratuit limité à {count} participants par tirage — passe Pro pour lever cette limite.",
     "toast_free_giveaway_limit": "Plan gratuit limité à {count} tirages actifs en même temps — passe Pro pour lever cette limite.",
     "legal_last_updated": "Dernière mise à jour : 7 août 2026",
@@ -5014,6 +5046,10 @@ var TRANSLATIONS = {
     "lobby_activity_min_mentions": "Minimum {count} mentions required",
     "lobby_activity_ready": "{count} participants ready for the draw",
     "lobby_continue_btn": "Continue",
+    "youtube_start_btn": "Start collecting",
+    "youtube_stop_btn": "Stop collecting",
+    "youtube_collecting_label": "Collecting",
+    "youtube_collecting_found": "participant(s) found",
     "toast_free_participant_limit": "Free plan limited to {count} participants per giveaway — upgrade to Pro to remove this limit.",
     "toast_free_giveaway_limit": "Free plan limited to {count} active giveaways at once — upgrade to Pro to remove this limit.",
     "legal_last_updated": "Last updated: August 7, 2026",
@@ -5442,6 +5478,10 @@ var TRANSLATIONS = {
     "lobby_activity_min_mentions": "Mindestens {count} Erwähnungen erforderlich",
     "lobby_activity_ready": "{count} Teilnehmer bereit für die Verlosung",
     "lobby_continue_btn": "Weiter",
+    "youtube_start_btn": "Sammeln starten",
+    "youtube_stop_btn": "Sammeln beenden",
+    "youtube_collecting_label": "Sammle gerade",
+    "youtube_collecting_found": "Teilnehmer gefunden",
     "toast_free_participant_limit": "Kostenloser Plan auf {count} Teilnehmer pro Verlosung begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "toast_free_giveaway_limit": "Kostenloser Plan auf {count} aktive Verlosungen gleichzeitig begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "legal_last_updated": "Zuletzt aktualisiert: 7. August 2026",
@@ -6185,72 +6225,146 @@ function setYoutubeLoading(isLoading, loadingText) {
   if (isLoading && loadingText) loadingTextEl.textContent = loadingText;
 }
 
-async function fetchYoutubeComments() {
+// ============================================================
+// YOUTUBE COLLECTION — "Démarrer" begins repeatedly polling for new
+// comments (or new live chat messages, for an active livestream) and
+// keeps merging them into a running, de-duplicated list; "Terminer"
+// stops the polling and locks in whatever's been collected so far as
+// the wizard's participant list. This suits a real giveaway much
+// better than a single one-shot fetch — comments keep coming in while
+// people watch a video or a live goes on, and the organizer decides
+// when they're done collecting rather than the app guessing for them.
+// ============================================================
+var youtubeCollecting = false;
+var youtubeCollectedMap = {};   // name (lowercased) -> entry, for de-duplication across polls
+var youtubePollTimeoutId = null;
+var youtubeCollectKind = null;  // 'live' | 'video'
+var youtubeCollectVideoId = null;
+var youtubeCollectLiveChatId = null;
+var youtubeCollectPageToken = null;
+var youtubeCollectKeyword = '';
+
+function mergeYoutubeEntries(rawEntries) {
+  rawEntries.forEach(function(e) {
+    if (youtubeCollectKeyword && e.raw.toLowerCase().indexOf(youtubeCollectKeyword) === -1) return;
+    var key = e.name.toLowerCase();
+    youtubeCollectedMap[key] = e; // last comment from this person wins — keeps mentions/raw text current
+  });
+}
+
+function youtubeCollectedCount() {
+  return Object.keys(youtubeCollectedMap).length;
+}
+
+async function startYoutubeCollection() {
   var urlInput = document.getElementById('wizardYoutubeUrl').value;
-  var keyword = document.getElementById('wizardYoutubeKeyword').value.trim().toLowerCase();
   var videoId = extractYoutubeVideoId(urlInput);
-  var btn = document.getElementById('wizardYoutubeFetchBtn');
+  var startBtn = document.getElementById('wizardYoutubeStartBtn');
 
   if (!videoId) {
     showToast(t('toast_youtube_invalid_link'), 'error');
     return;
   }
 
-  setBtnLoading(btn, true);
+  youtubeCollectKeyword = document.getElementById('wizardYoutubeKeyword').value.trim().toLowerCase();
+  youtubeCollectedMap = {};
+  youtubeCollecting = true;
+  youtubeCollectVideoId = videoId;
+  youtubeCollectPageToken = null;
+
+  setBtnLoading(startBtn, true);
   setYoutubeFetchStatus('', false);
   setYoutubeLoading(true, 'Connexion à YouTube…');
 
   try {
-    // Step 1: check whether this video is an active livestream — that
-    // changes which endpoint we need to read comments from.
     var videoInfoUrl = 'https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=' + videoId + '&key=' + YOUTUBE_API_KEY;
     var videoResp = await fetch(videoInfoUrl);
     var videoData = await videoResp.json();
 
-    if (videoData.error) {
-      throw new Error(videoData.error.message || 'Erreur API YouTube');
-    }
-    if (!videoData.items || videoData.items.length === 0) {
-      throw new Error('Vidéo introuvable — vérifie le lien');
-    }
+    if (videoData.error) throw new Error(videoData.error.message || 'Erreur API YouTube');
+    if (!videoData.items || videoData.items.length === 0) throw new Error('Vidéo introuvable — vérifie le lien');
 
     var videoInfo = videoData.items[0];
     var liveChatId = videoInfo.liveStreamingDetails && videoInfo.liveStreamingDetails.activeLiveChatId;
-
-    var rawEntries;
-    if (liveChatId) {
-      setYoutubeLoading(true, 'Live détecté — lecture du tchat en direct…');
-      rawEntries = await fetchYoutubeLiveChat(liveChatId);
-    } else {
-      setYoutubeLoading(true, 'Récupération des commentaires…');
-      rawEntries = await fetchYoutubeVideoComments(videoId);
-    }
-
-    setYoutubeLoading(true, 'Mise en forme des participants…');
-
-    if (keyword) {
-      rawEntries = rawEntries.filter(function(e) { return e.raw.toLowerCase().indexOf(keyword) !== -1; });
-    }
+    youtubeCollectKind = liveChatId ? 'live' : 'video';
+    youtubeCollectLiveChatId = liveChatId || null;
 
     setYoutubeLoading(false);
+    setBtnLoading(startBtn, false);
+    document.getElementById('wizardYoutubeUrl').disabled = true;
+    document.getElementById('wizardYoutubeKeyword').disabled = true;
+    startBtn.style.display = 'none';
+    document.getElementById('wizardYoutubeStopBtn').style.display = 'block';
+    document.getElementById('youtubeCollectingState').style.display = 'block';
 
-    if (rawEntries.length === 0) {
-      setYoutubeFetchStatus('Aucun commentaire trouvé' + (keyword ? ' avec ce mot-clé' : ''), true);
-      setBtnLoading(btn, false);
-      return;
-    }
-
-    setWizardParticipants(rawEntries);
-    setYoutubeFetchStatus('✓ ' + rawEntries.length + ' participant(s) importé(s)', false);
-    document.getElementById('wizardYoutubeStatus').style.color = 'var(--green)';
-    showToast(t('toast_youtube_imported', { count: rawEntries.length }), 'success');
+    await youtubePollOnce();
   } catch (err) {
     console.error('YouTube fetch error:', err);
+    youtubeCollecting = false;
     setYoutubeLoading(false);
     setYoutubeFetchStatus('Erreur : ' + err.message, true);
     showToast(t('toast_youtube_error', { msg: err.message }), 'error');
-  } finally {
-    setBtnLoading(btn, false);
+    setBtnLoading(startBtn, false);
+  }
+}
+
+async function youtubePollOnce() {
+  if (!youtubeCollecting) return;
+  try {
+    if (youtubeCollectKind === 'live') {
+      var result = await fetchYoutubeLiveChat(youtubeCollectLiveChatId, youtubeCollectPageToken);
+      mergeYoutubeEntries(result.entries);
+      youtubeCollectPageToken = result.nextPageToken;
+      renderYoutubeCollectingCount();
+      if (youtubeCollecting) {
+        youtubePollTimeoutId = setTimeout(youtubePollOnce, Math.max(3000, result.pollingIntervalMillis));
+      }
+    } else {
+      var entries = await fetchYoutubeVideoComments(youtubeCollectVideoId);
+      mergeYoutubeEntries(entries);
+      renderYoutubeCollectingCount();
+      if (youtubeCollecting) {
+        // A regular (non-live) video's comments don't arrive nearly as
+        // fast as a live chat — polling every 10s keeps picking up
+        // freshly posted ones without hammering the API for no reason.
+        youtubePollTimeoutId = setTimeout(youtubePollOnce, 10000);
+      }
+    }
+  } catch (err) {
+    console.error('YouTube poll error:', err);
+    // A single failed poll shouldn't kill an otherwise-live collection —
+    // log it and just try again on the next interval rather than
+    // stopping the whole thing on a transient network hiccup.
+    if (youtubeCollecting) {
+      youtubePollTimeoutId = setTimeout(youtubePollOnce, 10000);
+    }
+  }
+}
+
+function renderYoutubeCollectingCount() {
+  var el = document.getElementById('youtubeCollectingCount');
+  if (el) el.textContent = youtubeCollectedCount();
+}
+
+function stopYoutubeCollection() {
+  youtubeCollecting = false;
+  if (youtubePollTimeoutId) { clearTimeout(youtubePollTimeoutId); youtubePollTimeoutId = null; }
+
+  var finalEntries = Object.keys(youtubeCollectedMap).map(function(k) { return youtubeCollectedMap[k]; });
+  setWizardParticipants(finalEntries);
+
+  document.getElementById('wizardYoutubeUrl').disabled = false;
+  document.getElementById('wizardYoutubeKeyword').disabled = false;
+  document.getElementById('wizardYoutubeStartBtn').style.display = 'block';
+  document.getElementById('wizardYoutubeStopBtn').style.display = 'none';
+  document.getElementById('youtubeCollectingState').style.display = 'none';
+
+  if (finalEntries.length === 0) {
+    setYoutubeFetchStatus('Aucun commentaire trouvé' + (youtubeCollectKeyword ? ' avec ce mot-clé' : ''), true);
+  } else {
+    setYoutubeFetchStatus('✓ ' + finalEntries.length + ' participant(s) importé(s)', false);
+    document.getElementById('wizardYoutubeStatus').style.color = 'var(--green)';
+    showToast(t('toast_youtube_imported', { count: finalEntries.length }), 'success');
   }
 }
 
@@ -6285,10 +6399,11 @@ async function fetchYoutubeVideoComments(videoId) {
   return entries;
 }
 
-async function fetchYoutubeLiveChat(liveChatId) {
+async function fetchYoutubeLiveChat(liveChatId, pageToken) {
   var entries = [];
   var url = 'https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId=' + liveChatId +
-    '&part=snippet,authorDetails&maxResults=2000&key=' + YOUTUBE_API_KEY;
+    '&part=snippet,authorDetails&maxResults=2000&key=' + YOUTUBE_API_KEY +
+    (pageToken ? '&pageToken=' + pageToken : '');
   var resp = await fetch(url);
   var data = await resp.json();
 
@@ -6304,7 +6419,7 @@ async function fetchYoutubeLiveChat(liveChatId) {
     entries.push({ name: name, raw: text, mentions: countMentions(text) });
   });
 
-  return entries;
+  return { entries: entries, nextPageToken: data.nextPageToken || null, pollingIntervalMillis: data.pollingIntervalMillis || 8000 };
 }
 
 // ============================================================
