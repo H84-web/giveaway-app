@@ -1717,7 +1717,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
           <li data-i18n="pricing_basic_f1">10 tirages actifs</li>
           <li data-i18n="pricing_basic_f2">500 participants / tirage</li>
         </ul>
-        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('basic', 'monthly')" data-i18n="pricing_start">Commencer</button>
+        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('basic', 'annual')" data-i18n="pricing_start">Commencer</button>
       </div>
       <div class="lp-price-card lp-price-card-featured">
         <span class="lp-price-featured-badge" data-i18n="pricing_popular">Populaire</span>
@@ -1728,7 +1728,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
           <li data-i18n="pricing_medium_f1">25 tirages actifs</li>
           <li data-i18n="pricing_medium_f2">2 000 participants / tirage</li>
         </ul>
-        <button class="lp-btn-primary lp-price-btn" onclick="startProFromLanding('medium', 'monthly')" data-i18n="pricing_start">Commencer</button>
+        <button class="lp-btn-primary lp-price-btn" onclick="startProFromLanding('medium', 'annual')" data-i18n="pricing_start">Commencer</button>
       </div>
       <div class="lp-price-card">
         <span class="lp-price-period" data-i18n="tier_pro">Pro</span>
@@ -1738,7 +1738,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
           <li data-i18n="billing_feature_unlimited_giveaways">Tirages illimités</li>
           <li data-i18n="billing_feature_unlimited_participants">Participants illimités</li>
         </ul>
-        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('pro', 'monthly')" data-i18n="pricing_start">Commencer</button>
+        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('pro', 'annual')" data-i18n="pricing_start">Commencer</button>
       </div>
     </div>
     <p class="lp-pricing-footnote lp-reveal" data-i18n="pricing_footnote">Chaque formule est aussi disponible en 3 mois, 6 mois ou 1 an, avec jusqu'à -37% — choisis la durée une fois connecté(e), dans Paramètres.</p>
@@ -2174,7 +2174,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       <div class="toolbar">
         <div class="search-input-wrap">
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="6.5"/><path d="M18 18l-4-4"/></svg>
-          <input type="text" id="giveawaysSearchInput" class="form-input has-icon" placeholder="Rechercher un tirage..." oninput="renderGiveawaysScreen()" data-i18n-placeholder="search_giveaways_ph" />
+          <input type="text" id="giveawaysSearchInput" class="form-input has-icon" placeholder="Rechercher un tirage..." oninput="renderGiveawaysScreen()" data-i18n-placeholder="search_giveaways_ph" autocomplete="off" name="giveaways-search-not-email" />
         </div>
         <div class="filter-pills" id="giveawaysStatusFilter">
           <button class="filter-pill active" data-status="all" onclick="setGiveawaysFilter('all')" data-i18n="filter_all">Tous</button>
@@ -2214,7 +2214,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       <div class="toolbar">
         <div class="search-input-wrap">
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="6.5"/><path d="M18 18l-4-4"/></svg>
-          <input type="text" id="participantsSearchInput" class="form-input has-icon" placeholder="Rechercher un participant..." oninput="renderParticipantsScreen()" data-i18n-placeholder="search_participants_ph" />
+          <input type="text" id="participantsSearchInput" class="form-input has-icon" placeholder="Rechercher un participant..." oninput="renderParticipantsScreen()" data-i18n-placeholder="search_participants_ph" autocomplete="off" name="participants-search-not-email" />
         </div>
         <select id="participantsGiveawayFilter" class="form-input filter-select" onchange="renderParticipantsScreen()">
           <option value="all" data-i18n="filter_all_giveaways">Tous les tirages</option>
@@ -3140,6 +3140,16 @@ var NAV_LINK_MAP = {
 var PERSISTABLE_SCREENS = ['dashboardScreen', 'giveawaysScreen', 'participantsScreen', 'winnersScreen'];
 
 function showScreen(screenId) {
+  // Leaving the draw screen mid-animation (any of the 6 modes) used to
+  // leave its requestAnimationFrame loop running invisibly forever —
+  // which is exactly how the duck race kept quacking long after the
+  // person had already navigated away. Stopping everything here means
+  // it's caught no matter how someone leaves: a nav click, the wizard,
+  // the hardware back button — all of it funnels through showScreen().
+  if (currentActiveScreen === 'drawScreen' && screenId !== 'drawScreen') {
+    stopAllDrawAnimations();
+  }
+
   ALL_SCREENS.forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -3213,6 +3223,21 @@ window.addEventListener('popstate', function(event) {
   showScreen(screenId);
   isHandlingPopState = false;
 });
+
+// Cancels every game mode's animation loop and stops the live-stats
+// clock — called from showScreen() whenever the person leaves the draw
+// screen while something is still running. requestAnimationFrame loops
+// don't stop themselves just because their canvas is hidden; without
+// this they keep ticking (and, for duck/marble/plinko, keep triggering
+// sound effects) in the background indefinitely.
+function stopAllDrawAnimations() {
+  if (spinFrame) { cancelAnimationFrame(spinFrame); spinFrame = null; }
+  if (duckAnimId) { cancelAnimationFrame(duckAnimId); duckAnimId = null; }
+  if (marbleAnimId) { cancelAnimationFrame(marbleAnimId); marbleAnimId = null; }
+  if (plinkoAnimId) { cancelAnimationFrame(plinkoAnimId); plinkoAnimId = null; }
+  stopLiveStatsTimer();
+  isSpinning = false;
+}
 
 function goBackToMainScreen() {
   // Mirrors the phone's hardware back button: step back in the browser's
@@ -3497,11 +3522,20 @@ function onAuthSuccess(user) {
       localStorage.removeItem('repickwinn-intended-period');
     }
   } catch (e) { /* ignore */ }
+  // Always land on the dashboard right after logging in — a previous
+  // "remember the last screen you were on" behavior here was more
+  // confusing than convenient in practice. The one deliberate exception:
+  // coming straight back from the Instagram OAuth round-trip, which sets
+  // its own one-time flag (see connectInstagramAccount) rather than
+  // reusing that removed general mechanism.
   var lastScreen = 'dashboardScreen';
   try {
-    var saved = localStorage.getItem('repickwinn-last-screen');
-    if (saved && PERSISTABLE_SCREENS.indexOf(saved) !== -1) lastScreen = saved;
-  } catch (e) { /* storage unavailable, ignore */ }
+    var oauthReturnScreen = localStorage.getItem('repickwinn-oauth-return-screen');
+    if (oauthReturnScreen) {
+      lastScreen = oauthReturnScreen;
+      localStorage.removeItem('repickwinn-oauth-return-screen');
+    }
+  } catch (e) { /* ignore */ }
   isHandlingPopState = true; // suppress pushState for this first screen — see replaceState below
   navigateTo(lastScreen);
   isHandlingPopState = false;
@@ -6299,6 +6333,12 @@ function connectInstagramAccount() {
   // repickwinn-last-screen already tracks where the user was (see showScreen),
   // so onAuthSuccess naturally brings them back there after the OAuth
   // round-trip through Instagram's own domain re-loads the app fresh.
+  // A dedicated, one-time flag for this specific round-trip — not the
+  // general "last screen" memory (removed elsewhere; a normal login
+  // always lands on the dashboard now). This one is only ever set right
+  // before leaving for Instagram, and only ever consumed once, right
+  // after coming back — so it can't accidentally affect a normal login.
+  try { localStorage.setItem('repickwinn-oauth-return-screen', 'settingsScreen'); } catch (e) { /* ignore */ }
   window.location.href = authUrl;
 }
 
@@ -7337,7 +7377,7 @@ function wrapText(ctx, text, maxWidth) {
 // WHEEL MODE
 // ============================================================
 var WHEEL_COLORS = ['#FFFFFF', '#5B5BF6'];
-var WHEEL_TEXT_COLORS = ['#16181D', '#FFFFFF'];
+var WHEEL_TEXT_COLORS = ['#16181D', '#FFFFFF']; // kept for anything else that still references it
 
 var wheelCanvasConfigured = false;
 var WHEEL_LOGICAL_SIZE = 480; // bumped up from 320 to use noticeably more screen space
@@ -7384,15 +7424,24 @@ function drawWheel(currentRotation, highlightIndex, list) {
   var segments = (list && list.length > 0) ? list : [{ name: 'ajoute des participants', mentions: 0 }];
   var segAngle = (2 * Math.PI) / segments.length;
 
-  // Past a certain density, individual names can't be read no matter
-  // how big the wheel is (the slice itself is thinner than the text),
-  // and per-segment strokes/text become the main cost of every frame.
-  // Dropping them at high counts keeps the spin smooth and honest
-  // instead of drawing illegible detail nobody can actually see —
-  // the winner's name is always shown clearly at the end regardless
-  // (see the highlight branch below, and the winner ticket after).
-  var showLabels = segments.length <= 90;
-  var showStroke = segments.length <= 220;
+  // Two shades derived from the giveaway's own accent color, both dark
+  // enough for the always-white text (below) to read clearly on either
+  // one — the old scheme alternated a WHITE segment (needing dark text)
+  // with a colored one (needing light text), which is exactly the kind
+  // of inconsistency that made some names hard to read depending on
+  // which segment they landed on.
+  var WHEEL_SEG_COLOR_A = duckShadeColor(currentDrawAccentColor || '#5B5BF6', -25);
+  var WHEEL_SEG_COLOR_B = duckShadeColor(currentDrawAccentColor || '#5B5BF6', -55);
+
+  // Text is always drawn on every segment now — a name with no
+  // separator and no visible label is what looked broken, not a
+  // density problem to hide from. Font size keeps shrinking at high
+  // counts (below) so it still fits; a white label plus a dark outline
+  // (ctx.strokeText) keeps it readable regardless of which of the two
+  // segment shades it lands on, instead of swapping text color per
+  // segment like before (inconsistent, and easy to end up low-contrast
+  // on one of the two).
+  var showLabels = true;
 
   ctx.save();
   ctx.translate(cx, cy);
@@ -7407,28 +7456,58 @@ function drawWheel(currentRotation, highlightIndex, list) {
     ctx.moveTo(0, 0);
     ctx.arc(0, 0, radius, startAngle, endAngle);
     ctx.closePath();
-    ctx.fillStyle = isHighlight ? '#F5A524' : (i % 2 === 0 ? '#FFFFFF' : currentDrawAccentColor);
+    ctx.fillStyle = isHighlight ? '#F5A524' : (i % 2 === 0 ? WHEEL_SEG_COLOR_A : WHEEL_SEG_COLOR_B);
     ctx.fill();
-    if (showStroke || isHighlight) {
-      ctx.lineWidth = isHighlight ? 2 : 1.5;
-      ctx.strokeStyle = isHighlight ? '#F5A524' : '#FFFFFF';
-      ctx.stroke();
-    }
 
     if (showLabels || isHighlight) {
       ctx.save();
       ctx.rotate(startAngle + segAngle / 2);
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = isHighlight ? '#16181D' : WHEEL_TEXT_COLORS[i % 2];
-      var fontSize = segments.length > 24 ? 9 : segments.length > 12 ? 11 : 13;
-      ctx.font = '600 ' + fontSize + 'px -apple-system, sans-serif';
+      var fontSize = segments.length > 300 ? 6.5 : segments.length > 120 ? 8 : segments.length > 24 ? 9 : segments.length > 12 ? 11 : 13;
+      ctx.font = '700 ' + fontSize + 'px -apple-system, sans-serif';
       var maxLabelWidth = radius - 30;
       var label = wrapText(ctx, '@' + entry.name, maxLabelWidth);
+      // Dark outline first, then the white/gold fill on top — reads
+      // clearly against either segment shade, and against the gold
+      // highlight too.
+      ctx.lineWidth = isHighlight ? 2.5 : 2;
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineJoin = 'round';
+      ctx.strokeText(label, radius - 12, 0);
+      ctx.fillStyle = isHighlight ? '#16181D' : '#FFFFFF';
       ctx.fillText(label, radius - 12, 0);
       ctx.restore();
     }
   });
+
+  // Separator lines between every single segment, drawn as ONE path with
+  // one stroke() call — cheap regardless of how many segments there
+  // are, unlike stroking each segment individually (which is what
+  // forced dropping separators altogether at high counts before). This
+  // always runs, so there is always a clean line between every name.
+  ctx.beginPath();
+  for (var s = 0; s < segments.length; s++) {
+    var a = s * segAngle;
+    ctx.moveTo(0, 0);
+    ctx.lineTo(radius * Math.cos(a), radius * Math.sin(a));
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Highlighted (winning) segment gets its own bold outline on top, so
+  // it still stands out clearly even with the thin separators everywhere.
+  if (highlightIndex !== null && highlightIndex !== undefined) {
+    var hi = highlightIndex;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, radius, hi * segAngle, (hi + 1) * segAngle);
+    ctx.closePath();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#F5A524';
+    ctx.stroke();
+  }
 
   ctx.restore();
 
@@ -8185,7 +8264,7 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
   var duration = (durationSeconds || 4) * 1000;
   var startTime = performance.now();
   var finished = false;
-  var overshootUntil = null; // set once the winner crosses; keeps animating a bit longer so it visibly swims past the line
+  var finishedSoundPlayed = false;
   var FINISH = 100;
   var FLAG_POSITION = DUCK_FLAG_POSITION;
   var SPRINT_START = 0.72; // race stays genuinely unpredictable before this point — see below
@@ -8235,39 +8314,22 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
     var dtFrac = Math.max(0, elapsed - lastElapsed) / duration; // this frame's slice of the total race
     var bw = timeProgress <= SPRINT_START ? 0 : smoothstep((timeProgress - SPRINT_START) / (1 - SPRINT_START));
 
-    // Timing/correctness is driven by guaranteedPos, never by the
-    // wobbly visual one — so an early speed swing can never falsely end
-    // the round for the wrong duck. A short overshoot window afterward
-    // keeps the animation running a little longer so the winner visibly
-    // swims past the flag instead of freezing exactly on it.
-    var winnerGEased = Math.pow(Math.min(timeProgress * speedFactors[actualWinnerIndex], 1), 1.7);
-    var winnerGuaranteed = Math.min(winnerGEased * FINISH, FINISH);
-    var winnerHasCrossed = finished || winnerGuaranteed >= FLAG_POSITION;
-
+    // The finish is now decided by the winner's own REAL, DRAWN position
+    // reaching the line — never by an invisible timing track. That
+    // "guaranteed" track used to end the round the instant an abstract
+    // formula crossed 70%, even if the winner's actual on-screen duck
+    // hadn't gotten there yet — which is exactly how the round could end
+    // with the winner not visibly at the flag at all. Now there's only
+    // one measure of "did the winner finish", and it's the one drawn on
+    // screen, so the two can never disagree again.
     for (var i = 0; i < duckCount; i++) {
-      var gEased = Math.pow(Math.min(timeProgress * speedFactors[i], 1), 1.7);
-      guaranteedPos[i] = Math.min(gEased * FINISH, FINISH);
-
       var sprintBoost = 1;
       if (bw > 0) sprintBoost = i === actualWinnerIndex ? (1 + bw * 1.3) : Math.max(0.35, 1 - bw * 0.45);
 
       var mult = speedMultiplier(i, timeProgress) * sprintBoost;
       var prevPos = duckPositions[i];
       duckPositions[i] = Math.min(duckPositions[i] + mult * dtFrac * 82, FINISH); // *82 ≈ average pace needed to comfortably reach FLAG_POSITION by the end
-
-      // Hard rule, not just a speed suggestion: NOBODY is allowed to
-      // visually reach the finish line before the actual winner's
-      // official crossing fires above — otherwise an early lucky speed
-      // swing (this is a genuinely wobbly race pre-sprint) could let a
-      // random duck sail across the flag first while the round quietly
-      // keeps running for the "real" winner, which looked exactly like
-      // the wrong duck won. Once winnerHasCrossed, the cap lifts for
-      // the winner only, so it — and only it — actually swims past.
-      if (i === actualWinnerIndex) {
-        if (!winnerHasCrossed) duckPositions[i] = Math.min(duckPositions[i], FLAG_POSITION);
-      } else {
-        duckPositions[i] = Math.min(duckPositions[i], FLAG_POSITION - 0.6);
-      }
+      guaranteedPos[i] = duckPositions[i]; // kept only for any other code that still reads this array
 
       // Spawn a small water-splash trail behind each duck while it's
       // actively moving — purely cosmetic, capped so it never piles up.
@@ -8275,6 +8337,31 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
         spawnDuckSplash(i, duckCount);
       }
     }
+
+    // Hard rule: NOBODY is allowed to visually reach the finish line
+    // before the winner's own real position gets there first — checked
+    // against the winner's un-clamped position above, then enforced here.
+    if (!finished && duckPositions[actualWinnerIndex] >= FLAG_POSITION) {
+      finished = true;
+    }
+    // On top of the line itself, non-winners are also tethered to stay
+    // close behind the winner's OWN current position — without this, an
+    // absolute cap alone let non-winners reach and then just sit right at
+    // the edge for a stretch while the real winner was still catching up
+    // from well behind, which looked exactly like several ducks were
+    // "waiting at the finish line" for no reason before an unrelated one
+    // got crowned. Tethering keeps the whole field visibly close the
+    // entire time, so the winner is seen pulling ahead at the very end
+    // instead of seeming to catch up from nowhere.
+    var winnerPos = duckPositions[actualWinnerIndex];
+    for (var j = 0; j < duckCount; j++) {
+      if (j === actualWinnerIndex) {
+        if (!finished) duckPositions[j] = Math.min(duckPositions[j], FLAG_POSITION);
+      } else {
+        duckPositions[j] = Math.min(duckPositions[j], FLAG_POSITION - 0.6, winnerPos + 4);
+      }
+    }
+
     updateDuckSplashes(elapsed - lastElapsed);
     lastElapsed = elapsed;
 
@@ -8283,8 +8370,8 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
       nextAmbientQuackAt = elapsed + 450 + Math.random() * 550;
     }
 
-    if (!finished && winnerHasCrossed) {
-      finished = true;
+    if (finished && !finishedSoundPlayed) {
+      finishedSoundPlayed = true;
       playDuckQuack();
     }
 
@@ -9679,8 +9766,10 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
 
     var bw = timeProgress <= SPRINT_START ? 0 : smoothstep((timeProgress - SPRINT_START) / (1 - SPRINT_START));
 
-    var winnerHasCrossed = finished || Math.min(Math.pow(Math.min(timeProgress * speedFactors[actualWinnerIndex], 1), 1.7), 1) >= FINISH_FRACTION;
-
+    // Same fix as the duck race: the finish is decided by the winner's
+    // own real, drawn position — never by an invisible timing formula —
+    // so the round can't end before the winner's marble has actually,
+    // visibly reached the line.
     for (var i = 0; i < count; i++) {
       var gEased = Math.pow(Math.min(timeProgress * speedFactors[i], 1), 1.7);
       guaranteedPos[i] = Math.min(gEased, 1);
@@ -9695,17 +9784,6 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
       var mult = speedMultiplier(i, timeProgress) * sprintBoost;
       positions[i] = Math.min(positions[i] + mult * dtFrac, 1);
 
-      // Same rule as the duck race: nobody's visual position is allowed
-      // to reach the real finish line before the actual winner's
-      // official crossing fires below — otherwise an early speed swing
-      // could let the wrong marble visibly arrive first while the race
-      // quietly kept running for the real winner.
-      if (i === actualWinnerIndex) {
-        if (!winnerHasCrossed) positions[i] = Math.min(positions[i], FINISH_FRACTION);
-      } else {
-        positions[i] = Math.min(positions[i], FINISH_FRACTION - 0.006);
-      }
-
       // Fire the clink the instant this marble's drawn position actually
       // passes an obstacle — sound tied to a real visual event.
       for (var o = 0; o < MARBLE_OBSTACLES.length; o++) {
@@ -9716,9 +9794,21 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
       }
     }
 
-    if (!finished && winnerHasCrossed) {
+    if (!finished && positions[actualWinnerIndex] >= FINISH_FRACTION) {
       finished = true;
       playMarbleWinChime();
+    }
+    // Same tethering fix as the duck race: non-winners stay close behind
+    // the winner's own current position, not just under an absolute cap —
+    // otherwise they can reach and sit right at the edge while the real
+    // winner is still catching up from well behind.
+    var winnerPos = positions[actualWinnerIndex];
+    for (var k = 0; k < count; k++) {
+      if (k === actualWinnerIndex) {
+        if (!finished) positions[k] = Math.min(positions[k], FINISH_FRACTION);
+      } else {
+        positions[k] = Math.min(positions[k], FINISH_FRACTION - 0.006, winnerPos + 0.04);
+      }
     }
 
     drawMarbleScene(positions, finished ? actualWinnerIndex : null, elapsed, table);
