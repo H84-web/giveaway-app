@@ -546,6 +546,8 @@ button { font-family: inherit; }
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 .form-input.has-icon { padding-left: 40px; }
+input[type="search"].form-input { -webkit-appearance: none; appearance: none; } /* strips the native search "x" clear icon so it matches every other field */
+input[type="search"].form-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px var(--accent-soft); background: #fff; }
 .form-input.input-error { border-color: var(--red); }
 .form-input.input-error:focus { box-shadow: 0 0 0 3.5px rgba(239,68,68,0.12); }
@@ -817,10 +819,11 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 .avatar-picker { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .youtube-collecting-state {
-  display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft);
+  font-size: 13px; color: var(--ink-soft);
   background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 10px;
   padding: 10px 12px; margin-top: 12px;
 }
+.youtube-collecting-header { display: flex; align-items: center; gap: 8px; }
 .youtube-collecting-dot {
   width: 8px; height: 8px; border-radius: 50%; background: #22C55E; flex: 0 0 auto;
   animation: youtubeCollectPulse 1.4s ease-in-out infinite;
@@ -828,6 +831,20 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 @keyframes youtubeCollectPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(0.7); }
+}
+.youtube-collecting-names { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; max-height: 110px; overflow-y: auto; }
+.youtube-collecting-chip {
+  display: inline-flex; align-items: center; gap: 5px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 99px; padding: 4px 10px 4px 5px; font-size: 12px; font-weight: 600; color: var(--ink);
+  animation: youtubeChipIn 0.3s ease-out;
+}
+.youtube-collecting-chip-avatar {
+  width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: #fff; flex: 0 0 auto;
+}
+@keyframes youtubeChipIn {
+  from { opacity: 0; transform: scale(0.7) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 .youtube-loading {
   margin-top: 14px; padding: 16px; background: #F8F8FB; border-radius: var(--radius);
@@ -2187,7 +2204,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       <div class="toolbar">
         <div class="search-input-wrap">
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="6.5"/><path d="M18 18l-4-4"/></svg>
-          <input type="text" id="giveawaysSearchInput" class="form-input has-icon" placeholder="Rechercher un tirage..." oninput="renderGiveawaysScreen()" data-i18n-placeholder="search_giveaways_ph" autocomplete="off" name="giveaways-search-not-email" />
+          <input type="search" id="giveawaysSearchInput" class="form-input has-icon" placeholder="Rechercher un tirage..." oninput="renderGiveawaysScreen()" data-i18n-placeholder="search_giveaways_ph" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" name="q-giveaways-88213" />
         </div>
         <div class="filter-pills" id="giveawaysStatusFilter">
           <button class="filter-pill active" data-status="all" onclick="setGiveawaysFilter('all')" data-i18n="filter_all">Tous</button>
@@ -2227,7 +2244,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       <div class="toolbar">
         <div class="search-input-wrap">
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="6.5"/><path d="M18 18l-4-4"/></svg>
-          <input type="text" id="participantsSearchInput" class="form-input has-icon" placeholder="Rechercher un participant..." oninput="renderParticipantsScreen()" data-i18n-placeholder="search_participants_ph" autocomplete="off" name="participants-search-not-email" />
+          <input type="search" id="participantsSearchInput" class="form-input has-icon" placeholder="Rechercher un participant..." oninput="renderParticipantsScreen()" data-i18n-placeholder="search_participants_ph" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" name="q-participants-77104" />
         </div>
         <select id="participantsGiveawayFilter" class="form-input filter-select" onchange="renderParticipantsScreen()">
           <option value="all" data-i18n="filter_all_giveaways">Tous les tirages</option>
@@ -2564,8 +2581,11 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
           </button>
 
           <div id="youtubeCollectingState" class="youtube-collecting-state" style="display:none;">
-            <span class="youtube-collecting-dot"></span>
-            <span data-i18n="youtube_collecting_label">Collecte en cours</span> — <strong><span id="youtubeCollectingCount">0</span></strong> <span data-i18n="youtube_collecting_found">participant(s) trouvé(s)</span>
+            <div class="youtube-collecting-header">
+              <span class="youtube-collecting-dot"></span>
+              <span data-i18n="youtube_collecting_label">Collecte en cours</span> — <strong><span id="youtubeCollectingCount">0</span></strong> <span data-i18n="youtube_collecting_found">participant(s) trouvé(s)</span>
+            </div>
+            <div class="youtube-collecting-names" id="youtubeCollectingNames"></div>
           </div>
 
           <div id="youtubeLoadingState" class="youtube-loading" style="display:none;">
@@ -3176,6 +3196,7 @@ function showScreen(screenId) {
   if (currentActiveScreen === 'wizardScreen' && screenId !== 'wizardScreen' && youtubeCollecting) {
     youtubeCollecting = false;
     if (youtubePollTimeoutId) { clearTimeout(youtubePollTimeoutId); youtubePollTimeoutId = null; }
+    if (youtubeRevealTimerId) { clearInterval(youtubeRevealTimerId); youtubeRevealTimerId = null; }
   }
 
   ALL_SCREENS.forEach(function(id) {
@@ -5868,6 +5889,14 @@ function escapeHtml(str) {
 // WIZARD
 // ============================================================
 function startWizard() {
+  // In case a YouTube collection from a previous giveaway was somehow
+  // still running (shouldn't normally happen given showScreen's own
+  // cleanup, but cheap to guarantee here too).
+  youtubeCollecting = false;
+  if (youtubePollTimeoutId) { clearTimeout(youtubePollTimeoutId); youtubePollTimeoutId = null; }
+  if (youtubeRevealTimerId) { clearInterval(youtubeRevealTimerId); youtubeRevealTimerId = null; }
+  youtubeRevealQueue = [];
+  youtubeCollectedMap = {};
   wizardData = { title: '', endDate: '', imageFile: null, imageUrl: null, accentColor: '#5B5BF6', participants: [], removeDuplicates: true, minMentions: 0, requiredKeyword: '', excludeKeyword: '', mode: 'wheel', duration: 4, winnerCount: 1 };
   wizardStepIndex = 1;
   document.getElementById('wizardTitle').value = '';
@@ -5876,6 +5905,22 @@ function startWizard() {
   removeWizardImage();
   renderWizardColorPicker('#5B5BF6');
   document.getElementById('wizardRawText').value = '';
+  // The import tabs (YouTube link/keyword, Google Sheets link) used to
+  // hang onto whatever was typed for the PREVIOUS giveaway — starting a
+  // new one now always begins from a clean slate on every import method,
+  // not just the default "paste a list" tab.
+  document.getElementById('wizardYoutubeUrl').value = '';
+  document.getElementById('wizardYoutubeKeyword').value = '';
+  document.getElementById('wizardYoutubeUrl').disabled = false;
+  document.getElementById('wizardYoutubeKeyword').disabled = false;
+  document.getElementById('wizardYoutubeStartBtn').style.display = 'block';
+  document.getElementById('wizardYoutubeStopBtn').style.display = 'none';
+  document.getElementById('youtubeCollectingState').style.display = 'none';
+  document.getElementById('wizardYoutubeStatus').style.display = 'none';
+  document.getElementById('wizardSheetsUrl').value = '';
+  document.getElementById('wizardSheetsStatus').style.display = 'none';
+  document.getElementById('wizardCsvInput').value = '';
+  wizardSwitchTab('paste');
   document.getElementById('wizardRemoveDup').checked = true;
   document.getElementById('wizardMinMentions').value = 0;
   document.getElementById('wizardWinnerCount').value = 1;
@@ -6244,12 +6289,52 @@ var youtubeCollectLiveChatId = null;
 var youtubeCollectPageToken = null;
 var youtubeCollectKeyword = '';
 
+// New names discovered by a poll aren't shown all at once — they queue
+// up and reveal one per second (revealYoutubeNamesTick, below) so the
+// list of chips visibly grows in real time instead of jumping by a
+// batch of 20+ every 8-10 seconds when a poll happens to land.
+var youtubeRevealQueue = [];
+var youtubeRevealTimerId = null;
+
 function mergeYoutubeEntries(rawEntries) {
   rawEntries.forEach(function(e) {
     if (youtubeCollectKeyword && e.raw.toLowerCase().indexOf(youtubeCollectKeyword) === -1) return;
     var key = e.name.toLowerCase();
+    if (!youtubeCollectedMap[key]) youtubeRevealQueue.push(e.name);
     youtubeCollectedMap[key] = e; // last comment from this person wins — keeps mentions/raw text current
   });
+  if (!youtubeRevealTimerId && youtubeRevealQueue.length > 0) {
+    youtubeRevealTimerId = setInterval(revealYoutubeNamesTick, 1000);
+  }
+}
+
+function revealYoutubeNamesTick() {
+  var name = youtubeRevealQueue.shift();
+  if (name) addYoutubeNameChip(name);
+  if (youtubeRevealQueue.length === 0) {
+    clearInterval(youtubeRevealTimerId);
+    youtubeRevealTimerId = null;
+  }
+}
+
+function addYoutubeNameChip(name) {
+  var container = document.getElementById('youtubeCollectingNames');
+  if (!container) return;
+  var color = DUCK_COLORS[container.children.length % DUCK_COLORS.length];
+  var chip = document.createElement('span');
+  chip.className = 'youtube-collecting-chip';
+  chip.innerHTML =
+    '<span class="youtube-collecting-chip-avatar" style="background:' + color + ';">' +
+    escapeHtml((name || '?').charAt(0).toUpperCase()) + '</span>' +
+    escapeHtml(name);
+  container.appendChild(chip);
+  container.scrollTop = container.scrollHeight;
+  // The visible count tracks chips actually revealed so far, not the raw
+  // internal total — otherwise the number would jump instantly to the
+  // full new batch while the names underneath were still trickling in
+  // one by one, which looked out of sync with the one-per-second reveal.
+  var countEl = document.getElementById('youtubeCollectingCount');
+  if (countEl) countEl.textContent = container.children.length;
 }
 
 function youtubeCollectedCount() {
@@ -6268,6 +6353,10 @@ async function startYoutubeCollection() {
 
   youtubeCollectKeyword = document.getElementById('wizardYoutubeKeyword').value.trim().toLowerCase();
   youtubeCollectedMap = {};
+  youtubeRevealQueue = [];
+  if (youtubeRevealTimerId) { clearInterval(youtubeRevealTimerId); youtubeRevealTimerId = null; }
+  var namesContainer = document.getElementById('youtubeCollectingNames');
+  if (namesContainer) namesContainer.innerHTML = '';
   youtubeCollecting = true;
   youtubeCollectVideoId = videoId;
   youtubeCollectPageToken = null;
@@ -6315,14 +6404,12 @@ async function youtubePollOnce() {
       var result = await fetchYoutubeLiveChat(youtubeCollectLiveChatId, youtubeCollectPageToken);
       mergeYoutubeEntries(result.entries);
       youtubeCollectPageToken = result.nextPageToken;
-      renderYoutubeCollectingCount();
       if (youtubeCollecting) {
         youtubePollTimeoutId = setTimeout(youtubePollOnce, Math.max(3000, result.pollingIntervalMillis));
       }
     } else {
       var entries = await fetchYoutubeVideoComments(youtubeCollectVideoId);
       mergeYoutubeEntries(entries);
-      renderYoutubeCollectingCount();
       if (youtubeCollecting) {
         // A regular (non-live) video's comments don't arrive nearly as
         // fast as a live chat — polling every 10s keeps picking up
@@ -8265,7 +8352,7 @@ function initDuckCanvas(pool) {
 
   var duckCount = Math.max(1, Math.min(pool.length, MAX_DUCKS));
   var laneHeight = duckCount <= 3 ? 92 : duckCount <= 5 ? 76 : duckCount <= 6 ? 64 : 54;
-  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(700, window.innerHeight - 340) : 560;
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(820, window.innerHeight - 300) : 560;
   var displayHeight = Math.min(maxHeight, Math.max(300, duckCount * laneHeight + 90));
 
   var dpr = window.devicePixelRatio || 1;
@@ -8543,7 +8630,7 @@ function drawDuckScene(elapsed, winnerIndex) {
   // multi-row "swarm" — enough rows to keep each one a reasonable size,
   // with 2–3 ducks per row spread out a little so they don't fully stack.
   var useSwarm = duckCount > MAX_DUCKS_SMALL;
-  var rows = useSwarm ? Math.max(6, Math.min(duckCount, Math.round(Math.sqrt(duckCount * 1.6)))) : duckCount;
+  var rows = useSwarm ? Math.max(5, Math.min(duckCount, Math.round(Math.sqrt(duckCount * 1.1)))) : duckCount; // fewer, taller rows = each duck gets noticeably more breathing room than before
   var perRow = Math.ceil(duckCount / rows);
   var rowH = (waterBottom - waterTop) / rows;
   var duckSize = Math.max(9, Math.min(22, rowH * 0.3));
@@ -8670,7 +8757,14 @@ function drawDuckScene(elapsed, winnerIndex) {
     var laneCenterY = waterTop + row * rowH + rowH / 2 + ((col % 3) - 1) * (rowH * 0.16);
     var progress = duckPositions[i] / 100;
     var x = trackStart + progress * (duckMaxX - trackStart);
-    return { x: x, y: laneCenterY };
+    // Ducks sharing a row (there can be several per row once the field is
+    // large) also get a small, per-duck horizontal stagger — without it,
+    // any two ducks with similar progress (very common early in the race,
+    // or once several are clamped near the same cap) land almost exactly
+    // on top of each other, which is what looked like one packed blob
+    // with no visible separation between them.
+    var xJitter = ((i * 37) % 7 - 3) * (duckSize * 0.45);
+    return { x: x + xJitter, y: laneCenterY };
   }
 
   // Water-splash particles, behind the ducks.
