@@ -262,6 +262,43 @@ button { font-family: inherit; }
 @media (min-width: 1200px) { .lp-hero-title { font-size: 68px; } }
 
 /* ---- Trust / compatibility strip ---- */
+.lp-quick-trust {
+  max-width: 1180px; margin: 0 auto; padding: 8px 24px 32px;
+  display: grid; grid-template-columns: 1fr; gap: 18px;
+}
+.lp-quick-trust-item { display: flex; align-items: flex-start; gap: 12px; }
+.lp-quick-trust-icon {
+  width: 40px; height: 40px; border-radius: 12px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.lp-quick-trust-item div { display: flex; flex-direction: column; gap: 2px; }
+.lp-quick-trust-item strong { font-size: 14px; font-weight: 700; color: var(--lp-ink); }
+.lp-quick-trust-item span { font-size: 12.5px; color: rgba(var(--lp-ink-rgb),0.55); line-height: 1.4; }
+@media (min-width: 800px) { .lp-quick-trust { grid-template-columns: repeat(4, 1fr); } }
+
+.lp-social-proof {
+  max-width: 1180px; margin: 28px auto; padding: 16px 20px; border-radius: 14px;
+  background: rgba(var(--lp-border-rgb),0.04); border: 1px solid rgba(var(--lp-border-rgb),0.08);
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.lp-social-proof-icon {
+  width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  background: var(--lp-accent-text); color: #fff; font-size: 15px;
+}
+.lp-social-proof-copy { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 200px; }
+.lp-social-proof-copy strong { font-size: 14px; font-weight: 700; color: var(--lp-ink); }
+.lp-social-proof-copy span { font-size: 12.5px; color: rgba(var(--lp-ink-rgb),0.55); }
+.lp-social-proof-avatars { display: flex; align-items: center; }
+.lp-social-avatar {
+  width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff; border: 2px solid var(--lp-card); margin-left: -8px;
+}
+.lp-social-avatar:first-child { margin-left: 0; }
+.lp-social-proof-count {
+  background: var(--lp-accent-text); color: #fff; font-size: 11px; font-weight: 800; border-radius: 99px;
+  padding: 0 8px; height: 32px; display: flex; align-items: center; margin-left: -8px; border: 2px solid var(--lp-card);
+}
+
 .lp-trust-strip { padding: 14px 24px; border-top: 1px solid rgba(var(--lp-border-rgb),0.07); border-bottom: 1px solid rgba(var(--lp-border-rgb),0.07); text-align: left; max-width: 1180px; margin: 0 auto; }
 .lp-trust-label { display: block; font-size: 12px; color: rgba(var(--lp-ink-rgb),0.45); margin-bottom: 12px; font-weight: 500; }
 .lp-trust-platforms { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 10px; font-size: 14px; font-weight: 600; color: rgba(var(--lp-ink-rgb),0.7); }
@@ -811,6 +848,19 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 .draw-mode-icon { font-size: 16px; }
 .draw-stage { width: 100%; display: flex; flex-direction: column; align-items: center; }
 .card-section-title { font-size: 12px; font-weight: 700; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.card-header-icon { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.card-header-icon .card-icon {
+  width: 38px; height: 38px; border-radius: 11px; flex: 0 0 auto; font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+}
+.card-header-icon .card-section-title { font-size: 15px; text-transform: none; letter-spacing: normal; font-weight: 700; color: var(--ink); margin: 0 0 3px; }
+.card-header-icon .card-section-sub { font-size: 12.5px; color: var(--muted); margin: 0; line-height: 1.4; }
+.card-plan-badge {
+  margin-left: auto; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
+  padding: 4px 10px; border-radius: 99px; white-space: nowrap; flex: 0 0 auto;
+}
+.row-chevron { color: var(--muted); font-size: 13px; margin-left: 6px; }
+.btn-lock-icon { margin-left: 6px; opacity: 0.85; }
 
 .profile-avatar-row { display: flex; align-items: center; gap: 14px; }
 .profile-name { font-size: 16px; font-weight: 700; }
@@ -1377,6 +1427,8 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 }
 .billing-period-tab:hover { border-color: var(--accent); }
 .billing-period-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.billing-period-tab-save { display: block; font-size: 9.5px; font-weight: 800; color: #16A34A; margin-top: 1px; }
+.billing-period-tab.active .billing-period-tab-save { color: #D1FAE5; }
 .billing-save-badge {
   display: inline-block; background: rgba(34,197,94,0.15); color: #16A34A; font-size: 11px; font-weight: 800;
   padding: 3px 9px; border-radius: 99px; margin: 0 0 10px 8px; vertical-align: middle;
@@ -1579,6 +1631,26 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
     </div>
   </header>
 
+  <!-- ============ QUICK TRUST ICONS ============ -->
+  <section class="lp-quick-trust lp-reveal">
+    <div class="lp-quick-trust-item">
+      <span class="lp-quick-trust-icon" style="background:rgba(139,92,246,0.12); color:#8B5CF6;">👥</span>
+      <div><strong data-i18n="quick_trust1_title">100% Équitable</strong><span data-i18n="quick_trust1_text">Tirages au sort transparents et impartiaux.</span></div>
+    </div>
+    <div class="lp-quick-trust-item">
+      <span class="lp-quick-trust-icon" style="background:rgba(59,130,246,0.12); color:#3B82F6;">🛡️</span>
+      <div><strong data-i18n="quick_trust2_title">Sécurisé</strong><span data-i18n="quick_trust2_text">Données protégées, conformité assurée.</span></div>
+    </div>
+    <div class="lp-quick-trust-item">
+      <span class="lp-quick-trust-icon" style="background:rgba(34,197,94,0.12); color:#22C55E;">⚡</span>
+      <div><strong data-i18n="quick_trust3_title">Rapide</strong><span data-i18n="quick_trust3_text">Crée et lance ton giveaway en minutes.</span></div>
+    </div>
+    <div class="lp-quick-trust-item">
+      <span class="lp-quick-trust-icon" style="background:rgba(236,72,153,0.12); color:#EC4899;">📈</span>
+      <div><strong data-i18n="quick_trust4_title">Performant</strong><span data-i18n="quick_trust4_text">Attire plus de monde et booste l'engagement.</span></div>
+    </div>
+  </section>
+
   <!-- ============ TRUST / COMPATIBILITY STRIP ============ -->
   <section class="lp-trust-strip lp-reveal">
     <span class="lp-trust-label" data-i18n="trust_strip_label">Conçu pour les créateurs, marques et communautés</span>
@@ -1587,6 +1659,21 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       <span class="lp-platform-yt">YouTube</span><span class="lp-trust-dot">·</span>
       <span class="lp-platform-tt">TikTok</span><span class="lp-trust-dot">·</span>
       <span class="lp-platform-dc">Discord</span>
+    </div>
+  </section>
+
+  <!-- ============ SOCIAL PROOF BAR ============ -->
+  <section class="lp-social-proof lp-reveal">
+    <span class="lp-social-proof-icon">🛡️</span>
+    <div class="lp-social-proof-copy">
+      <strong data-i18n="social_proof_title">Des milliers de créateurs nous font déjà confiance</strong>
+      <span data-i18n="social_proof_sub">Rejoins une communauté qui organise mieux et grandit plus vite.</span>
+    </div>
+    <div class="lp-social-proof-avatars">
+      <span class="lp-social-avatar" style="background:#8B5CF6;">A</span>
+      <span class="lp-social-avatar" style="background:#F5716B;">L</span>
+      <span class="lp-social-avatar" style="background:#4ADE80;">S</span>
+      <span class="lp-social-proof-count">+2K</span>
     </div>
   </section>
 
@@ -2298,7 +2385,10 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       <h1 class="page-title" data-i18n="title_settings">Paramètres</h1>
 
       <div class="card">
-        <h3 class="card-section-title" data-i18n="settings_language">Langue</h3>
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:rgba(59,130,246,0.12); color:#3B82F6;">🌐</span>
+          <div><h3 class="card-section-title" data-i18n="settings_language">Langue</h3><p class="card-section-sub" data-i18n="settings_language_sub">Langue de l'application</p></div>
+        </div>
         <div class="theme-toggle-row">
           <span class="form-label" style="margin:0;" data-i18n="settings_language_label">Langue de l'application</span>
           <select id="languageSelect" class="form-input filter-select" style="max-width:180px;" onchange="setLanguage(this.value)">
@@ -2310,7 +2400,10 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       </div>
 
       <div class="card">
-        <h3 class="card-section-title" data-i18n="settings_appearance">Apparence</h3>
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:rgba(139,92,246,0.12); color:#8B5CF6;">🎨</span>
+          <div><h3 class="card-section-title" data-i18n="settings_appearance">Apparence</h3><p class="card-section-sub" data-i18n="settings_appearance_sub">Personnalisez l'apparence de l'application</p></div>
+        </div>
         <div class="theme-toggle-row">
           <span class="form-label" style="margin:0;" data-i18n="settings_theme">Thème</span>
           <div class="theme-switch" id="themeSwitch">
@@ -2321,7 +2414,11 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       </div>
 
       <div class="card" id="billingCard">
-        <h3 class="card-section-title" data-i18n="billing_title">Abonnement</h3>
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:rgba(245,165,36,0.15); color:#F5A524;">👑</span>
+          <div><h3 class="card-section-title" data-i18n="billing_title">Abonnement</h3><p class="card-section-sub" data-i18n="billing_title_sub">Choisissez le plan qui vous convient</p></div>
+          <span class="card-plan-badge" id="billingCurrentPlanBadge" style="display:none;"></span>
+        </div>
         <div id="billingFreeState">
           <p class="hint" style="margin-bottom:14px;" data-i18n="billing_free_desc">Plan gratuit : jusqu'à 3 tirages actifs, 100 participants par tirage.</p>
 
@@ -2332,10 +2429,10 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
           </div>
 
           <div class="billing-period-tabs" id="billingPeriodTabs">
-            <button type="button" class="billing-period-tab active" data-period="monthly" onclick="selectBillingPeriod('monthly')" data-i18n="period_monthly">Mensuel</button>
-            <button type="button" class="billing-period-tab" data-period="quarterly" onclick="selectBillingPeriod('quarterly')" data-i18n="period_quarterly">3 mois</button>
-            <button type="button" class="billing-period-tab" data-period="semiannual" onclick="selectBillingPeriod('semiannual')" data-i18n="period_semiannual">6 mois</button>
-            <button type="button" class="billing-period-tab" data-period="annual" onclick="selectBillingPeriod('annual')" data-i18n="period_annual">1 an</button>
+            <button type="button" class="billing-period-tab active" data-period="monthly" onclick="selectBillingPeriod('monthly')"><span data-i18n="period_monthly">Mensuel</span></button>
+            <button type="button" class="billing-period-tab" data-period="quarterly" onclick="selectBillingPeriod('quarterly')"><span data-i18n="period_quarterly">3 mois</span> <span class="billing-period-tab-save" id="periodSaveQuarterly"></span></button>
+            <button type="button" class="billing-period-tab" data-period="semiannual" onclick="selectBillingPeriod('semiannual')"><span data-i18n="period_semiannual">6 mois</span> <span class="billing-period-tab-save" id="periodSaveSemiannual"></span></button>
+            <button type="button" class="billing-period-tab" data-period="annual" onclick="selectBillingPeriod('annual')"><span data-i18n="period_annual">1 an</span> <span class="billing-period-tab-save" id="periodSaveAnnual"></span></button>
           </div>
 
           <div class="billing-pro-box">
@@ -2348,7 +2445,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
               <li data-i18n="billing_feature_unlimited_participants">Participants illimités</li>
             </ul>
             <button class="btn btn-primary btn-block" id="billingUpgradeBtn" onclick="upgradeToProClicked()">
-              <span class="btn-label" data-i18n="billing_upgrade_btn">Passer Pro (paiement crypto)</span>
+              <span class="btn-label" data-i18n="billing_upgrade_btn">Passer Pro (paiement crypto)</span> <span class="btn-lock-icon">🔒</span>
             </button>
             <button class="link-btn" id="billingRefreshBtn" onclick="refreshBillingStatusClicked()" style="display:block; margin-top:10px; width:100%; text-align:center;" data-i18n="billing_refresh_btn">J'ai payé — vérifier mon statut</button>
           </div>
@@ -2362,16 +2459,20 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       </div>
 
       <div class="card">
-        <h3 class="card-section-title" data-i18n="settings_account">Compte</h3>
-        <p class="empty-state" style="margin-bottom: 14px;" data-i18n="settings_account_desc">Gère ton nom et ta sécurité depuis ton profil.</p>
-        <button class="btn btn-secondary btn-block" onclick="showScreen('profileScreen')" data-i18n="settings_account_btn">Aller à mon profil</button>
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:rgba(59,130,246,0.12); color:#3B82F6;">👤</span>
+          <div><h3 class="card-section-title" data-i18n="settings_account">Compte</h3><p class="card-section-sub" data-i18n="settings_account_desc">Gère ton nom et ta sécurité depuis ton profil.</p></div>
+        </div>
+        <button class="btn btn-secondary btn-block" onclick="showScreen('profileScreen')" data-i18n="settings_account_btn">Aller à mon profil <span class="row-chevron">›</span></button>
       </div>
 
       <div class="card">
-        <h3 class="card-section-title" data-i18n="settings_connected">Comptes connectés</h3>
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:rgba(236,72,153,0.12); color:#EC4899;">🔗</span>
+          <div><h3 class="card-section-title" data-i18n="settings_connected">Comptes connectés</h3><p class="card-section-sub" data-i18n="settings_ig_desc">Connecte ton compte Instagram Business pour pouvoir importer les commentaires de tes posts lors des tirages.</p></div>
+        </div>
         <div id="settingsInstagramNotConnected">
-          <p class="hint" style="margin-bottom:14px;" data-i18n="settings_ig_desc">Connecte ton compte Instagram Business pour pouvoir importer les commentaires de tes posts lors des tirages.</p>
-          <button class="btn btn-secondary btn-block" onclick="connectInstagramAccount()" data-i18n="settings_ig_connect">Connecter Instagram</button>
+          <button class="btn btn-secondary btn-block" onclick="connectInstagramAccount()" data-i18n="settings_ig_connect">Connecter Instagram <span class="row-chevron">›</span></button>
         </div>
         <div id="settingsInstagramConnected" style="display:none;">
           <div class="theme-toggle-row">
@@ -2382,7 +2483,10 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       </div>
 
       <div class="card">
-        <h3 class="card-section-title" data-i18n="settings_notif_title">Notifications</h3>
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:rgba(249,115,22,0.12); color:#F97316;">🔔</span>
+          <div><h3 class="card-section-title" data-i18n="settings_notif_title">Notifications</h3><p class="card-section-sub" data-i18n="settings_notif_label">Recevoir un email quand un gagnant est désigné</p></div>
+        </div>
         <div class="theme-toggle-row">
           <span class="form-label" style="margin:0;" data-i18n="settings_notif_label">Recevoir un email quand un gagnant est désigné</span>
           <label class="switch-toggle">
@@ -2394,7 +2498,10 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       </div>
 
       <div class="card">
-        <h3 class="card-section-title" data-i18n="settings_legal_title">Légal</h3>
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:rgba(100,116,139,0.12); color:#64748B;">🛡️</span>
+          <div><h3 class="card-section-title" data-i18n="settings_legal_title">Légal</h3><p class="card-section-sub" data-i18n="settings_legal_sub">Documents légaux et confidentialité</p></div>
+        </div>
         <div class="legal-links-row">
           <button type="button" class="legal-link-btn" onclick="openLegalScreen('terms')" data-i18n="legal_terms">CGU</button>
           <button type="button" class="legal-link-btn" onclick="openLegalScreen('privacy')" data-i18n="legal_privacy">Confidentialité</button>
@@ -2404,7 +2511,10 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
       </div>
 
       <div class="card card-danger-zone">
-        <h3 class="card-section-title" data-i18n="settings_danger_title">Zone de danger</h3>
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:rgba(239,68,68,0.12); color:#EF4444;">🗑️</span>
+          <div><h3 class="card-section-title" data-i18n="settings_danger_title">Zone de danger</h3></div>
+        </div>
         <p class="empty-state" style="margin-bottom: 14px;" data-i18n="settings_danger_text">Supprime définitivement ton compte et toutes tes données (tirages, participants, historique). Cette action est irréversible.</p>
         <button class="btn btn-danger btn-block" onclick="openDeleteAccountConfirm()" data-i18n="btn_delete_account">Supprimer mon compte</button>
       </div>
@@ -4639,6 +4749,21 @@ var TRANSLATIONS = {
     "youtube_stop_btn": "Terminer la collecte",
     "youtube_collecting_label": "Collecte en cours",
     "youtube_collecting_found": "participant(s) trouvé(s)",
+    "quick_trust1_title": "100% Équitable",
+    "quick_trust1_text": "Tirages au sort transparents et impartiaux.",
+    "quick_trust2_title": "Sécurisé",
+    "quick_trust2_text": "Données protégées, conformité assurée.",
+    "quick_trust3_title": "Rapide",
+    "quick_trust3_text": "Crée et lance ton giveaway en minutes.",
+    "quick_trust4_title": "Performant",
+    "quick_trust4_text": "Attire plus de monde et booste l'engagement.",
+    "social_proof_title": "Des milliers de créateurs nous font déjà confiance",
+    "social_proof_sub": "Rejoins une communauté qui organise mieux et grandit plus vite.",
+    "settings_language_sub": "Langue de l'application",
+    "settings_appearance_sub": "Personnalisez l'apparence de l'application",
+    "billing_title_sub": "Choisissez le plan qui vous convient",
+    "settings_legal_sub": "Documents légaux et confidentialité",
+    "billing_current_plan": "Plan actuel : {tier}",
     "toast_free_participant_limit": "Plan gratuit limité à {count} participants par tirage — passe Pro pour lever cette limite.",
     "toast_free_giveaway_limit": "Plan gratuit limité à {count} tirages actifs en même temps — passe Pro pour lever cette limite.",
     "legal_last_updated": "Dernière mise à jour : 7 août 2026",
@@ -5071,6 +5196,21 @@ var TRANSLATIONS = {
     "youtube_stop_btn": "Stop collecting",
     "youtube_collecting_label": "Collecting",
     "youtube_collecting_found": "participant(s) found",
+    "quick_trust1_title": "100% Fair",
+    "quick_trust1_text": "Transparent, unbiased random draws.",
+    "quick_trust2_title": "Secure",
+    "quick_trust2_text": "Protected data, compliance guaranteed.",
+    "quick_trust3_title": "Fast",
+    "quick_trust3_text": "Create and launch your giveaway in minutes.",
+    "quick_trust4_title": "High-performing",
+    "quick_trust4_text": "Attract more people and boost engagement.",
+    "social_proof_title": "Thousands of creators already trust us",
+    "social_proof_sub": "Join a community that organizes better and grows faster.",
+    "settings_language_sub": "Application language",
+    "settings_appearance_sub": "Customize the app's appearance",
+    "billing_title_sub": "Choose the plan that suits you",
+    "settings_legal_sub": "Legal documents and privacy",
+    "billing_current_plan": "Current plan: {tier}",
     "toast_free_participant_limit": "Free plan limited to {count} participants per giveaway — upgrade to Pro to remove this limit.",
     "toast_free_giveaway_limit": "Free plan limited to {count} active giveaways at once — upgrade to Pro to remove this limit.",
     "legal_last_updated": "Last updated: August 7, 2026",
@@ -5503,6 +5643,21 @@ var TRANSLATIONS = {
     "youtube_stop_btn": "Sammeln beenden",
     "youtube_collecting_label": "Sammle gerade",
     "youtube_collecting_found": "Teilnehmer gefunden",
+    "quick_trust1_title": "100% Fair",
+    "quick_trust1_text": "Transparente, unparteiische Verlosungen.",
+    "quick_trust2_title": "Sicher",
+    "quick_trust2_text": "Geschützte Daten, garantierte Compliance.",
+    "quick_trust3_title": "Schnell",
+    "quick_trust3_text": "Erstelle und starte dein Giveaway in Minuten.",
+    "quick_trust4_title": "Leistungsstark",
+    "quick_trust4_text": "Gewinne mehr Leute und steigere das Engagement.",
+    "social_proof_title": "Tausende Creator vertrauen uns bereits",
+    "social_proof_sub": "Werde Teil einer Community, die besser organisiert und schneller wächst.",
+    "settings_language_sub": "Sprache der Anwendung",
+    "settings_appearance_sub": "Passe das Erscheinungsbild der App an",
+    "billing_title_sub": "Wähle den passenden Tarif",
+    "settings_legal_sub": "Rechtliche Dokumente und Datenschutz",
+    "billing_current_plan": "Aktueller Tarif: {tier}",
     "toast_free_participant_limit": "Kostenloser Plan auf {count} Teilnehmer pro Verlosung begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "toast_free_giveaway_limit": "Kostenloser Plan auf {count} aktive Verlosungen gleichzeitig begrenzt — upgrade auf Pro, um dieses Limit aufzuheben.",
     "legal_last_updated": "Zuletzt aktualisiert: 7. August 2026",
@@ -7352,6 +7507,18 @@ function renderBillingCard() {
   var pro = isPro();
   freeEl.style.display = pro ? 'none' : 'block';
   proEl.style.display = pro ? 'block' : 'none';
+
+  var planBadge = document.getElementById('billingCurrentPlanBadge');
+  if (planBadge) {
+    if (pro) {
+      planBadge.style.display = 'inline-block';
+      planBadge.textContent = t('billing_current_plan', { tier: t('tier_' + currentSubscription.tier) });
+    } else {
+      planBadge.style.display = 'inline-block';
+      planBadge.textContent = t('billing_current_plan', { tier: t('tier_free') });
+    }
+  }
+
   if (pro) {
     var tierLabelEl = document.getElementById('billingActiveTierLabel');
     if (tierLabelEl) tierLabelEl.textContent = t('tier_' + currentSubscription.tier);
@@ -7416,6 +7583,20 @@ function renderBillingPriceDisplay() {
     var participantsText = limits.participants === Infinity ? t('billing_feature_unlimited_participants') : t('billing_feature_participants', { count: limits.participants });
     featureList.innerHTML = '<li>' + giveawaysText + '</li><li>' + participantsText + '</li>';
   }
+
+  // The savings badge on each period TAB itself (not just the one next to
+  // the selected price) — computed the exact same way, using the
+  // currently-selected TIER's real prices, so it's never a made-up
+  // round number that could drift from what's actually charged.
+  ['quarterly', 'semiannual', 'annual'].forEach(function(p) {
+    var tabEl = document.getElementById('periodSave' + p.charAt(0).toUpperCase() + p.slice(1));
+    if (!tabEl) return;
+    var pMonths = PERIOD_MONTHS[p];
+    var pPrice = TIER_PRICES[selectedTier][p];
+    var pFullPrice = TIER_PRICES[selectedTier].monthly * pMonths;
+    var pSaved = Math.round(100 - (pPrice / pFullPrice) * 100);
+    tabEl.textContent = '-' + pSaved + '%';
+  });
 
   if (months > 1) {
     subEl.style.display = 'block';
