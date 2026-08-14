@@ -8814,7 +8814,7 @@ function drawDuckScene(elapsed, winnerIndex) {
   var rows = useSwarm ? Math.max(5, Math.min(duckCount, Math.round(Math.sqrt(duckCount * 1.1)))) : duckCount; // fewer, taller rows = each duck gets noticeably more breathing room than before
   var perRow = Math.ceil(duckCount / rows);
   var rowH = (waterBottom - waterTop) / rows;
-  var duckSize = Math.max(9, Math.min(22, rowH * 0.3));
+  var duckSize = Math.max(11, Math.min(34, rowH * 0.42)); // bigger, more readable ducks — the old 0.3/22px cap left them small even when there was plenty of room per row
   var trackStart = 34;
   var duckMaxX = w - 26;                                   // rightmost a duck can swim, near the canvas edge
   var flagX = trackStart + (duckMaxX - trackStart) * (DUCK_FLAG_POSITION / 100);  // checkered line sits before the end, so the winner visibly swims past it
@@ -9833,13 +9833,31 @@ function drawPlinkoScene(path, row, rowT, settled) {
   // Peg field — a symmetric quincunx grid on the exact same coordinate
   // system as the ball's path (see levelX above).
   var rowH = (boardBottom - boardTop) / (pegRows + 1);
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  var PEG_RADIUS = 5;
+  var BALL_RADIUS = 7;
+  // The ball rests ON TOP of a peg at each contact point rather than
+  // passing through its center — that gap is exactly the difference
+  // between "the ball visibly bounces off the pegs" and "the ball
+  // slides through them", which is what it looked like before.
+  var contactOffset = PEG_RADIUS + BALL_RADIUS;
+
   for (var r = 1; r <= pegRows; r++) {
     var y = boardTop + r * rowH;
     for (var p = 0; p <= r; p++) {
       var x = levelX(r, p);
+      // Pegs get a little dimension (shadow + highlight) so a ball
+      // sitting on one reads as a real contact, not an overlap.
       ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.arc(x, y + 1, PEG_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, PEG_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = '#D8DCF0';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x - PEG_RADIUS * 0.3, y - PEG_RADIUS * 0.3, PEG_RADIUS * 0.35, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.fill();
     }
   }
@@ -9872,27 +9890,48 @@ function drawPlinkoScene(path, row, rowT, settled) {
   var ballX, ballY;
   if (!path || row < 0) {
     ballX = w / 2;
-    ballY = boardTop - 14;
+    ballY = boardTop - contactOffset;
+  } else if (row >= pegRows) {
+    // Past the last peg row: drop straight down into the slot.
+    ballX = levelX(pegRows, path[pegRows]);
+    var restY = boardTop + pegRows * rowH - contactOffset;
+    ballY = restY + (boardBottom - 14 - restY) * rowT;
   } else {
     var fromCol = path[row];
-    var toCol = row < pegRows ? path[row + 1] : path[row];
+    var toCol = path[row + 1];
     var fromX = levelX(row, fromCol);
-    var toX = row < pegRows ? levelX(row + 1, toCol) : levelX(pegRows, toCol);
-    var y0 = boardTop + row * rowH;
-    var y1 = boardTop + (row + 1) * rowH;
-    ballX = fromX + (toX - fromX) * rowT;
-    // A little parabolic bounce within each row-to-row fall.
-    ballY = y0 + (y1 - y0) * rowT - Math.sin(rowT * Math.PI) * (rowH * 0.28);
+    var toX = levelX(row + 1, toCol);
+    // Both endpoints sit ON TOP of their peg (minus contactOffset), so
+    // the ball is always tangent to the pegs it touches instead of
+    // overlapping them.
+    var y0 = boardTop + row * rowH - contactOffset;
+    var y1 = boardTop + (row + 1) * rowH - contactOffset;
+
+    // Deflection arc: the ball pushes up and sideways off the peg it
+    // just struck, then falls to the next one — an ease that starts
+    // fast sideways (the bounce) and accelerates downward (gravity),
+    // rather than a straight diagonal slide.
+    var sideT = Math.sin(rowT * (Math.PI / 2));      // quick sideways deflection
+    var fallT = rowT * rowT;                          // gravity-like acceleration down
+    ballX = fromX + (toX - fromX) * sideT;
+    ballY = y0 + (y1 - y0) * fallT - Math.sin(rowT * Math.PI) * (rowH * 0.18);
   }
 
-  var ballRadius = 5.5;
   ctx.beginPath();
-  ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
-  ctx.fillStyle = '#FF6B5C';
+  ctx.arc(ballX, ballY + 2, BALL_RADIUS * 0.9, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fill();
+  var ballGrad = ctx.createRadialGradient(ballX - BALL_RADIUS * 0.35, ballY - BALL_RADIUS * 0.35, BALL_RADIUS * 0.2, ballX, ballY, BALL_RADIUS);
+  ballGrad.addColorStop(0, '#FFB4A8');
+  ballGrad.addColorStop(0.5, '#FF6B5C');
+  ballGrad.addColorStop(1, '#C93F32');
+  ctx.beginPath();
+  ctx.arc(ballX, ballY, BALL_RADIUS, 0, Math.PI * 2);
+  ctx.fillStyle = ballGrad;
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(ballX - 1.4, ballY - 1.4, 1.7, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.arc(ballX - BALL_RADIUS * 0.3, ballY - BALL_RADIUS * 0.3, BALL_RADIUS * 0.26, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
   ctx.fill();
 }
 
@@ -10028,13 +10067,71 @@ function initMarbleCanvas(marbleCount) {
 // straight line. Both drawing and marble movement use this SAME
 // function, so there's no risk of the marbles drifting off the drawn
 // track (the exact bug that was fixed in the duck/plinko modes).
+// A real serpentine circuit: straights that alternate direction,
+// joined by proper 180° hairpin turns — so marbles genuinely drive
+// left, then right, then left again, instead of the old version's
+// single always-rightward sine wave, which never actually changed
+// direction and so never felt like a course being driven.
+var MARBLE_PASSES = 3; // horizontal straights, alternating direction
+// Single source of truth for where the marble finish line sits along the
+// track (0-1). Shared by both the win check and the flag drawing — the
+// duck race had this exact value duplicated in two places once, and the
+// two drifting apart is what made a race end at the wrong spot.
+var MARBLE_FINISH_FRACTION = 0.9;
+
 function marbleTrackPoint(t, w, h) {
-  var marginX = 40, marginY = Math.max(70, h * 0.16);
-  var trackW = w - marginX * 2;
-  var trackH = h - marginY * 2;
-  var x = marginX + t * trackW;
-  var y = marginY + trackH / 2 + Math.sin(t * Math.PI * 2.4) * (trackH * 0.32) * Math.sin(t * Math.PI); // eases out at both ends so the track starts/ends level
-  return { x: x, y: y };
+  var marginX = 46;
+  var marginY = Math.max(50, h * 0.10);
+  var usableH = h - marginY * 2;
+  var rowGap = usableH / (MARBLE_PASSES - 1);
+  var turnRadius = rowGap / 2;
+
+  // A hairpin's arc length (π·r) vs a straight's — used to split t
+  // proportionally so speed stays even through turns (the arc-length
+  // table smooths the rest).
+  var straightLen = w - marginX * 2 - turnRadius * 2;
+  var turnLen = Math.PI * turnRadius;
+  var totalLen = MARBLE_PASSES * straightLen + (MARBLE_PASSES - 1) * turnLen;
+
+  var target = t * totalLen;
+  var acc = 0;
+
+  for (var i = 0; i < MARBLE_PASSES; i++) {
+    var goingRight = (i % 2 === 0);
+    var y = marginY + i * rowGap;
+    var xStart = goingRight ? marginX + turnRadius : w - marginX - turnRadius;
+    var xEnd = goingRight ? w - marginX - turnRadius : marginX + turnRadius;
+
+    // --- straight portion of this pass ---
+    if (target <= acc + straightLen) {
+      var localT = (target - acc) / straightLen;
+      return { x: xStart + (xEnd - xStart) * localT, y: y };
+    }
+    acc += straightLen;
+
+    if (i === MARBLE_PASSES - 1) break;
+
+    // --- hairpin turn into the next pass ---
+    if (target <= acc + turnLen) {
+      var localT = (target - acc) / turnLen;
+      var cx = xEnd;
+      var cy = y + turnRadius;
+      // Sweep from pointing up-ish around to the opposite side.
+      var startAngle = -Math.PI / 2;
+      var angle = goingRight
+        ? startAngle + localT * Math.PI   // right edge: clockwise down
+        : startAngle - localT * Math.PI;  // left edge: counter-clockwise down
+      return { x: cx + turnRadius * Math.cos(angle), y: cy + turnRadius * Math.sin(angle) };
+    }
+    acc += turnLen;
+  }
+
+  // Fallback: the very end of the final straight.
+  var lastGoingRight = ((MARBLE_PASSES - 1) % 2 === 0);
+  return {
+    x: lastGoingRight ? w - marginX - turnRadius : marginX + turnRadius,
+    y: marginY + (MARBLE_PASSES - 1) * rowGap
+  };
 }
 
 // How many side-by-side lanes to spread marbles across, and how wide the
@@ -10044,10 +10141,18 @@ function marbleTrackPoint(t, w, h) {
 // the exact same point on the track at the same time), which is what
 // keeps this workable up to 100 racers instead of the road needing to
 // become absurdly wide.
-function marbleLaneLayout(count) {
+function marbleLaneLayout(count, canvasH) {
   var numLanes = Math.min(count, Math.max(3, Math.round(Math.sqrt(count * 1.3))));
-  var roadWidth = 240; // fixed visible track width — laneSpacing (below) adapts to fit within it, not the other way around
-  var laneSpacing = numLanes > 1 ? Math.min(20, (roadWidth - 34) / (numLanes - 1)) : 20;
+  // The road can't be wider than the vertical gap between two passes of
+  // the serpentine, or neighbouring straights visibly overlap into one
+  // another — so it's derived from that gap rather than a fixed number.
+  var roadWidth = 240;
+  if (canvasH) {
+    var marginY = Math.max(50, canvasH * 0.10);
+    var rowGap = (canvasH - marginY * 2) / (MARBLE_PASSES - 1);
+    roadWidth = Math.max(60, Math.min(240, rowGap * 0.62));
+  }
+  var laneSpacing = numLanes > 1 ? Math.min(20, Math.max(6, (roadWidth - 30) / (numLanes - 1))) : 20;
   return { numLanes: numLanes, laneSpacing: laneSpacing, roadWidth: roadWidth };
 }
 
@@ -10143,7 +10248,7 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
   var startTime = performance.now();
   var finished = false;
   var overshootUntil = null;
-  var FINISH_FRACTION = 0.9;
+  var FINISH_FRACTION = MARBLE_FINISH_FRACTION;
   var lastElapsed = 0;
 
   if (marbleAnimId) cancelAnimationFrame(marbleAnimId);
@@ -10240,7 +10345,7 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
   // every marble lane fits comfortably inside it (this is also the fix
   // for marbles previously drifting outside the drawn road). ----
   var steps = 140;
-  var lanes = marbleLaneLayout(marblePool.length);
+  var lanes = marbleLaneLayout(marblePool.length, h);
   var roadWidth = lanes.roadWidth;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -10311,7 +10416,7 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
 
   // Checkered finish flag, placed a little before the very end of the
   // track (matching FINISH_FRACTION) so the winner visibly rolls past it.
-  var flagPt = marbleTrackPoint(0.9, w, h);
+  var flagPt = marbleTrackPoint(MARBLE_FINISH_FRACTION, w, h);
   var checkSize = 6;
   for (var cy = -14; cy <= 14; cy += checkSize) {
     for (var cx = 0; cx < 2; cx++) {
