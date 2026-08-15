@@ -3847,7 +3847,16 @@ async function handleSignupSubmit(e) {
   var { data, error } = await supabaseClient.auth.signUp({
     email: email,
     password: password,
-    options: { data: { name: name } }
+    options: {
+      data: { name: name },
+      // Without an explicit redirect, Supabase falls back to whatever
+      // "Site URL" is configured on the project — which defaults to
+      // localhost and produces a 404 when someone clicks the
+      // confirmation link from a real inbox. Deriving it from the page
+      // the person actually signed up on means it always points back to
+      // this app, wherever it's hosted.
+      emailRedirectTo: authRedirectUrl()
+    }
   });
   setBtnLoading(btn, false);
 
@@ -3861,6 +3870,15 @@ async function handleSignupSubmit(e) {
   }
 }
 
+// Where Supabase should send people back to after they click a link in
+// an auth email (confirmation, password reset). Built from the current
+// page rather than hardcoded so it works the same on GitHub Pages, a
+// custom domain, or a local file — and strips any existing query string
+// so a leftover ?legal=... or OAuth param can't ride along into the link.
+function authRedirectUrl() {
+  return window.location.origin + window.location.pathname;
+}
+
 async function handleForgotSubmit(e) {
   e.preventDefault();
   if (!validateForgotForm()) return;
@@ -3869,7 +3887,7 @@ async function handleForgotSubmit(e) {
   setBtnLoading(btn, true);
   var email = document.getElementById('forgotEmail').value.trim();
 
-  var { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+  var { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: authRedirectUrl() });
   setBtnLoading(btn, false);
 
   if (error) {
