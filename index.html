@@ -55,9 +55,54 @@
   --radius: 16px;
   --radius-lg: 22px;
 
-  --shadow-sm: 0 1px 2px rgba(15,17,23,0.04), 0 1px 0 rgba(15,17,23,0.02);
-  --shadow-md: 0 8px 24px rgba(15,17,23,0.08);
-  --shadow-lg: 0 16px 48px rgba(91,91,246,0.18);
+  /* Layered elevation. Real depth comes from stacking several shadows
+     with different blur/spread rather than one big soft blob: a tight
+     contact shadow reads as "the object is touching the surface", a
+     mid shadow gives it thickness, and a wide diffuse one places it in
+     the room. A single shadow always reads flat no matter how much you
+     blur it. */
+  --shadow-xs: 0 1px 2px rgba(15,17,23,0.05);
+  --shadow-sm:
+    0 1px 2px rgba(15,17,23,0.06),
+    0 2px 6px rgba(15,17,23,0.04);
+  --shadow-md:
+    0 1px 2px rgba(15,17,23,0.05),
+    0 4px 10px rgba(15,17,23,0.05),
+    0 12px 28px rgba(15,17,23,0.07);
+  --shadow-lg:
+    0 2px 4px rgba(15,17,23,0.05),
+    0 10px 24px rgba(15,17,23,0.07),
+    0 28px 60px rgba(15,17,23,0.10);
+  /* Accent-tinted glow — used only on the primary action so it stays
+     meaningful instead of becoming ambient noise. */
+  --shadow-accent:
+    0 2px 6px rgba(91,91,246,0.20),
+    0 8px 20px rgba(91,91,246,0.22);
+  --shadow-accent-hover:
+    0 4px 10px rgba(91,91,246,0.24),
+    0 14px 32px rgba(91,91,246,0.28);
+
+  /* Motion. Custom easing curves, not the browser's `ease`: the
+     overshoot on --ease-spring is what makes a control feel physical
+     rather than merely animated. Durations stay short — anything past
+     ~250ms on an interface control reads as sluggish. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 130ms;
+  --dur: 200ms;
+  --dur-slow: 340ms;
+}
+
+/* Respect the OS-level "reduce motion" setting everywhere at once —
+   people who get motion sickness from UI animation have usually already
+   told their system, and honouring it shouldn't be per-component. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 html, body {
@@ -643,7 +688,7 @@ input[type="search"].form-input::-webkit-search-cancel-button { -webkit-appearan
   border: none; border-radius: 11px;
   padding: 11px 18px; font-size: 14px; font-weight: 700;
   cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  transition: transform 0.1s ease, box-shadow 0.2s ease, opacity 0.15s, background 0.15s;
+  transition: transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur) var(--ease-out), opacity var(--dur-fast), background var(--dur-fast);
   position: relative; overflow: hidden;
 }
 .btn:active:not(:disabled) { transform: scale(0.97); }
@@ -653,12 +698,15 @@ input[type="search"].form-input::-webkit-search-cancel-button { -webkit-appearan
 
 .btn-primary {
   background: var(--gradient-brand); color: #fff;
-  box-shadow: 0 4px 16px rgba(91,91,246,0.32);
+  box-shadow: var(--shadow-accent);
 }
-.btn-primary:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(91,91,246,0.4); }
+.btn-primary:not(:disabled):hover { transform: translateY(-2px); box-shadow: var(--shadow-accent-hover); }
 .btn-primary:not(:disabled):active { transform: translateY(0) scale(0.98); }
 .btn:not(:disabled):active { transform: scale(0.98); }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+/* Inputs get a soft ring instead of a hard outline — same affordance,
+   less jarring inside a form. */
+.form-input:focus-visible { outline: none; box-shadow: 0 0 0 3.5px var(--accent-soft); }
 .tab:focus-visible, .filter-pill:focus-visible, .theme-switch-btn:focus-visible { outline-offset: -2px; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -835,8 +883,9 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 .card {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 20px; box-shadow: var(--shadow-sm); margin-bottom: 16px;
-  transition: box-shadow 0.2s, transform 0.2s;
+  transition: box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), border-color var(--dur);
 }
+.card:hover { box-shadow: var(--shadow-md); border-color: rgba(91,91,246,0.18); }
 .card-center { display: flex; flex-direction: column; align-items: center; padding: 28px 20px 32px; }
 
 /* Shared header + frame across all 5 draw-mode games, so switching
@@ -954,9 +1003,9 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 .stat-card {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 20px; box-shadow: var(--shadow-sm);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out), border-color var(--dur);
 }
-.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: rgba(91,91,246,0.22); }
 .stat-card-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
 .stat-card-icon svg { width: 18px; height: 18px; }
 .stat-card-value { font-size: 30px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
@@ -1357,6 +1406,21 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 .stat-card-anim { animation: statCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--delay) * 0.07s); }
 @keyframes statCardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+.growth-card { margin-bottom: 16px; }
+.growth-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (min-width: 720px) { .growth-stats { grid-template-columns: repeat(4, 1fr); } }
+.growth-stat { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.growth-stat-value { font-size: 22px; font-weight: 800; color: var(--ink); line-height: 1.1; }
+.growth-stat-value.is-positive { color: #16A34A; }
+.growth-stat-label { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+.growth-pending { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.growth-pending-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px;
+}
+.growth-pending-row .growth-pending-name { font-size: 13px; font-weight: 700; color: var(--ink); flex: 1; min-width: 120px; }
+.growth-pending-row input { width: 110px; padding: 7px 9px; font-size: 13px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); }
+.growth-pending-row button { padding: 7px 12px; font-size: 12.5px; font-weight: 700; border-radius: 8px; border: none; background: var(--accent); color: #fff; cursor: pointer; }
 .dashboard-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 32px; }
 @media (max-width: 880px) { .dashboard-grid { grid-template-columns: 1fr; } }
 
@@ -1525,6 +1589,126 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 }
 
 
+/* ============================================================
+   PUBLIC JOIN SCREEN — the page a participant sees from a shared
+   link. Standalone by design (no top nav, no app chrome) since
+   whoever opens it has no account and no context.
+   ============================================================ */
+.join-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 24px 18px; background: linear-gradient(160deg, #F4F4FB 0%, #ECEBFA 100%);
+}
+[data-theme="dark"] .join-screen { background: linear-gradient(160deg, #14151D 0%, #1C1E2A 100%); }
+.join-card {
+  width: 100%; max-width: 440px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 20px; padding: 28px 24px 24px; box-shadow: 0 18px 50px rgba(16,24,40,0.12); text-align: center;
+}
+.join-brand { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; font-size: 14px; color: var(--ink); margin-bottom: 20px; }
+.join-brand-logo { width: 24px; height: 24px; border-radius: 7px; }
+.join-state { padding: 22px 0; }
+.join-state-icon { font-size: 40px; display: block; margin-bottom: 10px; }
+.join-state h2 { font-size: 19px; font-weight: 800; color: var(--ink); margin: 0 0 6px; }
+.join-state p { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.5; }
+.join-spinner {
+  width: 26px; height: 26px; border-radius: 50%; display: inline-block; margin-bottom: 12px;
+  border: 2.5px solid var(--line); border-top-color: var(--accent); animation: joinSpin 0.8s linear infinite;
+}
+@keyframes joinSpin { to { transform: rotate(360deg); } }
+.join-giveaway-image { width: 100%; max-height: 180px; object-fit: cover; border-radius: 14px; margin-bottom: 16px; }
+.join-title { font-size: 22px; font-weight: 800; color: var(--ink); margin: 0 0 8px; line-height: 1.25; }
+.join-entry-count { font-size: 13px; color: var(--muted); margin: 0 0 4px; }
+.join-entry-count strong { color: var(--accent); font-weight: 800; }
+.join-deadline { font-size: 12.5px; color: var(--muted); margin: 0 0 18px; }
+.join-screen .form-field { text-align: left; margin-bottom: 14px; }
+.join-privacy { font-size: 11.5px; color: var(--muted); margin: 12px 0 0; line-height: 1.45; }
+
+/* ---- Public entry link block (organizer side, on the draw screen) ---- */
+.public-entry-block { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 16px; background: var(--card); text-align: left; }
+.public-entry-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.public-entry-head strong { font-size: 13.5px; font-weight: 700; color: var(--ink); display: block; }
+.public-entry-head p { font-size: 12px; color: var(--muted); margin: 3px 0 0; line-height: 1.4; }
+.public-entry-link-row { display: flex; gap: 8px; margin-top: 12px; }
+.public-entry-link-row input {
+  flex: 1; min-width: 0; padding: 9px 11px; font-size: 12.5px; border: 1.5px solid var(--line);
+  border-radius: 9px; background: var(--bg); color: var(--ink-soft);
+}
+.public-entry-link-row button {
+  padding: 9px 14px; font-size: 12.5px; font-weight: 700; border: none; border-radius: 9px;
+  background: var(--accent); color: #fff; cursor: pointer; flex: 0 0 auto;
+}
+
+/* ============================================================
+   ELEVATION IN DARK MODE
+   Black shadows are essentially invisible against a dark surface, so
+   depth there has to come from a light top edge (simulating a light
+   source above) plus a deeper, tighter shadow — not from turning the
+   same black shadows up, which just produces mud.
+   ============================================================ */
+[data-theme="dark"] {
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-sm:
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 1px 3px rgba(0,0,0,0.5),
+    0 2px 8px rgba(0,0,0,0.35);
+  --shadow-md:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 2px 6px rgba(0,0,0,0.5),
+    0 12px 28px rgba(0,0,0,0.45);
+  --shadow-lg:
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    0 4px 12px rgba(0,0,0,0.55),
+    0 28px 60px rgba(0,0,0,0.5);
+  --shadow-accent:
+    0 2px 8px rgba(91,91,246,0.35),
+    0 8px 24px rgba(91,91,246,0.30);
+  --shadow-accent-hover:
+    0 4px 12px rgba(91,91,246,0.45),
+    0 16px 36px rgba(91,91,246,0.38);
+}
+[data-theme="dark"] .card:hover { border-color: rgba(139,92,246,0.35); }
+[data-theme="dark"] .stat-card:hover { border-color: rgba(139,92,246,0.4); }
+
+/* ============================================================
+   ENTRANCE MOTION
+   One orchestrated page-load sequence rather than every element
+   animating independently: elements rise in sequence, which reads as
+   deliberate. The stagger is small (55ms) so the whole screen settles
+   quickly instead of making people wait to read it.
+   ============================================================ */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.screen .page-header,
+.screen .stats-grid > *,
+.screen .card {
+  animation: riseIn var(--dur-slow) var(--ease-out) backwards;
+}
+.screen .page-header { animation-delay: 0ms; }
+.screen .stats-grid > *:nth-child(1) { animation-delay: 55ms; }
+.screen .stats-grid > *:nth-child(2) { animation-delay: 110ms; }
+.screen .stats-grid > *:nth-child(3) { animation-delay: 165ms; }
+.screen .stats-grid > *:nth-child(4) { animation-delay: 220ms; }
+.screen .card { animation-delay: 130ms; }
+
+/* Interactive rows get a subtle, quick response — enough to confirm
+   the tap registered, short enough never to feel in the way. */
+.lobby-row, .legal-link-btn, .modes-breakdown > *, .history-item {
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.legal-link-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-xs); }
+
+/* Primary button gets a light sweep on hover — the one flourish, kept
+   to the single most important control on any screen. */
+.btn-primary::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform var(--dur-slow) var(--ease-out);
+  pointer-events: none;
+}
+.btn-primary:not(:disabled):hover::after { transform: translateX(120%); }
+
 </style>
 </head>
 <body>
@@ -1537,6 +1721,60 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 <!-- ============================================================ -->
 <!-- AUTH SCREENS -->
 <!-- ============================================================ -->
+<!-- ============================================================
+     PUBLIC JOIN SCREEN — reachable at ?join=<giveawayId> with NO
+     account and no login. Deliberately self-contained: it never
+     touches currentUser or any of the app's authenticated state.
+     ============================================================ -->
+<div id="joinScreen" class="join-screen" style="display:none;">
+  <div class="join-card" id="joinCard">
+    <div class="join-brand">
+      <img src="" id="joinBrandLogo" alt="" class="join-brand-logo" />
+      <span>RerePickWinn</span>
+    </div>
+
+    <div id="joinLoading" class="join-state">
+      <span class="join-spinner"></span>
+      <p data-i18n="join_loading">Chargement du giveaway…</p>
+    </div>
+
+    <div id="joinNotFound" class="join-state" style="display:none;">
+      <span class="join-state-icon">🔒</span>
+      <h2 data-i18n="join_notfound_title">Giveaway indisponible</h2>
+      <p data-i18n="join_notfound_text">Ce lien n'est plus valide, ou les participations ne sont pas ouvertes.</p>
+    </div>
+
+    <div id="joinForm" style="display:none;">
+      <img src="" id="joinGiveawayImage" alt="" class="join-giveaway-image" style="display:none;" />
+      <h1 class="join-title" id="joinGiveawayTitle"></h1>
+      <p class="join-entry-count"><strong id="joinEntryCount">0</strong> <span data-i18n="join_entry_count">participants déjà inscrits</span></p>
+      <p class="join-deadline" id="joinDeadline" style="display:none;"></p>
+
+      <div class="form-field">
+        <label class="form-label" data-i18n="join_name_label">Ton nom ou pseudo</label>
+        <input type="text" id="joinName" class="form-input" maxlength="80" autocomplete="name" />
+        <span class="field-error" id="joinNameError"></span>
+      </div>
+      <div class="form-field">
+        <label class="form-label" data-i18n="join_email_label">Ton email</label>
+        <input type="email" id="joinEmail" class="form-input" maxlength="160" autocomplete="email" placeholder="toi@exemple.com" />
+        <span class="field-error" id="joinEmailError"></span>
+      </div>
+
+      <button class="btn btn-primary btn-block btn-lg" id="joinSubmitBtn" onclick="submitPublicEntry()">
+        <span class="btn-label" data-i18n="join_submit">Je participe</span>
+      </button>
+      <p class="join-privacy" data-i18n="join_privacy">Ton email sert uniquement à te contacter si tu gagnes.</p>
+    </div>
+
+    <div id="joinSuccess" class="join-state" style="display:none;">
+      <span class="join-state-icon">🎉</span>
+      <h2 data-i18n="join_success_title">Tu participes !</h2>
+      <p data-i18n="join_success_text">Ta participation est enregistrée. Bonne chance !</p>
+    </div>
+  </div>
+</div>
+
 <div id="landingScreen" class="landing-screen">
 
   <!-- ============ NAVBAR ============ -->
@@ -2246,6 +2484,19 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
         </div>
       </div>
 
+      <div class="card growth-card" id="growthCard">
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:rgba(34,197,94,0.12); color:#16A34A;">📈</span>
+          <div>
+            <h3 class="card-section-title" data-i18n="growth_title">Croissance de ta communauté</h3>
+            <p class="card-section-sub" data-i18n="growth_sub">Ce que tes campagnes t'ont réellement rapporté.</p>
+          </div>
+        </div>
+        <div class="growth-stats" id="growthStats"></div>
+        <div id="growthEmpty" class="empty-state" style="display:none; padding:14px 0;" data-i18n="growth_empty">Renseigne ton nombre d'abonnés avant et après une campagne pour voir ta croissance ici.</div>
+        <div class="growth-pending" id="growthPending"></div>
+      </div>
+
       <div class="dashboard-grid">
         <div class="card chart-card">
           <div class="card-header-row">
@@ -2612,6 +2863,12 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
           <label class="form-label" data-i18n="wiz_enddate_label">Date de fin (optionnel)</label>
           <input type="datetime-local" id="wizardEndDate" class="form-input" />
           <p class="hint">Purement informatif — affiché sur la carte du tirage, le tirage reste à lancer manuellement quand tu es prêt.</p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" data-i18n="wiz_followers_label">Ton nombre d'abonnés aujourd'hui (optionnel)</label>
+          <input type="number" id="wizardFollowersBefore" class="form-input" placeholder="ex : 1250" min="0" />
+          <p class="hint" data-i18n="wiz_followers_hint">Note-le maintenant pour mesurer précisément ce que cette campagne t'aura rapporté. Tu saisiras le nouveau chiffre après le tirage.</p>
         </div>
 
         <div class="form-field">
@@ -2986,6 +3243,23 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
         <button class="btn btn-primary" id="drawSpinBtn" onclick="runDraw()" style="margin-top:18px; display:none;">
           <span class="btn-label" data-i18n="draw_launch">Lancer le tirage</span>
         </button>
+
+        <div class="public-entry-block" id="publicEntryBlock">
+          <div class="public-entry-head">
+            <div>
+              <strong data-i18n="public_entry_title">Lien de participation public</strong>
+              <p data-i18n="public_entry_sub">Partage ce lien : les gens s'inscrivent directement, sans compte.</p>
+            </div>
+            <label class="switch-toggle">
+              <input type="checkbox" id="publicEntryToggle" onchange="togglePublicEntry(this.checked)" />
+              <span class="switch-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="public-entry-link-row" id="publicEntryLinkRow" style="display:none;">
+            <input type="text" id="publicEntryLink" readonly />
+            <button type="button" onclick="copyPublicEntryLink()" data-i18n="public_entry_copy">Copier</button>
+          </div>
+        </div>
 
         <div class="schedule-block" id="scheduleBlock">
           <button class="link-btn schedule-toggle" onclick="toggleScheduleForm()">⏱️ Programmer ce tirage</button>
@@ -4033,6 +4307,7 @@ function renderDashboard() {
 
   renderDrawsChart();
   renderModesBreakdown();
+  renderGrowthCard();
 
   var historyList = document.getElementById('historyList');
   var historyEmpty = document.getElementById('historyEmptyPro');
@@ -4115,6 +4390,150 @@ function renderDrawsChart() {
     '<path d="' + areaPath + '" fill="url(#chartGrad)" />' +
     '<path d="' + linePath + '" fill="none" stroke="#5B5BF6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="chart-line-anim" />' +
     dotsHtml;
+}
+
+// ============================================================
+// GROWTH TRACKING — the "why" behind running giveaways at all:
+// how much the community actually grew because of them.
+//
+// Two very different kinds of numbers here, and the distinction
+// matters for honesty:
+//   • Follower counts are entered by hand by the organizer. Neither
+//     Instagram nor YouTube exposes a reliable way to read a third
+//     party account's follower count, so this can't be automated —
+//     but once entered, every derived figure below is computed, not
+//     guessed.
+//   • Returning participants ARE fully automatic: they come from our
+//     own participant records, comparing who shows up across several
+//     giveaways. This is the part no manual entry is needed for.
+// ============================================================
+function computeGrowthStats() {
+  var withBoth = currentGiveaways.filter(function(g) {
+    return typeof g.followers_before === 'number' && typeof g.followers_after === 'number';
+  });
+
+  var totalGained = withBoth.reduce(function(sum, g) {
+    return sum + (g.followers_after - g.followers_before);
+  }, 0);
+
+  var avgPerCampaign = withBoth.length > 0 ? Math.round(totalGained / withBoth.length) : 0;
+
+  // Average % growth per campaign — averaged across campaigns rather
+  // than computed on the totals, so one huge campaign doesn't silently
+  // dominate the figure.
+  var pctSum = 0, pctCount = 0;
+  withBoth.forEach(function(g) {
+    if (g.followers_before > 0) {
+      pctSum += ((g.followers_after - g.followers_before) / g.followers_before) * 100;
+      pctCount++;
+    }
+  });
+  var avgPct = pctCount > 0 ? (pctSum / pctCount) : null;
+
+  // Returning participants: anyone appearing in 2+ different giveaways.
+  var seenIn = {};
+  currentGiveaways.forEach(function(g) {
+    (g.participants || []).forEach(function(p) {
+      var key = (p.name || '').toLowerCase();
+      if (!key) return;
+      if (!seenIn[key]) seenIn[key] = {};
+      seenIn[key][g.id] = true;
+    });
+  });
+  var uniquePeople = Object.keys(seenIn);
+  var returning = uniquePeople.filter(function(k) { return Object.keys(seenIn[k]).length > 1; });
+  var returnRate = uniquePeople.length > 0 ? Math.round((returning.length / uniquePeople.length) * 100) : 0;
+
+  return {
+    measuredCampaigns: withBoth.length,
+    totalGained: totalGained,
+    avgPerCampaign: avgPerCampaign,
+    avgPct: avgPct,
+    uniquePeople: uniquePeople.length,
+    returning: returning.length,
+    returnRate: returnRate
+  };
+}
+
+function renderGrowthCard() {
+  var statsEl = document.getElementById('growthStats');
+  var emptyEl = document.getElementById('growthEmpty');
+  var pendingEl = document.getElementById('growthPending');
+  if (!statsEl) return;
+
+  var s = computeGrowthStats();
+  var hasFollowerData = s.measuredCampaigns > 0;
+
+  // The two participant-based stats are always real and always shown;
+  // the follower-based ones only appear once there's actual data to
+  // base them on, rather than displaying a hollow "0 abonnés gagnés"
+  // that just means "you haven't filled this in".
+  var cards = [];
+  if (hasFollowerData) {
+    cards.push({
+      value: (s.totalGained >= 0 ? '+' : '') + s.totalGained.toLocaleString(currentLang()),
+      label: t('growth_stat_gained'),
+      positive: s.totalGained > 0
+    });
+    cards.push({
+      value: (s.avgPerCampaign >= 0 ? '+' : '') + s.avgPerCampaign.toLocaleString(currentLang()),
+      label: t('growth_stat_avg'),
+      positive: s.avgPerCampaign > 0
+    });
+    if (s.avgPct !== null) {
+      cards.push({
+        value: (s.avgPct >= 0 ? '+' : '') + s.avgPct.toFixed(1) + '%',
+        label: t('growth_stat_pct'),
+        positive: s.avgPct > 0
+      });
+    }
+  }
+  cards.push({ value: s.returning.toLocaleString(currentLang()), label: t('growth_stat_returning'), positive: s.returning > 0 });
+  if (s.uniquePeople > 0) {
+    cards.push({ value: s.returnRate + '%', label: t('growth_stat_return_rate'), positive: s.returnRate > 0 });
+  }
+
+  statsEl.innerHTML = cards.map(function(c) {
+    return '<div class="growth-stat"><div class="growth-stat-value' + (c.positive ? ' is-positive' : '') + '">' +
+      escapeHtml(c.value) + '</div><div class="growth-stat-label">' + escapeHtml(c.label) + '</div></div>';
+  }).join('');
+
+  emptyEl.style.display = (!hasFollowerData && s.uniquePeople === 0) ? 'block' : 'none';
+
+  // Campaigns that already have a "before" number and at least one draw
+  // done, but no "after" yet — prompt to close the loop, since that's
+  // the single action that turns this card from partial to complete.
+  var pending = currentGiveaways.filter(function(g) {
+    var hasDraw = currentHistory.some(function(h) { return h.giveaway_id === g.id; });
+    return hasDraw && typeof g.followers_before === 'number' && typeof g.followers_after !== 'number';
+  });
+
+  pendingEl.innerHTML = pending.map(function(g) {
+    return '<div class="growth-pending-row">' +
+      '<span class="growth-pending-name">' + escapeHtml(g.title) + '</span>' +
+      '<input type="number" min="0" id="growthAfter_' + g.id + '" placeholder="' + escapeHtml(t('growth_after_placeholder')) + '" />' +
+      '<button onclick="saveFollowersAfter(\'' + g.id + '\')">' + escapeHtml(t('growth_save_btn')) + '</button>' +
+      '</div>';
+  }).join('');
+}
+
+async function saveFollowersAfter(giveawayId) {
+  var input = document.getElementById('growthAfter_' + giveawayId);
+  if (!input) return;
+  var value = parseInt(input.value, 10);
+  if (isNaN(value) || value < 0) {
+    showToast(t('growth_invalid_number'), 'error');
+    return;
+  }
+  var { error } = await supabaseClient.from('giveaways').update({ followers_after: value }).eq('id', giveawayId);
+  if (error) {
+    showToast(t('toast_save_error'), 'error');
+    return;
+  }
+  var g = currentGiveaways.find(function(x) { return x.id === giveawayId; });
+  if (g) g.followers_after = value;
+  showToast(t('growth_saved'), 'success');
+  renderGrowthCard();
 }
 
 function renderModesBreakdown() {
@@ -4722,7 +5141,7 @@ var TRANSLATIONS = {
     "billing_save_percent": "-{percent}%",
     "nav_pricing": "Tarifs",
     "pricing_kicker": "Tarifs",
-    "pricing_title": "Simple, sans surprise.",
+    "pricing_title": "Investis dans ta croissance.",
     "pricing_sub": "Commence gratuitement. Passe à un forfait supérieur quand tu en as besoin, paiement en crypto, sans engagement.",
     "pricing_start": "Commencer",
     "pricing_popular": "Populaire",
@@ -4768,15 +5187,49 @@ var TRANSLATIONS = {
     "youtube_collecting_label": "Collecte en cours",
     "youtube_collecting_found": "participant(s) trouvé(s)",
     "quick_trust1_title": "100% Équitable",
-    "quick_trust1_text": "Tirages au sort transparents et impartiaux.",
+    "quick_trust1_text": "Un tirage vérifiable, c'est une communauté qui te fait confiance.",
     "quick_trust2_title": "Sécurisé",
     "quick_trust2_text": "Données protégées, conformité assurée.",
-    "quick_trust3_title": "Rapide",
-    "quick_trust3_text": "Crée et lance ton giveaway en minutes.",
-    "quick_trust4_title": "Performant",
-    "quick_trust4_text": "Attire plus de monde et booste l'engagement.",
-    "social_proof_title": "Des milliers de créateurs nous font déjà confiance",
+    "quick_trust3_title": "Sans friction",
+    "quick_trust3_text": "Lance une campagne en minutes, pas en soirées entières.",
+    "quick_trust4_title": "Orienté croissance",
+    "quick_trust4_text": "Chaque campagne est pensée pour convertir des curieux en abonnés.",
+    "social_proof_title": "Des milliers de créateurs font grandir leur communauté avec nous",
     "social_proof_sub": "Rejoins une communauté qui organise mieux et grandit plus vite.",
+    "growth_title": "Croissance de ta communauté",
+    "growth_sub": "Ce que tes campagnes t'ont réellement rapporté.",
+    "growth_empty": "Renseigne ton nombre d'abonnés avant et après une campagne pour voir ta croissance ici.",
+    "growth_stat_gained": "Abonnés gagnés au total",
+    "growth_stat_avg": "En moyenne par campagne",
+    "growth_stat_pct": "Croissance moyenne",
+    "growth_stat_returning": "Participants fidèles",
+    "growth_stat_return_rate": "Taux de retour",
+    "join_loading": "Chargement du giveaway…",
+    "join_notfound_title": "Giveaway indisponible",
+    "join_notfound_text": "Ce lien n'est plus valide, ou les participations ne sont pas ouvertes.",
+    "join_entry_count": "participants déjà inscrits",
+    "join_deadline": "Fin prévue le {date}",
+    "join_name_label": "Ton nom ou pseudo",
+    "join_email_label": "Ton email",
+    "join_submit": "Je participe",
+    "join_privacy": "Ton email sert uniquement à te contacter si tu gagnes.",
+    "join_success_title": "Tu participes !",
+    "join_success_text": "Ta participation est enregistrée. Bonne chance !",
+    "join_err_already": "Cet email participe déjà à ce giveaway.",
+    "join_err_generic": "Impossible d'enregistrer ta participation. Réessaie dans un instant.",
+    "public_entry_title": "Lien de participation public",
+    "public_entry_sub": "Partage ce lien : les gens s'inscrivent directement, sans compte.",
+    "public_entry_copy": "Copier",
+    "public_entry_on": "Participation publique activée",
+    "public_entry_off": "Participation publique désactivée",
+    "public_entry_copied": "Lien copié",
+    "public_entry_copy_manual": "Copie le lien manuellement (sélectionné)",
+    "growth_after_placeholder": "Abonnés",
+    "growth_save_btn": "Enregistrer",
+    "growth_saved": "Croissance mise à jour",
+    "growth_invalid_number": "Entre un nombre d'abonnés valide",
+    "wiz_followers_label": "Ton nombre d'abonnés aujourd'hui (optionnel)",
+    "wiz_followers_hint": "Note-le maintenant pour mesurer précisément ce que cette campagne t'aura rapporté. Tu saisiras le nouveau chiffre après le tirage.",
     "settings_language_sub": "Langue de l'application",
     "settings_appearance_sub": "Personnalisez l'apparence de l'application",
     "billing_title_sub": "Choisissez le plan qui vous convient",
@@ -4937,11 +5390,11 @@ var TRANSLATIONS = {
     "nav_faq": "FAQ",
     "nav_login": "Se connecter",
     "theme_toggle_label": "Thème clair/sombre",
-    "cta_nav": "Créer un giveaway →",
-    "hero_badge": "La façon la plus simple d'organiser un giveaway",
-    "hero_title": "Crée. Désigne.<br>Fais <span class=\"lp-hero-title-accent\">grandir</span> ton audience.",
-    "hero_sub": "Organise des giveaways équitables et engageants — en quelques minutes.",
-    "cta_create_giveaway": "Créer un giveaway",
+    "cta_nav": "Faire grandir ma communauté →",
+    "hero_badge": "Transforme chaque giveaway en abonnés qui restent",
+    "hero_title": "Fais <span class=\"lp-hero-title-accent\">grandir</span><br>ta communauté.<br>Un giveaway à la fois.",
+    "hero_sub": "Le giveaway attire les gens. RerePickWinn t'aide à les garder — et à mesurer ce que ta communauté y gagne vraiment.",
+    "cta_create_giveaway": "Lancer ma campagne",
     "hero_cta_secondary": "Voir comment ça marche",
     "hero_proof": "Gratuit pour commencer · Aucune carte bancaire requise",
     "mock_live": "En direct",
@@ -4950,7 +5403,7 @@ var TRANSLATIONS = {
     "float_participants": "1 284 participants",
     "float_ending": "Fin dans 02:14:36",
     "float_winner_selected": "Gagnant désigné ✓",
-    "trust_strip_label": "Conçu pour les créateurs, marques et communautés",
+    "trust_strip_label": "Pour les créateurs et marques qui veulent une communauté, pas juste des vues",
     "showcase1_kicker": "01 — Créer",
     "showcase1_title": "Configure ton giveaway en quelques minutes.",
     "showcase1_text": "Titre, lot à gagner, date de fin, règles de participation — tout se fait depuis un seul écran, sans complexité.",
@@ -4994,8 +5447,8 @@ var TRANSLATIONS = {
     "trust3": "Résultats transparents",
     "trust4": "Historique des gagnants",
     "trust5": "Preuve partageable",
-    "final_cta_title": "Ton prochain giveaway commence ici.",
-    "final_cta_sub": "Crée-le en quelques clics, gratuitement.",
+    "final_cta_title": "Ta communauté grandit à partir d'ici.",
+    "final_cta_sub": "Lance ton premier giveaway gratuitement — et vois ton audience grandir.",
     "faq_kicker": "Questions fréquentes",
     "faq_q1": "Comment créer un giveaway ?",
     "faq_a1": "Crée un compte gratuit, clique sur \"Nouveau tirage\", renseigne le titre et la date de fin, puis importe tes participants — depuis Instagram, YouTube, un CSV ou une liste collée.",
@@ -5169,7 +5622,7 @@ var TRANSLATIONS = {
     "billing_save_percent": "-{percent}%",
     "nav_pricing": "Pricing",
     "pricing_kicker": "Pricing",
-    "pricing_title": "Simple, no surprises.",
+    "pricing_title": "Invest in your growth.",
     "pricing_sub": "Start for free. Upgrade whenever you need to, pay in crypto, no commitment.",
     "pricing_start": "Get started",
     "pricing_popular": "Popular",
@@ -5215,15 +5668,49 @@ var TRANSLATIONS = {
     "youtube_collecting_label": "Collecting",
     "youtube_collecting_found": "participant(s) found",
     "quick_trust1_title": "100% Fair",
-    "quick_trust1_text": "Transparent, unbiased random draws.",
+    "quick_trust1_text": "A verifiable draw is a community that trusts you.",
     "quick_trust2_title": "Secure",
     "quick_trust2_text": "Protected data, compliance guaranteed.",
-    "quick_trust3_title": "Fast",
-    "quick_trust3_text": "Create and launch your giveaway in minutes.",
-    "quick_trust4_title": "High-performing",
-    "quick_trust4_text": "Attract more people and boost engagement.",
-    "social_proof_title": "Thousands of creators already trust us",
+    "quick_trust3_title": "Frictionless",
+    "quick_trust3_text": "Launch a campaign in minutes, not entire evenings.",
+    "quick_trust4_title": "Growth-focused",
+    "quick_trust4_text": "Every campaign is built to turn passers-by into followers.",
+    "social_proof_title": "Thousands of creators grow their community with us",
     "social_proof_sub": "Join a community that organizes better and grows faster.",
+    "growth_title": "Your community growth",
+    "growth_sub": "What your campaigns actually earned you.",
+    "growth_empty": "Enter your follower count before and after a campaign to see your growth here.",
+    "growth_stat_gained": "Total followers gained",
+    "growth_stat_avg": "Average per campaign",
+    "growth_stat_pct": "Average growth",
+    "growth_stat_returning": "Returning participants",
+    "growth_stat_return_rate": "Return rate",
+    "join_loading": "Loading giveaway…",
+    "join_notfound_title": "Giveaway unavailable",
+    "join_notfound_text": "This link is no longer valid, or entries aren't open.",
+    "join_entry_count": "people already entered",
+    "join_deadline": "Ends on {date}",
+    "join_name_label": "Your name or handle",
+    "join_email_label": "Your email",
+    "join_submit": "Enter the giveaway",
+    "join_privacy": "Your email is only used to contact you if you win.",
+    "join_success_title": "You're in!",
+    "join_success_text": "Your entry has been recorded. Good luck!",
+    "join_err_already": "This email has already entered this giveaway.",
+    "join_err_generic": "Couldn't record your entry. Please try again shortly.",
+    "public_entry_title": "Public entry link",
+    "public_entry_sub": "Share this link: people enter directly, no account needed.",
+    "public_entry_copy": "Copy",
+    "public_entry_on": "Public entries enabled",
+    "public_entry_off": "Public entries disabled",
+    "public_entry_copied": "Link copied",
+    "public_entry_copy_manual": "Copy the link manually (selected)",
+    "growth_after_placeholder": "Followers",
+    "growth_save_btn": "Save",
+    "growth_saved": "Growth updated",
+    "growth_invalid_number": "Enter a valid follower count",
+    "wiz_followers_label": "Your follower count today (optional)",
+    "wiz_followers_hint": "Note it now to precisely measure what this campaign earned you. You'll enter the new number after the draw.",
     "settings_language_sub": "Application language",
     "settings_appearance_sub": "Customize the app's appearance",
     "billing_title_sub": "Choose the plan that suits you",
@@ -5384,11 +5871,11 @@ var TRANSLATIONS = {
     "nav_faq": "FAQ",
     "nav_login": "Log in",
     "theme_toggle_label": "Light/dark theme",
-    "cta_nav": "Create a giveaway →",
-    "hero_badge": "The simplest way to run a giveaway",
-    "hero_title": "Create. Pick.<br>Grow <span class=\"lp-hero-title-accent\">your audience</span>.",
-    "hero_sub": "Run fair, engaging giveaways — in just a few minutes.",
-    "cta_create_giveaway": "Create a giveaway",
+    "cta_nav": "Grow my community →",
+    "hero_badge": "Turn every giveaway into followers who stay",
+    "hero_title": "<span class=\"lp-hero-title-accent\">Grow</span><br>your community.<br>One giveaway at a time.",
+    "hero_sub": "The giveaway brings people in. RerePickWinn helps you keep them — and measure what your community actually gains.",
+    "cta_create_giveaway": "Launch my campaign",
     "hero_cta_secondary": "See how it works",
     "hero_proof": "Free to start · No credit card required",
     "mock_live": "Live",
@@ -5397,7 +5884,7 @@ var TRANSLATIONS = {
     "float_participants": "1,284 participants",
     "float_ending": "Ending in 02:14:36",
     "float_winner_selected": "Winner selected ✓",
-    "trust_strip_label": "Built for creators, brands and communities",
+    "trust_strip_label": "For creators and brands who want a community, not just views",
     "showcase1_kicker": "01 — Create",
     "showcase1_title": "Set up your giveaway in minutes.",
     "showcase1_text": "Title, prize, end date, entry rules — it all happens on one screen, without the hassle.",
@@ -5441,8 +5928,8 @@ var TRANSLATIONS = {
     "trust3": "Transparent results",
     "trust4": "Winner history",
     "trust5": "Shareable proof",
-    "final_cta_title": "Your next giveaway starts here.",
-    "final_cta_sub": "Create it in just a few clicks, for free.",
+    "final_cta_title": "Your community grows from here.",
+    "final_cta_sub": "Launch your first giveaway free — and watch your audience grow.",
     "faq_kicker": "Frequently asked questions",
     "faq_q1": "How do I create a giveaway?",
     "faq_a1": "Create a free account, click \"New giveaway\", fill in the title and end date, then import your participants — from Instagram, YouTube, a CSV, or a pasted list.",
@@ -5616,7 +6103,7 @@ var TRANSLATIONS = {
     "billing_save_percent": "-{percent}%",
     "nav_pricing": "Preise",
     "pricing_kicker": "Preise",
-    "pricing_title": "Einfach, ohne Überraschungen.",
+    "pricing_title": "Investiere in dein Wachstum.",
     "pricing_sub": "Starte kostenlos. Wechsle den Tarif, wann immer du willst, Zahlung in Krypto, ohne Verpflichtung.",
     "pricing_start": "Loslegen",
     "pricing_popular": "Beliebt",
@@ -5662,15 +6149,49 @@ var TRANSLATIONS = {
     "youtube_collecting_label": "Sammle gerade",
     "youtube_collecting_found": "Teilnehmer gefunden",
     "quick_trust1_title": "100% Fair",
-    "quick_trust1_text": "Transparente, unparteiische Verlosungen.",
+    "quick_trust1_text": "Eine nachprüfbare Verlosung heißt: eine Community, die dir vertraut.",
     "quick_trust2_title": "Sicher",
     "quick_trust2_text": "Geschützte Daten, garantierte Compliance.",
-    "quick_trust3_title": "Schnell",
-    "quick_trust3_text": "Erstelle und starte dein Giveaway in Minuten.",
-    "quick_trust4_title": "Leistungsstark",
-    "quick_trust4_text": "Gewinne mehr Leute und steigere das Engagement.",
-    "social_proof_title": "Tausende Creator vertrauen uns bereits",
+    "quick_trust3_title": "Ohne Reibung",
+    "quick_trust3_text": "Starte eine Kampagne in Minuten, nicht in ganzen Abenden.",
+    "quick_trust4_title": "Auf Wachstum ausgerichtet",
+    "quick_trust4_text": "Jede Kampagne macht aus Vorbeiziehenden echte Follower.",
+    "social_proof_title": "Tausende Creator lassen ihre Community mit uns wachsen",
     "social_proof_sub": "Werde Teil einer Community, die besser organisiert und schneller wächst.",
+    "growth_title": "Wachstum deiner Community",
+    "growth_sub": "Was deine Kampagnen dir wirklich gebracht haben.",
+    "growth_empty": "Gib deine Follower-Zahl vor und nach einer Kampagne ein, um hier dein Wachstum zu sehen.",
+    "growth_stat_gained": "Insgesamt gewonnene Follower",
+    "growth_stat_avg": "Durchschnitt pro Kampagne",
+    "growth_stat_pct": "Durchschnittliches Wachstum",
+    "growth_stat_returning": "Wiederkehrende Teilnehmer",
+    "growth_stat_return_rate": "Rückkehrquote",
+    "join_loading": "Giveaway wird geladen…",
+    "join_notfound_title": "Giveaway nicht verfügbar",
+    "join_notfound_text": "Dieser Link ist nicht mehr gültig, oder die Teilnahme ist nicht geöffnet.",
+    "join_entry_count": "Personen nehmen bereits teil",
+    "join_deadline": "Endet am {date}",
+    "join_name_label": "Dein Name oder Nutzername",
+    "join_email_label": "Deine E-Mail",
+    "join_submit": "Ich nehme teil",
+    "join_privacy": "Deine E-Mail wird nur genutzt, um dich bei einem Gewinn zu kontaktieren.",
+    "join_success_title": "Du bist dabei!",
+    "join_success_text": "Deine Teilnahme wurde gespeichert. Viel Glück!",
+    "join_err_already": "Diese E-Mail nimmt bereits an diesem Giveaway teil.",
+    "join_err_generic": "Deine Teilnahme konnte nicht gespeichert werden. Versuche es gleich noch einmal.",
+    "public_entry_title": "Öffentlicher Teilnahme-Link",
+    "public_entry_sub": "Teile diesen Link: Leute nehmen direkt teil, ohne Konto.",
+    "public_entry_copy": "Kopieren",
+    "public_entry_on": "Öffentliche Teilnahme aktiviert",
+    "public_entry_off": "Öffentliche Teilnahme deaktiviert",
+    "public_entry_copied": "Link kopiert",
+    "public_entry_copy_manual": "Kopiere den Link manuell (markiert)",
+    "growth_after_placeholder": "Follower",
+    "growth_save_btn": "Speichern",
+    "growth_saved": "Wachstum aktualisiert",
+    "growth_invalid_number": "Gib eine gültige Follower-Zahl ein",
+    "wiz_followers_label": "Deine Follower-Zahl heute (optional)",
+    "wiz_followers_hint": "Notiere sie jetzt, um genau zu messen, was dir diese Kampagne gebracht hat. Die neue Zahl gibst du nach der Verlosung ein.",
     "settings_language_sub": "Sprache der Anwendung",
     "settings_appearance_sub": "Passe das Erscheinungsbild der App an",
     "billing_title_sub": "Wähle den passenden Tarif",
@@ -5831,11 +6352,11 @@ var TRANSLATIONS = {
     "nav_faq": "FAQ",
     "nav_login": "Anmelden",
     "theme_toggle_label": "Helles/dunkles Design",
-    "cta_nav": "Giveaway erstellen →",
-    "hero_badge": "Der einfachste Weg, ein Giveaway zu veranstalten",
-    "hero_title": "Erstellen. Auslosen.<br>Dein Publikum <span class=\"lp-hero-title-accent\">vergrößern</span>.",
-    "hero_sub": "Faire, spannende Giveaways veranstalten — in wenigen Minuten.",
-    "cta_create_giveaway": "Giveaway erstellen",
+    "cta_nav": "Meine Community vergrößern →",
+    "hero_badge": "Mach aus jedem Giveaway Follower, die bleiben",
+    "hero_title": "<span class=\"lp-hero-title-accent\">Vergrößere</span><br>deine Community.<br>Ein Giveaway nach dem anderen.",
+    "hero_sub": "Das Giveaway bringt Leute. RerePickWinn hilft dir, sie zu behalten — und zu messen, was deine Community wirklich gewinnt.",
+    "cta_create_giveaway": "Kampagne starten",
     "hero_cta_secondary": "So funktioniert's",
     "hero_proof": "Kostenlos starten · Keine Kreditkarte erforderlich",
     "mock_live": "Live",
@@ -5844,7 +6365,7 @@ var TRANSLATIONS = {
     "float_participants": "1.284 Teilnehmer",
     "float_ending": "Endet in 02:14:36",
     "float_winner_selected": "Gewinner ermittelt ✓",
-    "trust_strip_label": "Für Creator, Marken und Communitys",
+    "trust_strip_label": "Für Creator und Marken, die eine Community wollen, nicht nur Views",
     "showcase1_kicker": "01 — Erstellen",
     "showcase1_title": "Richte dein Giveaway in wenigen Minuten ein.",
     "showcase1_text": "Titel, Preis, Enddatum, Teilnahmebedingungen — alles auf einem einzigen Bildschirm, ganz ohne Komplexität.",
@@ -5888,8 +6409,8 @@ var TRANSLATIONS = {
     "trust3": "Transparente Ergebnisse",
     "trust4": "Gewinnerverlauf",
     "trust5": "Teilbarer Nachweis",
-    "final_cta_title": "Dein nächstes Giveaway beginnt hier.",
-    "final_cta_sub": "Erstelle es in wenigen Klicks, kostenlos.",
+    "final_cta_title": "Deine Community wächst ab hier.",
+    "final_cta_sub": "Starte dein erstes Giveaway kostenlos — und sieh deine Reichweite wachsen.",
     "faq_kicker": "Häufig gestellte Fragen",
     "faq_q1": "Wie erstelle ich ein Giveaway?",
     "faq_a1": "Erstelle ein kostenloses Konto, klicke auf \"Neue Verlosung\", gib Titel und Enddatum ein und importiere dann deine Teilnehmer — von Instagram, YouTube, einer CSV-Datei oder einer eingefügten Liste.",
@@ -6075,6 +6596,7 @@ function startWizard() {
   document.getElementById('wizardTitle').value = '';
   clearFieldError('wizardTitle', 'wizardTitleError');
   document.getElementById('wizardEndDate').value = '';
+  document.getElementById('wizardFollowersBefore').value = '';
   removeWizardImage();
   renderWizardColorPicker('#5B5BF6');
   document.getElementById('wizardRawText').value = '';
@@ -6133,6 +6655,8 @@ function wizardNext(fromStep) {
 
     wizardData.title = titleValue;
     wizardData.endDate = document.getElementById('wizardEndDate').value;
+    var fb = parseInt(document.getElementById('wizardFollowersBefore').value, 10);
+    wizardData.followersBefore = isNaN(fb) ? null : fb;
   }
   if (fromStep === 2) {
     var raw = document.getElementById('wizardRawText').value;
@@ -7083,6 +7607,7 @@ async function wizardCreate() {
       duration_seconds: wizardData.duration,
       winner_count: wizardData.winnerCount,
       end_date: wizardData.endDate || null,
+      followers_before: wizardData.followersBefore,
       image_url: imageUrl,
       accent_color: wizardData.accentColor
     })
@@ -7221,6 +7746,57 @@ function renderDrawStats() {
 var lobbyPage = 1;
 var lobbyPerPage = 10;
 
+// ---- Organizer side of public participation ----
+function renderPublicEntryBlock() {
+  var toggle = document.getElementById('publicEntryToggle');
+  var row = document.getElementById('publicEntryLinkRow');
+  var linkInput = document.getElementById('publicEntryLink');
+  if (!toggle || !activeGiveaway) return;
+
+  var enabled = !!activeGiveaway.public_entry_enabled;
+  toggle.checked = enabled;
+  row.style.display = enabled ? 'flex' : 'none';
+  linkInput.value = publicEntryUrl(activeGiveaway.id);
+}
+
+function publicEntryUrl(giveawayId) {
+  return window.location.origin + window.location.pathname + '?join=' + giveawayId;
+}
+
+async function togglePublicEntry(enabled) {
+  if (!activeGiveaway) return;
+  var { error } = await supabaseClient
+    .from('giveaways')
+    .update({ public_entry_enabled: enabled })
+    .eq('id', activeGiveaway.id);
+
+  if (error) {
+    showToast(t('toast_save_error'), 'error');
+    document.getElementById('publicEntryToggle').checked = !enabled;
+    return;
+  }
+  activeGiveaway.public_entry_enabled = enabled;
+  var g = currentGiveaways.find(function(x) { return x.id === activeGiveaway.id; });
+  if (g) g.public_entry_enabled = enabled;
+  renderPublicEntryBlock();
+  showToast(enabled ? t('public_entry_on') : t('public_entry_off'), 'success');
+}
+
+async function copyPublicEntryLink() {
+  var link = document.getElementById('publicEntryLink').value;
+  try {
+    await navigator.clipboard.writeText(link);
+    showToast(t('public_entry_copied'), 'success');
+  } catch (e) {
+    // Clipboard API can be blocked (insecure context, permissions) —
+    // selecting the text at least lets the person copy it manually
+    // instead of the button appearing to do nothing at all.
+    var el = document.getElementById('publicEntryLink');
+    el.select();
+    showToast(t('public_entry_copy_manual'), 'error');
+  }
+}
+
 function renderDrawLobby() {
   if (!activeGiveaway) return;
   var filtered = getDrawFilteredEntries();
@@ -7231,6 +7807,7 @@ function renderDrawLobby() {
   var trackEl = document.getElementById('drawLobbyTrack');
   if (trackEl) trackEl.style.display = (drawMode === 'duck' || drawMode === 'marble') ? 'flex' : 'none';
 
+  renderPublicEntryBlock();
   lobbyPage = 1;
   renderLobbyList();
   renderLobbyActivity();
@@ -9526,6 +10103,126 @@ function downloadCertificate() {
 // threw, which stopped the rest of the script — including the
 // definition of showView — from ever running.
 // ============================================================
+// ============================================================
+// PUBLIC PARTICIPATION — the ?join=<giveawayId> flow.
+//
+// Everything here talks to the database ONLY through the two
+// SECURITY DEFINER functions (get_public_giveaway /
+// submit_public_entry). That's deliberate: it means an anonymous
+// visitor can read a giveaway's title and add themselves as an
+// entrant, but has no route to read the participant list, see other
+// giveaways, or touch anything belonging to the organizer.
+// ============================================================
+var joinGiveawayId = null;
+
+function checkPublicJoinDeepLink() {
+  var params = new URLSearchParams(window.location.search);
+  var gid = params.get('join');
+  if (!gid) return false;
+
+  joinGiveawayId = gid;
+  document.getElementById('landingScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('joinScreen').style.display = 'flex';
+
+  var logo = document.getElementById('joinBrandLogo');
+  if (logo) logo.src = RPW_LOGO_DATA_URI;
+
+  loadPublicGiveaway(gid);
+  return true;
+}
+
+async function loadPublicGiveaway(gid) {
+  try {
+    var { data, error } = await supabaseClient.rpc('get_public_giveaway', { gid: gid });
+    if (error) throw error;
+    var g = Array.isArray(data) ? data[0] : data;
+    if (!g) {
+      document.getElementById('joinLoading').style.display = 'none';
+      document.getElementById('joinNotFound').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('joinGiveawayTitle').textContent = g.title || '';
+    document.getElementById('joinEntryCount').textContent = (g.entry_count || 0).toLocaleString(currentLang());
+
+    if (g.image_url) {
+      var img = document.getElementById('joinGiveawayImage');
+      img.src = g.image_url;
+      img.style.display = 'block';
+    }
+    if (g.accent_color) {
+      document.getElementById('joinCard').style.setProperty('--accent', g.accent_color);
+    }
+    if (g.end_date) {
+      var dl = document.getElementById('joinDeadline');
+      dl.textContent = t('join_deadline', { date: new Date(g.end_date).toLocaleString(currentLang()) });
+      dl.style.display = 'block';
+    }
+
+    document.getElementById('joinLoading').style.display = 'none';
+    document.getElementById('joinForm').style.display = 'block';
+  } catch (err) {
+    console.error('Public giveaway load failed:', err);
+    document.getElementById('joinLoading').style.display = 'none';
+    document.getElementById('joinNotFound').style.display = 'block';
+  }
+}
+
+async function submitPublicEntry() {
+  var nameEl = document.getElementById('joinName');
+  var emailEl = document.getElementById('joinEmail');
+  var btn = document.getElementById('joinSubmitBtn');
+
+  clearFieldError('joinName', 'joinNameError');
+  clearFieldError('joinEmail', 'joinEmailError');
+
+  var name = nameEl.value.trim();
+  var email = emailEl.value.trim();
+  var valid = true;
+  if (!name) { setFieldError('joinName', 'joinNameError', t('val_name_required')); valid = false; }
+  if (!email) { setFieldError('joinEmail', 'joinEmailError', t('val_email_required')); valid = false; }
+  else if (!isValidEmail(email)) { setFieldError('joinEmail', 'joinEmailError', t('err_invalid_email_format')); valid = false; }
+  if (!valid) return;
+
+  setBtnLoading(btn, true);
+  try {
+    var { data, error } = await supabaseClient.rpc('submit_public_entry', {
+      gid: joinGiveawayId, entry_name: name, entry_email: email
+    });
+    if (error) throw error;
+
+    if (data && data.ok) {
+      document.getElementById('joinForm').style.display = 'none';
+      document.getElementById('joinSuccess').style.display = 'block';
+      return;
+    }
+
+    // The server distinguishes these cases on purpose — "you already
+    // entered" is a very different message from "this is closed", and
+    // guessing between them client-side would get it wrong.
+    var reason = (data && data.error) || 'unknown';
+    if (reason === 'already_entered') {
+      setFieldError('joinEmail', 'joinEmailError', t('join_err_already'));
+    } else if (reason === 'closed') {
+      document.getElementById('joinForm').style.display = 'none';
+      document.getElementById('joinNotFound').style.display = 'block';
+    } else if (reason === 'invalid_email') {
+      setFieldError('joinEmail', 'joinEmailError', t('err_invalid_email_format'));
+    } else if (reason === 'invalid_name') {
+      setFieldError('joinName', 'joinNameError', t('val_name_required'));
+    } else {
+      showToast(t('join_err_generic'), 'error');
+    }
+  } catch (err) {
+    console.error('Public entry failed:', err);
+    showToast(t('join_err_generic'), 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
 function initApp() {
   getRpwLogoImage(); // start preloading now so it's ready by the time someone downloads a certificate
   initLanguage(); // must run before login too — the landing page needs to respect the saved language
@@ -9557,6 +10254,13 @@ function initApp() {
       updatePasswordChecklist();
     }
   });
+
+  // A ?join=<id> link is a completely separate entry point: whoever
+  // opens it is a participant, not the organizer, and has no account.
+  // It's checked BEFORE initAuth() and returns early so none of the
+  // normal app boot (session restore, dashboard load, landing page)
+  // runs at all — the visitor should only ever see the join card.
+  if (checkPublicJoinDeepLink()) return;
 
   initAuth();
   checkLegalDeepLink(); // works regardless of login state — legalOverlay sits outside authScreen/appShell
@@ -10584,6 +11288,7 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
     }
   });
 }
+
 
 </script>
 </body>
