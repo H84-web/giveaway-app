@@ -3029,6 +3029,11 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         <div class="dropdown-menu user-menu" id="userMenu" style="display:none;">
           <div class="user-menu-email" id="userMenuEmail"></div>
           <div class="dropdown-menu-divider"></div>
+          <button class="user-menu-item" onclick="openJoinByLink()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="9.5" width="16" height="10.5" rx="1.5"/><path d="M3 9.5h18M12 9.5V20"/><path d="M12 9.5S10.5 4 8 5s1 4.5 4 4.5zM12 9.5S13.5 4 16 5s-1 4.5-4 4.5z"/></svg>
+            <span data-i18n="menu_join">Participer à un giveaway</span>
+          </button>
+          <div class="dropdown-menu-divider"></div>
           <button class="user-menu-item" onclick="showScreen('profileScreen')">
             <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="6.5" r="3.5"/><path d="M3 17c0-3.3 3.1-6 7-6s7 2.7 7 6"/></svg>
             Mon profil
@@ -6165,6 +6170,12 @@ var TRANSLATIONS = {
     "door_create_text": "Crée ta campagne, fixe tes conditions (abonnement, like, commentaire) et regarde ta communauté grandir à chaque tirage.",
     "door_create_cta": "Créer ma campagne",
     "door_create_note": "Gratuit pour commencer · Aucune carte bancaire",
+    "menu_join": "Participer à un giveaway",
+    "joinlink_title": "Participer à un giveaway",
+    "joinlink_text": "Colle le lien que l'organisateur a partagé, ou juste son identifiant. Tu seras redirigé(e) vers la page de participation.",
+    "joinlink_go": "Ouvrir",
+    "joinlink_err": "Lien ou identifiant invalide. Colle le lien complet reçu de l'organisateur.",
+    "cancel": "Annuler",
     "mock_participate": "Participer",
     "float_participants": "1 284 participants",
     "float_ending": "Fin dans 02:14:36",
@@ -6721,6 +6732,12 @@ var TRANSLATIONS = {
     "door_create_text": "Create your campaign, set your requirements (follow, like, comment) and watch your community grow with every draw.",
     "door_create_cta": "Create my campaign",
     "door_create_note": "Free to start · No credit card",
+    "menu_join": "Enter a giveaway",
+    "joinlink_title": "Enter a giveaway",
+    "joinlink_text": "Paste the link the organizer shared, or just its id. You'll be taken to the entry page.",
+    "joinlink_go": "Open",
+    "joinlink_err": "Invalid link or id. Paste the full link you got from the organizer.",
+    "cancel": "Cancel",
     "mock_participate": "Enter",
     "float_participants": "1,284 participants",
     "float_ending": "Ending in 02:14:36",
@@ -7277,6 +7294,12 @@ var TRANSLATIONS = {
     "door_create_text": "Erstelle deine Kampagne, lege deine Bedingungen fest (Folgen, Like, Kommentar) und sieh deine Community mit jeder Verlosung wachsen.",
     "door_create_cta": "Kampagne erstellen",
     "door_create_note": "Kostenlos starten · Keine Kreditkarte",
+    "menu_join": "An einem Giveaway teilnehmen",
+    "joinlink_title": "An einem Giveaway teilnehmen",
+    "joinlink_text": "Füge den Link ein, den der Veranstalter geteilt hat, oder einfach dessen ID. Du wirst zur Teilnahmeseite weitergeleitet.",
+    "joinlink_go": "Öffnen",
+    "joinlink_err": "Ungültiger Link oder ID. Füge den vollständigen Link des Veranstalters ein.",
+    "cancel": "Abbrechen",
     "mock_participate": "Teilnehmen",
     "float_participants": "1.284 Teilnehmer",
     "float_ending": "Endet in 02:14:36",
@@ -11380,6 +11403,37 @@ function renderJoinSteps(g) {
   document.getElementById('joinFinalMarker').textContent = String(steps.length + 1);
 }
 
+// Lets a logged-in organizer open someone else's giveaway as a
+// participant. Accepts either a full shared link or just the raw id,
+// because people paste whichever they happen to have.
+function openJoinByLink() {
+  document.getElementById('userMenu').style.display = 'none';
+  document.getElementById('joinByLinkOverlay').style.display = 'flex';
+  var input = document.getElementById('joinByLinkInput');
+  input.value = '';
+  document.getElementById('joinByLinkError').textContent = '';
+  setTimeout(function() { input.focus(); }, 50);
+}
+
+function closeJoinByLink() {
+  document.getElementById('joinByLinkOverlay').style.display = 'none';
+}
+
+function goToJoinLink() {
+  var raw = document.getElementById('joinByLinkInput').value.trim();
+  var errEl = document.getElementById('joinByLinkError');
+  errEl.textContent = '';
+  if (!raw) { errEl.textContent = t('joinlink_err'); return; }
+
+  var id = null;
+  var m = raw.match(/[?&]join=([0-9a-fA-F-]{36})/);
+  if (m) id = m[1];
+  else if (/^[0-9a-fA-F-]{36}$/.test(raw)) id = raw;
+
+  if (!id) { errEl.textContent = t('joinlink_err'); return; }
+  window.location.href = window.location.origin + window.location.pathname + '?join=' + id;
+}
+
 function openJoinStep(key, url) {
   window.open(url, '_blank', 'noopener');
   joinStepsDone[key] = true;
@@ -12519,5 +12573,21 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
 
 
 </script>
+
+<!-- Join-by-link modal: an organizer can also be a participant. -->
+<div class="modal-overlay" id="joinByLinkOverlay" style="display:none;" onclick="if(event.target===this) closeJoinByLink()">
+  <div class="modal-box">
+    <h3 class="modal-title" data-i18n="joinlink_title">Participer à un giveaway</h3>
+    <p class="modal-text" data-i18n="joinlink_text">Colle le lien que l'organisateur a partagé, ou juste son identifiant. Tu seras redirigé(e) vers la page de participation.</p>
+    <div class="form-field">
+      <input type="text" id="joinByLinkInput" class="form-input" placeholder="https://… ?join=…" />
+      <span class="field-error" id="joinByLinkError"></span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeJoinByLink()" data-i18n="cancel">Annuler</button>
+      <button class="btn btn-primary" onclick="goToJoinLink()" data-i18n="joinlink_go">Ouvrir</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
