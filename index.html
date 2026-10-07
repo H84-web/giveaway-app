@@ -4620,18 +4620,28 @@ function onAuthSuccess(user) {
       localStorage.removeItem('repickwinn-intended-period');
     }
   } catch (e) { /* ignore */ }
-  // Always land on the dashboard right after logging in — a previous
-  // "remember the last screen you were on" behavior here was more
-  // confusing than convenient in practice. The one deliberate exception:
-  // coming straight back from the Instagram OAuth round-trip, which sets
-  // its own one-time flag (see connectInstagramAccount) rather than
-  // reusing that removed general mechanism.
+  // Where to land depends on HOW we got here, and the three cases are
+  // genuinely different:
+  //   • A fresh login (the person just submitted the form) → dashboard.
+  //   • Back from the Instagram OAuth round-trip → Settings.
+  //   • A silent session restore → whatever screen they were on.
+  // That last case is the important one: mobile browsers discard
+  // background tabs to free memory and reload the page when you return,
+  // which no app code can prevent. Restoring the screen makes that
+  // reload invisible instead of dumping the person back at the start.
   var lastScreen = 'dashboardScreen';
   try {
     var oauthReturnScreen = localStorage.getItem('repickwinn-oauth-return-screen');
+    var justLoggedIn = sessionStorage.getItem('repickwinn-fresh-login');
     if (oauthReturnScreen) {
       lastScreen = oauthReturnScreen;
       localStorage.removeItem('repickwinn-oauth-return-screen');
+    } else if (justLoggedIn) {
+      sessionStorage.removeItem('repickwinn-fresh-login');
+      lastScreen = 'dashboardScreen';
+    } else {
+      var saved = localStorage.getItem('repickwinn-last-screen');
+      if (saved && PERSISTABLE_SCREENS.indexOf(saved) !== -1) lastScreen = saved;
     }
   } catch (e) { /* ignore */ }
   isHandlingPopState = true; // suppress pushState for this first screen — see replaceState below
@@ -4769,6 +4779,7 @@ async function handleLoginSubmit(e) {
   if (error) {
     showToast(translateAuthError(error.message), 'error');
   } else {
+    try { sessionStorage.setItem('repickwinn-fresh-login', '1'); } catch (e) { /* ignore */ }
     showToast(t('toast_login_success'), 'success');
   }
 }
