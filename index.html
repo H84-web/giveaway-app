@@ -2025,6 +2025,155 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .mode-card-icon svg { width: 24px; height: 24px; margin: 0 auto; }
 .draw-mode-icon svg { width: 20px; height: 20px; display: inline-block; vertical-align: -4px; }
 
+/* ---- How it works: three numbered steps ---- */
+.lp-steps { max-width: 1180px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 1fr; gap: 28px; }
+@media (min-width: 820px) { .lp-steps { grid-template-columns: repeat(3, 1fr); gap: 40px; } }
+.lp-step { position: relative; padding-top: 6px; }
+/* The number is set large and low-contrast so it reads as structure
+   rather than competing with the step's actual heading. */
+.lp-step-num {
+  display: block; font-size: var(--fs-2xl); font-weight: 800; line-height: 1;
+  color: var(--lp-accent-text); opacity: 0.28; letter-spacing: -0.03em; margin-bottom: 10px;
+}
+.lp-step h3 { font-size: var(--fs-md); font-weight: 700; color: var(--lp-ink); margin: 0 0 7px; letter-spacing: -0.01em; }
+.lp-step p { font-size: var(--fs-sm); color: rgba(var(--lp-ink-rgb),0.6); margin: 0; line-height: 1.6; }
+/* A hairline connecting the steps on wide screens — shows them as one
+   sequence instead of three unrelated blocks. */
+@media (min-width: 820px) {
+  .lp-step:not(:last-child)::after {
+    content: ""; position: absolute; top: 16px; right: -22px; width: 1px; height: calc(100% - 16px);
+    background: rgba(var(--lp-border-rgb),0.09);
+  }
+}
+
+/* ---- Who it's for ---- */
+.lp-who-grid { max-width: 1180px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 820px) { .lp-who-grid { grid-template-columns: repeat(3, 1fr); } }
+.lp-who-card {
+  background: var(--lp-card); border: 1px solid rgba(var(--lp-border-rgb),0.09); border-radius: 15px;
+  padding: 22px 20px; box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), border-color var(--dur);
+}
+.lp-who-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: rgba(108,99,255,0.28); }
+.lp-who-card h3 { font-size: var(--fs-md); font-weight: 700; color: var(--lp-ink); margin: 0 0 8px; letter-spacing: -0.01em; }
+.lp-who-card p { font-size: var(--fs-sm); color: rgba(var(--lp-ink-rgb),0.6); margin: 0; line-height: 1.6; }
+
+/* ============================================================
+   JOIN PAGE — required actions
+   Numbered markers make the sequence legible at a glance, which
+   matters because every step is something the person must actually
+   leave the page to do. Generous vertical spacing on purpose: a
+   cramped checklist reads as a chore.
+   ============================================================ */
+.join-stats {
+  display: flex; justify-content: center; gap: 0; margin: 18px 0 24px;
+  border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--bg);
+}
+.join-stat { flex: 1; padding: 13px 8px; text-align: center; border-right: 1px solid var(--line); }
+.join-stat:last-child { border-right: none; }
+.join-stat strong { display: block; font-size: var(--fs-lg); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.join-stat span { display: block; font-size: var(--fs-2xs); color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.join-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; text-align: left; }
+.join-step {
+  display: flex; align-items: flex-start; gap: 12px; padding: 15px;
+  border: 1.5px solid var(--line); border-radius: 14px; background: var(--card);
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+}
+.join-step.is-done { border-color: var(--green); background: var(--green-soft); }
+.join-step-marker {
+  width: 25px; height: 25px; border-radius: 50%; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff; font-size: var(--fs-xs); font-weight: 800;
+}
+.join-step.is-done .join-step-marker { background: var(--green-ink); }
+.join-step-body { flex: 1; min-width: 0; }
+.join-step-body strong { display: block; font-size: var(--fs-sm); font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+.join-step-body p { font-size: var(--fs-xs); color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
+.join-step-btn {
+  background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(91,91,246,0.25);
+  border-radius: 9px; padding: 7px 13px; font-size: var(--fs-xs); font-weight: 700; cursor: pointer;
+  transition: background var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+.join-step-btn:hover { background: var(--accent); color: #fff; transform: translateY(-1px); }
+.join-step-check { width: 20px; height: 20px; flex: 0 0 auto; color: var(--green-ink); }
+.join-step-check svg { width: 20px; height: 20px; }
+
+.join-final { text-align: left; border-top: 1px solid var(--line); padding-top: 20px; }
+.join-final-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.join-step-marker-final { background: var(--ink); }
+.join-final-head strong { display: block; font-size: var(--fs-sm); font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+.join-final-head p { font-size: var(--fs-xs); color: var(--muted); margin: 0; line-height: 1.5; }
+
+/* Referral block on the success screen — the actual growth mechanism,
+   so it gets real visual weight rather than being a footnote. */
+.join-referral {
+  margin-top: 22px; padding: 16px; border-radius: 14px; text-align: left;
+  background: var(--accent-soft); border: 1px solid rgba(91,91,246,0.22);
+}
+.join-referral strong { display: block; font-size: var(--fs-sm); font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.join-referral p { font-size: var(--fs-xs); color: var(--ink-soft); margin: 0 0 12px; line-height: 1.5; }
+.join-referral-row { display: flex; gap: 8px; }
+.join-referral-row input {
+  flex: 1; min-width: 0; padding: 9px 11px; font-size: var(--fs-xs);
+  border: 1.5px solid var(--line); border-radius: 9px; background: var(--card); color: var(--ink-soft);
+}
+.join-referral-row button {
+  padding: 9px 14px; font-size: var(--fs-xs); font-weight: 700; border: none;
+  border-radius: 9px; background: var(--accent); color: #fff; cursor: pointer; flex: 0 0 auto;
+}
+
+/* ---- Grouped form section with an explanatory head ---- */
+.form-section {
+  border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 20px; background: var(--bg);
+}
+.form-section-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.form-section-marker {
+  width: 26px; height: 26px; border-radius: 8px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-soft); color: var(--gold-ink); font-size: var(--fs-xs);
+}
+.form-section-head strong { display: block; font-size: var(--fs-sm); font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.form-section-head p { font-size: var(--fs-xs); color: var(--muted); margin: 0; line-height: 1.55; }
+.check-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; cursor: pointer; }
+.check-row input { margin-top: 2px; flex: 0 0 auto; }
+.check-row strong { display: block; font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.check-row em { display: block; font-style: normal; font-size: var(--fs-xs); color: var(--muted); margin-top: 2px; line-height: 1.5; }
+
+/* ============================================================
+   TWO DOORS — participant vs organizer
+   Two audiences land on this page with opposite intentions. Showing
+   them one shared call to action means one of them is always being
+   sold the wrong thing; splitting it lets each recognise themselves
+   immediately. The organizer card carries the visual weight, since
+   that's the side that becomes a customer.
+   ============================================================ */
+.lp-doors {
+  max-width: 1180px; margin: 0 auto 8px; padding: 0 24px 36px;
+  display: grid; grid-template-columns: 1fr; gap: 14px;
+}
+@media (min-width: 820px) { .lp-doors { grid-template-columns: 1fr 1fr; gap: 18px; } }
+.lp-door {
+  background: var(--lp-card); border: 1px solid rgba(var(--lp-border-rgb),0.10); border-radius: 18px;
+  padding: 26px 24px; box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), border-color var(--dur);
+}
+.lp-door:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.lp-door-primary {
+  border-color: rgba(108,99,255,0.35); border-width: 1.5px;
+  box-shadow: var(--shadow-md), 0 0 0 4px rgba(108,99,255,0.07);
+}
+.lp-door-primary:hover { box-shadow: var(--shadow-lg), 0 0 0 5px rgba(108,99,255,0.11); }
+.lp-door-icon {
+  width: 40px; height: 40px; border-radius: 11px; margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(108,99,255,0.10); color: #6C63FF; border: 1px solid rgba(108,99,255,0.18);
+}
+.lp-door-icon svg { width: 20px; height: 20px; }
+.lp-door h3 { font-size: var(--fs-lg); font-weight: 800; color: var(--lp-ink); margin: 0 0 8px; letter-spacing: -0.015em; }
+.lp-door p { font-size: var(--fs-sm); color: rgba(var(--lp-ink-rgb),0.6); margin: 0 0 16px; line-height: 1.6; }
+.lp-door-note { display: block; font-size: var(--fs-xs); color: rgba(var(--lp-ink-rgb),0.45); margin-top: 12px; line-height: 1.5; }
+
 </style>
 </head>
 <body>
@@ -2061,32 +2210,62 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
     </div>
 
     <div id="joinForm" style="display:none;">
+      <!-- Prize header -->
       <img src="" id="joinGiveawayImage" alt="" class="join-giveaway-image" style="display:none;" />
       <h1 class="join-title" id="joinGiveawayTitle"></h1>
-      <p class="join-entry-count"><strong id="joinEntryCount">0</strong> <span data-i18n="join_entry_count">participants déjà inscrits</span></p>
-      <p class="join-deadline" id="joinDeadline" style="display:none;"></p>
 
-      <div class="form-field">
-        <label class="form-label" data-i18n="join_name_label">Ton nom ou pseudo</label>
-        <input type="text" id="joinName" class="form-input" maxlength="80" autocomplete="name" />
-        <span class="field-error" id="joinNameError"></span>
-      </div>
-      <div class="form-field">
-        <label class="form-label" data-i18n="join_email_label">Ton email</label>
-        <input type="email" id="joinEmail" class="form-input" maxlength="160" autocomplete="email" placeholder="toi@exemple.com" />
-        <span class="field-error" id="joinEmailError"></span>
+      <div class="join-stats">
+        <div class="join-stat"><strong id="joinEntryCount">0</strong><span data-i18n="join_stat_entries">participants</span></div>
+        <div class="join-stat" id="joinDeadlineStat" style="display:none;"><strong id="joinDeadlineValue">—</strong><span data-i18n="join_stat_left">temps restant</span></div>
+        <div class="join-stat"><strong id="joinChanceValue">1</strong><span data-i18n="join_stat_chances">tes chances</span></div>
       </div>
 
-      <button class="btn btn-primary btn-block btn-lg" id="joinSubmitBtn" onclick="submitPublicEntry()">
-        <span class="btn-label" data-i18n="join_submit">Je participe</span>
-      </button>
-      <p class="join-privacy" data-i18n="join_privacy">Ton email sert uniquement à te contacter si tu gagnes.</p>
+      <!-- Required actions -->
+      <div class="join-steps" id="joinSteps"></div>
+
+      <!-- Final validation -->
+      <div class="join-final" id="joinFinal">
+        <div class="join-final-head">
+          <span class="join-step-marker join-step-marker-final" id="joinFinalMarker">3</span>
+          <div>
+            <strong data-i18n="join_final_title">Valide ta participation</strong>
+            <p data-i18n="join_final_hint">Ces informations servent uniquement à te prévenir si tu gagnes. Elles ne sont jamais partagées ni revendues.</p>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" data-i18n="join_name_label">Ton nom ou pseudo</label>
+          <input type="text" id="joinName" class="form-input" maxlength="80" autocomplete="name" />
+          <p class="hint" data-i18n="join_name_hint">Idéalement le même pseudo que sur le réseau, pour qu'on te reconnaisse.</p>
+          <span class="field-error" id="joinNameError"></span>
+        </div>
+        <div class="form-field">
+          <label class="form-label" data-i18n="join_email_label">Ton email</label>
+          <input type="email" id="joinEmail" class="form-input" maxlength="160" autocomplete="email" placeholder="toi@exemple.com" />
+          <p class="hint" data-i18n="join_email_hint">C'est par là qu'on te contacte en cas de victoire — vérifie qu'il est correct.</p>
+          <span class="field-error" id="joinEmailError"></span>
+        </div>
+
+        <button class="btn btn-primary btn-block btn-lg" id="joinSubmitBtn" onclick="submitPublicEntry()">
+          <span class="btn-label" data-i18n="join_submit">Je participe</span>
+        </button>
+      </div>
     </div>
 
+    <!-- Success + referral -->
     <div id="joinSuccess" class="join-state" style="display:none;">
-      <span class="join-state-icon join-state-icon-ok"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l4.5-11 6.5 6.5L4 20z"/><path d="M14 4.5l.8 1.8 1.8.8-1.8.8-.8 1.8-.8-1.8-1.8-.8 1.8-.8.8-1.8z"/><path d="M19 11l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5.5-1.2z"/></svg></span>
+      <span class="join-state-icon join-state-icon-ok"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.2 12.3l2.5 2.5 5-5.4"/></svg></span>
       <h2 data-i18n="join_success_title">Tu participes !</h2>
       <p data-i18n="join_success_text">Ta participation est enregistrée. Bonne chance !</p>
+
+      <div class="join-referral">
+        <strong data-i18n="join_ref_title">Multiplie tes chances</strong>
+        <p data-i18n="join_ref_text">Partage ton lien personnel : chaque ami qui participe grâce à toi te donne une chance supplémentaire.</p>
+        <div class="join-referral-row">
+          <input type="text" id="joinReferralLink" readonly />
+          <button type="button" onclick="copyReferralLink()" data-i18n="join_ref_copy">Copier</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2102,6 +2281,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
       </div>
       <div class="lp-nav-links">
         <a href="#lp-product" class="lp-nav-link" data-i18n="nav_product">Produit</a>
+        <a href="#lp-how" class="lp-nav-link" data-i18n="nav_how">Comment ça marche</a>
         <a href="#lp-features" class="lp-nav-link" data-i18n="nav_features">Fonctionnalités</a>
         <a href="#lp-pricing" class="lp-nav-link" data-i18n="nav_pricing">Tarifs</a>
         <a href="#lp-features" class="lp-nav-link" data-i18n="nav_how">Comment ça marche</a>
@@ -2125,7 +2305,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
       <a href="#lp-product" onclick="closeLpMobileMenu()" data-i18n="nav_product">Produit</a>
       <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_features">Fonctionnalités</a>
       <a href="#lp-pricing" onclick="closeLpMobileMenu()" data-i18n="nav_pricing">Tarifs</a>
-      <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_how">Comment ça marche</a>
+      <a href="#lp-how" onclick="closeLpMobileMenu()" data-i18n="nav_how">Comment ça marche</a>
       <a href="#lp-faq" onclick="closeLpMobileMenu()" data-i18n="nav_faq">FAQ</a>
       <button class="lp-theme-toggle lp-theme-toggle-mobile" id="lpThemeToggleMobile" onclick="toggleLandingTheme()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg> <span data-i18n="theme_toggle_label">Thème clair/sombre</span></button>
       <select id="languageSelectLandingMobile" class="lp-lang-select lp-lang-select-mobile" onchange="setLanguage(this.value)" aria-label="Langue">
@@ -2206,6 +2386,33 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
     </div>
   </header>
 
+  <!-- ============ TWO DOORS ============ -->
+  <section class="lp-doors lp-reveal">
+    <div class="lp-door" id="lpDoorJoin">
+      <span class="lp-door-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="9.5" width="16" height="10.5" rx="1.5"/><path d="M3 9.5h18M12 9.5V20"/>
+          <path d="M12 9.5S10.5 4 8 5s1 4.5 4 4.5zM12 9.5S13.5 4 16 5s-1 4.5-4 4.5z"/>
+        </svg>
+      </span>
+      <h3 data-i18n="door_join_title">Je veux participer</h3>
+      <p data-i18n="door_join_text">Tu as reçu un lien de giveaway ? Ouvre-le directement : aucun compte n'est nécessaire pour participer.</p>
+      <span class="lp-door-note" data-i18n="door_join_note">Le lien t'est donné par l'organisateur, sur sa publication ou sa story.</span>
+    </div>
+
+    <div class="lp-door lp-door-primary">
+      <span class="lp-door-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 19V5M4 19h16"/><path d="M7.5 15.5l3.5-4 3 2.5 4.5-6"/><path d="M18.5 8h-3.5M18.5 8v3.5"/>
+        </svg>
+      </span>
+      <h3 data-i18n="door_create_title">Je veux organiser</h3>
+      <p data-i18n="door_create_text">Crée ta campagne, fixe tes conditions (abonnement, like, commentaire) et regarde ta communauté grandir à chaque tirage.</p>
+      <button class="lp-btn-primary" onclick="showAuthFromLanding('signupView')"><span data-i18n="door_create_cta">Créer ma campagne</span> <span aria-hidden="true">→</span></button>
+      <span class="lp-door-note" data-i18n="door_create_note">Gratuit pour commencer · Aucune carte bancaire</span>
+    </div>
+  </section>
+
   <!-- ============ CAPABILITY ROW ============ -->
   <section class="lp-quick-trust lp-reveal">
     <div class="lp-quick-trust-item">
@@ -2246,6 +2453,31 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         </svg>
       </span>
       <div><strong data-i18n="quick_trust4_title">Croissance mesurée</strong><span data-i18n="quick_trust4_text">Vois ce que chaque campagne t'a réellement apporté.</span></div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="lp-section" id="lp-how">
+    <div class="lp-section-head lp-reveal">
+      <span class="lp-kicker" data-i18n="how_kicker">Comment ça marche</span>
+      <h2 class="lp-section-title" data-i18n="how_title">Trois étapes, pas trois soirées.</h2>
+    </div>
+    <div class="lp-steps lp-reveal lp-reveal-delay">
+      <div class="lp-step">
+        <span class="lp-step-num">01</span>
+        <h3 data-i18n="how_s1_title">Rassemble tes participants</h3>
+        <p data-i18n="how_s1_text">Colle une liste, importe un CSV ou un fichier Excel, connecte Instagram ou YouTube, ou partage ton lien public : les gens s'inscrivent eux-mêmes.</p>
+      </div>
+      <div class="lp-step">
+        <span class="lp-step-num">02</span>
+        <h3 data-i18n="how_s2_title">Filtre et lance</h3>
+        <p data-i18n="how_s2_text">Retire les doublons, exige un mot-clé ou un nombre de mentions, choisis parmi six tirages animés, puis lance devant ton audience.</p>
+      </div>
+      <div class="lp-step">
+        <span class="lp-step-num">03</span>
+        <h3 data-i18n="how_s3_title">Prouve et mesure</h3>
+        <p data-i18n="how_s3_text">Le gagnant reçoit un certificat vérifiable, et tu vois exactement ce que la campagne a rapporté à ta communauté.</p>
+      </div>
     </div>
   </section>
 
@@ -2411,6 +2643,28 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
     </div>
   </section>
 
+  <!-- ============ WHO IT'S FOR ============ -->
+  <section class="lp-section lp-section-alt" id="lp-who">
+    <div class="lp-section-head lp-reveal">
+      <span class="lp-kicker" data-i18n="who_kicker">Pour qui</span>
+      <h2 class="lp-section-title" data-i18n="who_title">Conçu pour ceux qui construisent une audience.</h2>
+    </div>
+    <div class="lp-who-grid lp-reveal lp-reveal-delay">
+      <div class="lp-who-card">
+        <h3 data-i18n="who1_title">Créateurs</h3>
+        <p data-i18n="who1_text">Transforme un giveaway ponctuel en abonnés qui restent, et montre à ton audience que le tirage est honnête.</p>
+      </div>
+      <div class="lp-who-card">
+        <h3 data-i18n="who2_title">Marques &amp; boutiques</h3>
+        <p data-i18n="who2_text">Lance une campagne produit, récupère de vrais contacts, et garde une trace vérifiable du tirage pour tes clients.</p>
+      </div>
+      <div class="lp-who-card">
+        <h3 data-i18n="who3_title">Communautés</h3>
+        <p data-i18n="who3_text">Anime ton Discord, ton serveur ou ton groupe avec un tirage que personne ne peut soupçonner d'être arrangé.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ PRICING ============ -->
   <section class="lp-section lp-section-alt" id="lp-pricing">
     <div class="lp-section-head lp-reveal">
@@ -2465,15 +2719,6 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
     <p class="lp-pricing-footnote lp-reveal" data-i18n="pricing_footnote">Chaque formule est aussi disponible en 3 mois, 6 mois ou 1 an, avec jusqu'à -37% — choisis la durée une fois connecté(e), dans Paramètres.</p>
   </section>
 
-  <!-- ============ FINAL CTA ============ -->
-  <section class="lp-final-cta">
-    <div class="lp-final-cta-inner lp-reveal">
-      <h2 data-i18n="final_cta_title">Ton prochain giveaway commence ici.</h2>
-      <p data-i18n="final_cta_sub">Crée-le en quelques clics, gratuitement.</p>
-      <button class="lp-btn-primary lp-btn-lg" onclick="showAuthFromLanding('signupView')"><span data-i18n="cta_create_giveaway">Créer un giveaway</span> <span aria-hidden="true">→</span></button>
-    </div>
-  </section>
-
   <!-- ============ FAQ ============ -->
   <section class="lp-section" id="lp-faq">
     <div class="lp-faq-inner">
@@ -2511,6 +2756,15 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
     </div>
   </section>
 
+  <!-- ============ FINAL CTA ============ -->
+  <section class="lp-final-cta">
+    <div class="lp-final-cta-inner lp-reveal">
+      <h2 data-i18n="final_cta_title">Ton prochain giveaway commence ici.</h2>
+      <p data-i18n="final_cta_sub">Crée-le en quelques clics, gratuitement.</p>
+      <button class="lp-btn-primary lp-btn-lg" onclick="showAuthFromLanding('signupView')"><span data-i18n="cta_create_giveaway">Créer un giveaway</span> <span aria-hidden="true">→</span></button>
+    </div>
+  </section>
+
   <!-- ============ FOOTER ============ -->
   <footer class="lp-footer">
     <div class="lp-footer-inner">
@@ -2524,7 +2778,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
       <div class="lp-footer-col">
         <h5 data-i18n="nav_product">Produit</h5>
         <a href="#lp-product" onclick="closeLpMobileMenu()" data-i18n="nav_product">Produit</a>
-        <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_how">Comment ça marche</a>
+        <a href="#lp-how" onclick="closeLpMobileMenu()" data-i18n="nav_how">Comment ça marche</a>
         <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_features">Fonctionnalités</a>
       <a href="#lp-pricing" onclick="closeLpMobileMenu()" data-i18n="nav_pricing">Tarifs</a>
         <a href="#lp-faq" onclick="closeLpMobileMenu()" data-i18n="nav_faq">FAQ</a>
@@ -3235,6 +3489,39 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
           <label class="form-label" data-i18n="wiz_followers_label">Ton nombre d'abonnés aujourd'hui (optionnel)</label>
           <input type="number" id="wizardFollowersBefore" class="form-input" placeholder="ex : 1250" min="0" />
           <p class="hint" data-i18n="wiz_followers_hint">Note-le maintenant pour mesurer précisément ce que cette campagne t'aura rapporté. Tu saisiras le nouveau chiffre après le tirage.</p>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-head">
+            <span class="form-section-marker">★</span>
+            <div>
+              <strong data-i18n="wiz_req_title">Conditions de participation</strong>
+              <p data-i18n="wiz_req_sub">C'est ce qui fait qu'un giveaway te rapporte des abonnés. Chaque condition est affichée comme une étape sur ta page publique, avec un bouton qui y mène directement.</p>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label" data-i18n="wiz_req_handle_label">Ton compte à suivre</label>
+            <input type="text" id="wizardRequireFollow" class="form-input" placeholder="@moncompte" />
+            <p class="hint" data-i18n="wiz_req_handle_hint">Laisse vide si tu ne veux pas exiger l'abonnement. Sinon, les participants devront passer par ton profil — c'est de là que viennent les nouveaux abonnés.</p>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label" data-i18n="wiz_req_post_label">Lien du post concerné</label>
+            <input type="text" id="wizardRequirePostUrl" class="form-input" placeholder="https://instagram.com/p/..." />
+            <p class="hint" data-i18n="wiz_req_post_hint">Nécessaire pour les deux options ci-dessous : c'est le post que les participants devront aimer ou commenter.</p>
+          </div>
+
+          <label class="check-row">
+            <input type="checkbox" id="wizardRequireLike" />
+            <span><strong data-i18n="wiz_req_like">Demander d'aimer le post</strong><em data-i18n="wiz_req_like_hint">Augmente la portée du post auprès de l'algorithme.</em></span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" id="wizardRequireComment" />
+            <span><strong data-i18n="wiz_req_comment">Demander de commenter en taguant un ami</strong><em data-i18n="wiz_req_comment_hint">Le levier le plus efficace : chaque tag expose ton compte à une nouvelle personne.</em></span>
+          </label>
+
+          <p class="hint-box" data-i18n="wiz_req_verify_note">À savoir : aucun outil ne peut vérifier automatiquement qu'une personne s'est abonnée — Instagram ne le permet à personne. La bonne méthode : une fois le gagnant tiré, ouvre son profil et vérifie en quelques secondes. S'il n'a pas respecté les conditions, relance le tirage.</p>
         </div>
 
         <div class="form-field">
@@ -5813,6 +6100,60 @@ var TRANSLATIONS = {
     "winner_picked": "Gagnant désigné",
     "winner_n_of": "Gagnant {n} / {total}",
     "dashboard_greeting": "Bonjour, {name}",
+    "toast_file_imported": "{count} participants importés depuis {source}",
+    "toast_csv_empty": "Aucun participant trouvé dans ce fichier — vérifie que les pseudos sont dans la première colonne.",
+    "how_kicker": "Comment ça marche",
+    "how_title": "Trois étapes, pas trois soirées.",
+    "how_s1_title": "Rassemble tes participants",
+    "how_s1_text": "Colle une liste, importe un CSV ou un fichier Excel, connecte Instagram ou YouTube, ou partage ton lien public : les gens s'inscrivent eux-mêmes.",
+    "how_s2_title": "Filtre et lance",
+    "how_s2_text": "Retire les doublons, exige un mot-clé ou un nombre de mentions, choisis parmi six tirages animés, puis lance devant ton audience.",
+    "how_s3_title": "Prouve et mesure",
+    "how_s3_text": "Le gagnant reçoit un certificat vérifiable, et tu vois exactement ce que la campagne a rapporté à ta communauté.",
+    "who_kicker": "Pour qui",
+    "who_title": "Conçu pour ceux qui construisent une audience.",
+    "who1_title": "Créateurs",
+    "who1_text": "Transforme un giveaway ponctuel en abonnés qui restent, et montre à ton audience que le tirage est honnête.",
+    "who2_title": "Marques & boutiques",
+    "who2_text": "Lance une campagne produit, récupère de vrais contacts, et garde une trace vérifiable du tirage pour tes clients.",
+    "who3_title": "Communautés",
+    "who3_text": "Anime ton Discord, ton serveur ou ton groupe avec un tirage que personne ne peut soupçonner d'être arrangé.",
+    "join_stat_entries": "participants",
+    "join_stat_left": "temps restant",
+    "join_stat_chances": "tes chances",
+    "join_step_follow": "Abonne-toi à @{handle}",
+    "join_step_follow_hint": "Obligatoire pour participer. Le profil s'ouvre dans un nouvel onglet.",
+    "join_step_follow_cta": "Ouvrir le profil",
+    "join_step_like": "Aime le post du giveaway",
+    "join_step_like_hint": "Un simple cœur suffit.",
+    "join_step_comment": "Commente en taguant un ami",
+    "join_step_comment_hint": "Plus tu tagues d'amis, plus tu as de chances.",
+    "join_step_open_post": "Ouvrir le post",
+    "join_final_title": "Valide ta participation",
+    "join_final_hint": "Ces informations servent uniquement à te prévenir si tu gagnes. Elles ne sont jamais partagées ni revendues.",
+    "join_name_hint": "Idéalement le même pseudo que sur le réseau, pour qu'on te reconnaisse.",
+    "join_email_hint": "C'est par là qu'on te contacte en cas de victoire — vérifie qu'il est correct.",
+    "join_ref_title": "Multiplie tes chances",
+    "join_ref_text": "Partage ton lien personnel : chaque ami qui participe grâce à toi te donne une chance supplémentaire.",
+    "join_ref_copy": "Copier",
+    "wiz_req_title": "Conditions de participation",
+    "wiz_req_sub": "C'est ce qui fait qu'un giveaway te rapporte des abonnés. Chaque condition est affichée comme une étape sur ta page publique, avec un bouton qui y mène directement.",
+    "wiz_req_handle_label": "Ton compte à suivre",
+    "wiz_req_handle_hint": "Laisse vide si tu ne veux pas exiger l'abonnement. Sinon, les participants devront passer par ton profil — c'est de là que viennent les nouveaux abonnés.",
+    "wiz_req_post_label": "Lien du post concerné",
+    "wiz_req_post_hint": "Nécessaire pour les deux options ci-dessous : c'est le post que les participants devront aimer ou commenter.",
+    "wiz_req_like": "Demander d'aimer le post",
+    "wiz_req_like_hint": "Augmente la portée du post auprès de l'algorithme.",
+    "wiz_req_comment": "Demander de commenter en taguant un ami",
+    "wiz_req_comment_hint": "Le levier le plus efficace : chaque tag expose ton compte à une nouvelle personne.",
+    "wiz_req_verify_note": "À savoir : aucun outil ne peut vérifier automatiquement qu'une personne s'est abonnée — Instagram ne le permet à personne. La bonne méthode : une fois le gagnant tiré, ouvre son profil et vérifie en quelques secondes. S'il n'a pas respecté les conditions, relance le tirage.",
+    "door_join_title": "Je veux participer",
+    "door_join_text": "Tu as reçu un lien de giveaway ? Ouvre-le directement : aucun compte n'est nécessaire pour participer.",
+    "door_join_note": "Le lien t'est donné par l'organisateur, sur sa publication ou sa story.",
+    "door_create_title": "Je veux organiser",
+    "door_create_text": "Crée ta campagne, fixe tes conditions (abonnement, like, commentaire) et regarde ta communauté grandir à chaque tirage.",
+    "door_create_cta": "Créer ma campagne",
+    "door_create_note": "Gratuit pour commencer · Aucune carte bancaire",
     "mock_participate": "Participer",
     "float_participants": "1 284 participants",
     "float_ending": "Fin dans 02:14:36",
@@ -6315,6 +6656,60 @@ var TRANSLATIONS = {
     "winner_picked": "Winner picked",
     "winner_n_of": "Winner {n} / {total}",
     "dashboard_greeting": "Hello, {name}",
+    "toast_file_imported": "{count} participants imported from {source}",
+    "toast_csv_empty": "No participants found in this file — check that the usernames are in the first column.",
+    "how_kicker": "How it works",
+    "how_title": "Three steps, not three evenings.",
+    "how_s1_title": "Gather your entrants",
+    "how_s1_text": "Paste a list, import a CSV or Excel file, connect Instagram or YouTube, or share your public link and let people enter themselves.",
+    "how_s2_title": "Filter and run it",
+    "how_s2_text": "Strip duplicates, require a keyword or a number of mentions, pick one of six animated draws, then run it in front of your audience.",
+    "how_s3_title": "Prove it and measure it",
+    "how_s3_text": "The winner gets a verifiable certificate, and you see exactly what the campaign brought your community.",
+    "who_kicker": "Who it's for",
+    "who_title": "Built for people growing an audience.",
+    "who1_title": "Creators",
+    "who1_text": "Turn a one-off giveaway into followers who stay, and show your audience the draw was honest.",
+    "who2_title": "Brands & shops",
+    "who2_text": "Run a product campaign, collect real contacts, and keep a verifiable record of the draw for your customers.",
+    "who3_title": "Communities",
+    "who3_text": "Liven up your Discord, server or group with a draw nobody can suspect of being rigged.",
+    "join_stat_entries": "entries",
+    "join_stat_left": "time left",
+    "join_stat_chances": "your chances",
+    "join_step_follow": "Follow @{handle}",
+    "join_step_follow_hint": "Required to enter. The profile opens in a new tab.",
+    "join_step_follow_cta": "Open profile",
+    "join_step_like": "Like the giveaway post",
+    "join_step_like_hint": "A single tap is enough.",
+    "join_step_comment": "Comment and tag a friend",
+    "join_step_comment_hint": "The more friends you tag, the better your odds.",
+    "join_step_open_post": "Open the post",
+    "join_final_title": "Confirm your entry",
+    "join_final_hint": "This is only used to reach you if you win. It is never shared or resold.",
+    "join_name_hint": "Ideally the same handle you use on the platform, so we recognise you.",
+    "join_email_hint": "This is how we contact you if you win — double-check it.",
+    "join_ref_title": "Multiply your chances",
+    "join_ref_text": "Share your personal link: every friend who enters through it gives you an extra chance.",
+    "join_ref_copy": "Copy",
+    "wiz_req_title": "Entry requirements",
+    "wiz_req_sub": "This is what makes a giveaway actually earn you followers. Each requirement appears as a step on your public page, with a button taking people straight there.",
+    "wiz_req_handle_label": "Your account to follow",
+    "wiz_req_handle_hint": "Leave empty if you don't want to require a follow. Otherwise entrants must go through your profile — that's where new followers come from.",
+    "wiz_req_post_label": "Link to the post",
+    "wiz_req_post_hint": "Required for the two options below: this is the post people will like or comment on.",
+    "wiz_req_like": "Require liking the post",
+    "wiz_req_like_hint": "Increases the post's reach with the algorithm.",
+    "wiz_req_comment": "Require a comment tagging a friend",
+    "wiz_req_comment_hint": "The strongest lever: every tag exposes your account to someone new.",
+    "wiz_req_verify_note": "Worth knowing: no tool can automatically verify that someone followed you — Instagram doesn't allow it for anyone. The right approach: once the winner is drawn, open their profile and check in a few seconds. If they didn't meet the requirements, draw again.",
+    "door_join_title": "I want to enter",
+    "door_join_text": "Got a giveaway link? Just open it — no account needed to take part.",
+    "door_join_note": "The organizer shares the link in their post or story.",
+    "door_create_title": "I want to run one",
+    "door_create_text": "Create your campaign, set your requirements (follow, like, comment) and watch your community grow with every draw.",
+    "door_create_cta": "Create my campaign",
+    "door_create_note": "Free to start · No credit card",
     "mock_participate": "Enter",
     "float_participants": "1,284 participants",
     "float_ending": "Ending in 02:14:36",
@@ -6817,6 +7212,60 @@ var TRANSLATIONS = {
     "winner_picked": "Gewinner gezogen",
     "winner_n_of": "Gewinner {n} / {total}",
     "dashboard_greeting": "Hallo, {name}",
+    "toast_file_imported": "{count} Teilnehmer aus {source} importiert",
+    "toast_csv_empty": "Keine Teilnehmer in dieser Datei gefunden — prüfe, ob die Namen in der ersten Spalte stehen.",
+    "how_kicker": "So funktioniert's",
+    "how_title": "Drei Schritte, nicht drei Abende.",
+    "how_s1_title": "Sammle deine Teilnehmer",
+    "how_s1_text": "Füge eine Liste ein, importiere eine CSV- oder Excel-Datei, verbinde Instagram oder YouTube, oder teile deinen öffentlichen Link — die Leute tragen sich selbst ein.",
+    "how_s2_title": "Filtern und starten",
+    "how_s2_text": "Entferne Duplikate, verlange ein Stichwort oder eine Anzahl Erwähnungen, wähle eine von sechs animierten Verlosungen und starte vor deinem Publikum.",
+    "how_s3_title": "Beweisen und messen",
+    "how_s3_text": "Der Gewinner erhält ein nachprüfbares Zertifikat, und du siehst genau, was die Kampagne deiner Community gebracht hat.",
+    "who_kicker": "Für wen",
+    "who_title": "Gemacht für alle, die eine Community aufbauen.",
+    "who1_title": "Creator",
+    "who1_text": "Mach aus einem einmaligen Giveaway Follower, die bleiben — und zeig deinem Publikum, dass die Verlosung ehrlich war.",
+    "who2_title": "Marken & Shops",
+    "who2_text": "Starte eine Produktkampagne, sammle echte Kontakte und behalte einen nachprüfbaren Nachweis der Verlosung für deine Kunden.",
+    "who3_title": "Communitys",
+    "who3_text": "Beleb deinen Discord, Server oder deine Gruppe mit einer Verlosung, die niemand für manipuliert halten kann.",
+    "join_stat_entries": "Teilnehmer",
+    "join_stat_left": "verbleibend",
+    "join_stat_chances": "deine Chancen",
+    "join_step_follow": "Folge @{handle}",
+    "join_step_follow_hint": "Pflicht für die Teilnahme. Das Profil öffnet sich in einem neuen Tab.",
+    "join_step_follow_cta": "Profil öffnen",
+    "join_step_like": "Like den Giveaway-Beitrag",
+    "join_step_like_hint": "Ein Tippen genügt.",
+    "join_step_comment": "Kommentiere und markiere einen Freund",
+    "join_step_comment_hint": "Je mehr Freunde du markierst, desto besser deine Chancen.",
+    "join_step_open_post": "Beitrag öffnen",
+    "join_final_title": "Teilnahme bestätigen",
+    "join_final_hint": "Wird nur genutzt, um dich bei einem Gewinn zu erreichen. Niemals geteilt oder weiterverkauft.",
+    "join_name_hint": "Idealerweise derselbe Name wie auf der Plattform, damit wir dich erkennen.",
+    "join_email_hint": "So kontaktieren wir dich bei einem Gewinn — prüfe sie genau.",
+    "join_ref_title": "Vervielfache deine Chancen",
+    "join_ref_text": "Teile deinen persönlichen Link: Jeder Freund, der darüber teilnimmt, gibt dir eine zusätzliche Chance.",
+    "join_ref_copy": "Kopieren",
+    "wiz_req_title": "Teilnahmebedingungen",
+    "wiz_req_sub": "Genau das sorgt dafür, dass dir ein Giveaway wirklich Follower bringt. Jede Bedingung erscheint als Schritt auf deiner öffentlichen Seite, mit einem Button, der direkt dorthin führt.",
+    "wiz_req_handle_label": "Dein Konto zum Folgen",
+    "wiz_req_handle_hint": "Leer lassen, wenn du kein Folgen verlangen willst. Sonst müssen Teilnehmer über dein Profil gehen — daher kommen die neuen Follower.",
+    "wiz_req_post_label": "Link zum Beitrag",
+    "wiz_req_post_hint": "Erforderlich für die beiden Optionen unten: Das ist der Beitrag, den die Leute liken oder kommentieren sollen.",
+    "wiz_req_like": "Liken des Beitrags verlangen",
+    "wiz_req_like_hint": "Erhöht die Reichweite des Beitrags im Algorithmus.",
+    "wiz_req_comment": "Kommentar mit Markierung eines Freundes verlangen",
+    "wiz_req_comment_hint": "Der stärkste Hebel: Jede Markierung zeigt dein Konto einer neuen Person.",
+    "wiz_req_verify_note": "Wichtig zu wissen: Kein Tool kann automatisch prüfen, ob jemand dir gefolgt ist — Instagram erlaubt das niemandem. Der richtige Weg: Sobald der Gewinner gezogen ist, öffne sein Profil und prüfe es in wenigen Sekunden. Hat er die Bedingungen nicht erfüllt, ziehe erneut.",
+    "door_join_title": "Ich möchte teilnehmen",
+    "door_join_text": "Du hast einen Giveaway-Link? Öffne ihn einfach — für die Teilnahme brauchst du kein Konto.",
+    "door_join_note": "Den Link gibt dir der Veranstalter in seinem Beitrag oder seiner Story.",
+    "door_create_title": "Ich möchte eines veranstalten",
+    "door_create_text": "Erstelle deine Kampagne, lege deine Bedingungen fest (Folgen, Like, Kommentar) und sieh deine Community mit jeder Verlosung wachsen.",
+    "door_create_cta": "Kampagne erstellen",
+    "door_create_note": "Kostenlos starten · Keine Kreditkarte",
     "mock_participate": "Teilnehmen",
     "float_participants": "1.284 Teilnehmer",
     "float_ending": "Endet in 02:14:36",
@@ -7077,6 +7526,10 @@ function startWizard() {
   clearFieldError('wizardTitle', 'wizardTitleError');
   document.getElementById('wizardEndDate').value = '';
   document.getElementById('wizardFollowersBefore').value = '';
+  document.getElementById('wizardRequireFollow').value = '';
+  document.getElementById('wizardRequirePostUrl').value = '';
+  document.getElementById('wizardRequireLike').checked = false;
+  document.getElementById('wizardRequireComment').checked = false;
   removeWizardImage();
   renderWizardColorPicker('#5B5BF6');
   document.getElementById('wizardRawText').value = '';
@@ -7137,6 +7590,10 @@ function wizardNext(fromStep) {
     wizardData.endDate = document.getElementById('wizardEndDate').value;
     var fb = parseInt(document.getElementById('wizardFollowersBefore').value, 10);
     wizardData.followersBefore = isNaN(fb) ? null : fb;
+    wizardData.requireFollow = document.getElementById('wizardRequireFollow').value.trim().replace(/^@/, '');
+    wizardData.requirePostUrl = document.getElementById('wizardRequirePostUrl').value.trim();
+    wizardData.requireLike = document.getElementById('wizardRequireLike').checked;
+    wizardData.requireComment = document.getElementById('wizardRequireComment').checked;
   }
   if (fromStep === 2) {
     var raw = document.getElementById('wizardRawText').value;
@@ -7290,53 +7747,150 @@ function setImageUploadStatus(status) {
 }
 
 function parseCsvLines(raw) {
-  return raw.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  return raw.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(Boolean);
 }
 
-// Handles both CSV (plain text) and Excel (.xlsx/.xls, parsed with the
-// SheetJS library loaded in the page head) — same result either way: a
-// participant list built from the first column of the file.
+// ============================================================
+// CSV / EXCEL IMPORT
+// Rewritten after imported files came through as unusable rows. Four
+// separate real-world problems, each of which alone was enough to
+// wreck the result:
+//
+//  1. Separator. French/European Excel writes CSV with ';', not ','.
+//     Splitting on ',' only meant an entire row ("Jean;jean@mail.com")
+//     became one single "name" — the most likely cause of an import
+//     that "looks like nothing".
+//  2. Encoding. Excel on Windows often saves as Windows-1252, not
+//     UTF-8. Read as UTF-8, every accent turns to mojibake (Ã©, Ã¨).
+//     We detect that and re-read with the right encoding.
+//  3. Byte-order mark. Excel prefixes UTF-8 files with an invisible
+//     BOM, which silently became part of the first participant's name.
+//  4. Header rows. "Nom", "Name", "Pseudo", "Email" were imported as
+//     actual participants, so every draw had a phantom entrant.
+// ============================================================
+var CSV_HEADER_WORDS = ['nom','name','pseudo','username','utilisateur','user','participant','email','mail','prenom','prénom','handle','compte','account'];
+
+function detectCsvDelimiter(firstLines) {
+  // Count candidates outside quoted sections; the winner is whichever
+  // appears most consistently across the sampled lines.
+  var candidates = [';', ',', '\t', '|'];
+  var best = ',', bestScore = -1;
+  candidates.forEach(function(d) {
+    var counts = firstLines.map(function(l) { return splitCsvLine(l, d).length; });
+    var min = Math.min.apply(null, counts);
+    if (min > 1) {
+      var score = min;
+      if (score > bestScore) { bestScore = score; best = d; }
+    }
+  });
+  return best;
+}
+
+// Quote-aware split: a separator inside "..." is part of the value, not
+// a column break (names like "Dupont, Jean" are common in exports).
+function splitCsvLine(line, delim) {
+  var out = [], cur = '', inQuotes = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === delim && !inQuotes) {
+      out.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function looksLikeHeaderRow(cols) {
+  if (!cols.length) return false;
+  var first = String(cols[0] || '').toLowerCase().trim();
+  return CSV_HEADER_WORDS.indexOf(first) !== -1;
+}
+
+function looksLikeMojibake(text) {
+  // Classic UTF-8-read-as-Latin1 signatures, plus the replacement char.
+  return /Ã[©¨ªàª«¢°]|Ã‰|â€™|â€œ|\uFFFD/.test(text);
+}
+
+function buildParticipantsFromRows(rows) {
+  var participants = [];
+  rows.forEach(function(cols, idx) {
+    if (idx === 0 && looksLikeHeaderRow(cols)) return; // skip header
+    var name = String(cols[0] == null ? '' : cols[0]).replace(/^@/, '').trim();
+    if (!name) return;
+    var raw = cols.join(', ');
+    participants.push({ name: name, raw: raw, mentions: countMentions(raw) });
+  });
+  return participants;
+}
+
 function handleWizardCsvChange(evt) {
   var file = evt.target.files && evt.target.files[0];
   if (!file) return;
   var isExcel = /\.xlsx?$/i.test(file.name);
 
   if (isExcel) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
+    var xreader = new FileReader();
+    xreader.onload = function(e) {
       try {
         var data = new Uint8Array(e.target.result);
         var workbook = XLSX.read(data, { type: 'array' });
         var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         var rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, blankrows: false });
-        var participants = rows.map(function(row) {
-          var name = String(row[0] || '').replace(/^@/, '').trim();
-          var raw = row.join(', ');
-          return { name: name, raw: raw, mentions: countMentions(raw) };
-        }).filter(function(p) { return p.name; });
+        var participants = buildParticipantsFromRows(rows);
         setWizardParticipants(participants);
-        document.getElementById('wizardParticipantPreview').textContent =
-          t('toast_excel_imported', { count: wizardData.participants.length });
+        showImportPreview(wizardData.participants.length, 'Excel');
       } catch (err) {
         showToast(t('toast_upload_error', { msg: err.message }), 'error');
       }
     };
-    reader.readAsArrayBuffer(file);
+    xreader.readAsArrayBuffer(file);
     return;
   }
 
+  readCsvText(file, 'utf-8', function(text) {
+    if (looksLikeMojibake(text)) {
+      // Re-read with the encoding Excel on Windows actually used.
+      readCsvText(file, 'windows-1252', function(text2) { finishCsvImport(text2); });
+    } else {
+      finishCsvImport(text);
+    }
+  });
+}
+
+function readCsvText(file, encoding, done) {
   var reader = new FileReader();
-  reader.onload = function(e) {
-    var text = String(e.target.result || '');
-    var lines = parseCsvLines(text);
-    setWizardParticipants(lines.map(function(line) {
-      var cols = line.split(',');
-      var name = cols[0].replace(/"/g, '').trim().replace(/^@/, '');
-      return { name: name, raw: line, mentions: countMentions(line) };
-    }));
-    document.getElementById('wizardParticipantPreview').textContent = wizardData.participants.length + ' participants importés du CSV';
-  };
-  reader.readAsText(file);
+  reader.onload = function(e) { done(String(e.target.result || '')); };
+  reader.readAsText(file, encoding);
+}
+
+function finishCsvImport(text) {
+  text = text.replace(/^\uFEFF/, ''); // strip the BOM Excel prepends
+  var lines = parseCsvLines(text);
+  if (lines.length === 0) {
+    showToast(t('toast_csv_empty'), 'error');
+    return;
+  }
+  var delim = detectCsvDelimiter(lines.slice(0, 8));
+  var rows = lines.map(function(l) {
+    return splitCsvLine(l, delim).map(function(v) { return v.replace(/^"|"$/g, '').trim(); });
+  });
+  var participants = buildParticipantsFromRows(rows);
+  if (participants.length === 0) {
+    showToast(t('toast_csv_empty'), 'error');
+    return;
+  }
+  setWizardParticipants(participants);
+  showImportPreview(wizardData.participants.length, 'CSV');
+}
+
+function showImportPreview(count, sourceLabel) {
+  var el = document.getElementById('wizardParticipantPreview');
+  if (el) el.textContent = t('toast_file_imported', { count: count, source: sourceLabel });
 }
 
 // ============================================================
@@ -8088,6 +8642,10 @@ async function wizardCreate() {
       winner_count: wizardData.winnerCount,
       end_date: wizardData.endDate || null,
       followers_before: wizardData.followersBefore,
+      require_follow_handle: wizardData.requireFollow || null,
+      require_post_url: wizardData.requirePostUrl || null,
+      require_like: !!wizardData.requireLike,
+      require_comment: !!wizardData.requireComment,
       image_url: imageUrl,
       accent_color: wizardData.accentColor
     })
@@ -10685,6 +11243,9 @@ function downloadCertificate() {
 // giveaways, or touch anything belonging to the organizer.
 // ============================================================
 var joinGiveawayId = null;
+var joinGiveaway = null;
+var joinReferredBy = null;
+var joinStepsDone = {};
 
 function checkPublicJoinDeepLink() {
   var params = new URLSearchParams(window.location.search);
@@ -10692,6 +11253,7 @@ function checkPublicJoinDeepLink() {
   if (!gid) return false;
 
   joinGiveawayId = gid;
+  joinReferredBy = params.get('ref') || null;
   document.getElementById('landingScreen').style.display = 'none';
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appShell').style.display = 'none';
@@ -10714,23 +11276,29 @@ async function loadPublicGiveaway(gid) {
       document.getElementById('joinNotFound').style.display = 'block';
       return;
     }
+    joinGiveaway = g;
 
     document.getElementById('joinGiveawayTitle').textContent = g.title || '';
     document.getElementById('joinEntryCount').textContent = (g.entry_count || 0).toLocaleString(currentLang());
+    // Arriving through someone's referral link already counts as a
+    // second chance — shown up front because that's the whole incentive
+    // to share it on.
+    document.getElementById('joinChanceValue').textContent = joinReferredBy ? '2' : '1';
 
     if (g.image_url) {
       var img = document.getElementById('joinGiveawayImage');
       img.src = g.image_url;
       img.style.display = 'block';
     }
-    if (g.accent_color) {
-      document.getElementById('joinCard').style.setProperty('--accent', g.accent_color);
-    }
+    if (g.accent_color) document.getElementById('joinCard').style.setProperty('--accent', g.accent_color);
+
     if (g.end_date) {
-      var dl = document.getElementById('joinDeadline');
-      dl.textContent = t('join_deadline', { date: new Date(g.end_date).toLocaleString(currentLang()) });
-      dl.style.display = 'block';
+      var stat = document.getElementById('joinDeadlineStat');
+      stat.style.display = 'block';
+      document.getElementById('joinDeadlineValue').textContent = formatTimeLeft(g.end_date);
     }
+
+    renderJoinSteps(g);
 
     document.getElementById('joinLoading').style.display = 'none';
     document.getElementById('joinForm').style.display = 'block';
@@ -10739,6 +11307,75 @@ async function loadPublicGiveaway(gid) {
     document.getElementById('joinLoading').style.display = 'none';
     document.getElementById('joinNotFound').style.display = 'block';
   }
+}
+
+function formatTimeLeft(endDate) {
+  var ms = new Date(endDate) - new Date();
+  if (ms <= 0) return '—';
+  var d = Math.floor(ms / 86400000);
+  if (d >= 1) return d + 'j';
+  var h = Math.floor(ms / 3600000);
+  if (h >= 1) return h + 'h';
+  return Math.max(1, Math.floor(ms / 60000)) + 'min';
+}
+
+// Builds the required-action checklist from whatever the organizer
+// actually configured. Each step opens the real destination and marks
+// itself done on return — we cannot verify a follow through any API
+// (Instagram exposes no such endpoint to anyone), so the honest design
+// is: make the action effortless, state plainly that the winner is
+// checked manually, and let the deterrent do the rest.
+function renderJoinSteps(g) {
+  var el = document.getElementById('joinSteps');
+  if (!el) return;
+  var steps = [];
+
+  if (g.require_follow_handle) {
+    steps.push({
+      key: 'follow',
+      label: t('join_step_follow', { handle: g.require_follow_handle }),
+      hint: t('join_step_follow_hint'),
+      cta: t('join_step_follow_cta'),
+      url: 'https://instagram.com/' + String(g.require_follow_handle).replace(/^@/, '')
+    });
+  }
+  if (g.require_like && g.require_post_url) {
+    steps.push({ key: 'like', label: t('join_step_like'), hint: t('join_step_like_hint'), cta: t('join_step_open_post'), url: g.require_post_url });
+  }
+  if (g.require_comment && g.require_post_url) {
+    steps.push({ key: 'comment', label: t('join_step_comment'), hint: t('join_step_comment_hint'), cta: t('join_step_open_post'), url: g.require_post_url });
+  }
+
+  if (steps.length === 0) {
+    el.innerHTML = '';
+    document.getElementById('joinFinalMarker').textContent = '1';
+    return;
+  }
+
+  el.innerHTML = steps.map(function(st, i) {
+    return '<div class="join-step" id="joinStep_' + st.key + '">' +
+      '<span class="join-step-marker">' + (i + 1) + '</span>' +
+      '<div class="join-step-body">' +
+        '<strong>' + escapeHtml(st.label) + '</strong>' +
+        '<p>' + escapeHtml(st.hint) + '</p>' +
+        '<button type="button" class="join-step-btn" onclick="openJoinStep(\'' + st.key + '\', \'' + encodeURI(st.url) + '\')">' +
+          escapeHtml(st.cta) +
+        '</button>' +
+      '</div>' +
+      '<span class="join-step-check" id="joinCheck_' + st.key + '"></span>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('joinFinalMarker').textContent = String(steps.length + 1);
+}
+
+function openJoinStep(key, url) {
+  window.open(url, '_blank', 'noopener');
+  joinStepsDone[key] = true;
+  var row = document.getElementById('joinStep_' + key);
+  var check = document.getElementById('joinCheck_' + key);
+  if (row) row.classList.add('is-done');
+  if (check) check.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
 }
 
 async function submitPublicEntry() {
@@ -10760,37 +11397,44 @@ async function submitPublicEntry() {
   setBtnLoading(btn, true);
   try {
     var { data, error } = await supabaseClient.rpc('submit_public_entry', {
-      gid: joinGiveawayId, entry_name: name, entry_email: email
+      gid: joinGiveawayId, entry_name: name, entry_email: email, ref_code: joinReferredBy
     });
     if (error) throw error;
 
     if (data && data.ok) {
       document.getElementById('joinForm').style.display = 'none';
       document.getElementById('joinSuccess').style.display = 'block';
+      var link = window.location.origin + window.location.pathname + '?join=' + joinGiveawayId +
+                 (data.referral_code ? '&ref=' + data.referral_code : '');
+      document.getElementById('joinReferralLink').value = link;
       return;
     }
 
-    // The server distinguishes these cases on purpose — "you already
-    // entered" is a very different message from "this is closed", and
-    // guessing between them client-side would get it wrong.
     var reason = (data && data.error) || 'unknown';
-    if (reason === 'already_entered') {
-      setFieldError('joinEmail', 'joinEmailError', t('join_err_already'));
-    } else if (reason === 'closed') {
+    if (reason === 'already_entered') setFieldError('joinEmail', 'joinEmailError', t('join_err_already'));
+    else if (reason === 'closed') {
       document.getElementById('joinForm').style.display = 'none';
       document.getElementById('joinNotFound').style.display = 'block';
-    } else if (reason === 'invalid_email') {
-      setFieldError('joinEmail', 'joinEmailError', t('err_invalid_email_format'));
-    } else if (reason === 'invalid_name') {
-      setFieldError('joinName', 'joinNameError', t('val_name_required'));
-    } else {
-      showToast(t('join_err_generic'), 'error');
     }
+    else if (reason === 'invalid_email') setFieldError('joinEmail', 'joinEmailError', t('err_invalid_email_format'));
+    else if (reason === 'invalid_name') setFieldError('joinName', 'joinNameError', t('val_name_required'));
+    else showToast(t('join_err_generic'), 'error');
   } catch (err) {
     console.error('Public entry failed:', err);
     showToast(t('join_err_generic'), 'error');
   } finally {
     setBtnLoading(btn, false);
+  }
+}
+
+async function copyReferralLink() {
+  var el = document.getElementById('joinReferralLink');
+  try {
+    await navigator.clipboard.writeText(el.value);
+    showToast(t('public_entry_copied'), 'success');
+  } catch (e) {
+    el.select();
+    showToast(t('public_entry_copy_manual'), 'error');
   }
 }
 
