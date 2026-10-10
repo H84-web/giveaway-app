@@ -23,6 +23,7 @@
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
+
 /* ============================================================
    REREPICKWINN — Design system
    ============================================================ */
@@ -2188,6 +2189,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .lp-compare-table tbody tr:last-child th, .lp-compare-table tbody tr:last-child td { border-bottom: none; }
 .lp-compare-table .is-featured { color: #6355E0; }
 .lp-compare-table .cmp-yes { width: 18px; height: 18px; color: var(--green); display: inline-block; vertical-align: middle; }
+
 </style>
 </head>
 <body>
@@ -4133,6 +4135,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 </div>
 
 <script>
+
 // ============================================================
 // REREPICKWINN — Application logic
 // ============================================================
@@ -9529,7 +9532,8 @@ function ensureWheelCanvasResolution(canvas) {
   return { ctx: ctx, size: size };
 }
 
-function drawWheel(currentRotation, highlightIndex, list) {
+function drawWheel(currentRotation, highlightIndex, list, fx) {
+  fx = fx || {};
   var canvas = document.getElementById('wheelCanvas');
   if (!canvas || !canvas.getContext) return;
   var resolved = ensureWheelCanvasResolution(canvas);
@@ -9578,6 +9582,10 @@ function drawWheel(currentRotation, highlightIndex, list) {
     ctx.closePath();
     ctx.fillStyle = isHighlight ? '#F59E0B' : (i % 2 === 0 ? WHEEL_SEG_COLOR_A : WHEEL_SEG_COLOR_B);
     ctx.fill();
+    if (highlightIndex !== null && highlightIndex !== undefined && !isHighlight) {
+      ctx.fillStyle = 'rgba(10,12,20,' + (0.5 * Math.min(1, (fx.hold || 0) / 350)) + ')';   // spotlight: the others dim
+      ctx.fill();
+    }
 
     if (showLabels || isHighlight) {
       ctx.save();
@@ -9631,6 +9639,29 @@ function drawWheel(currentRotation, highlightIndex, list) {
 
   ctx.restore();
 
+  // Speed glow: the rim lights up with the wheel's speed, then fades as it slows.
+  if (fx.speed > 0.02) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 3, 0, Math.PI * 2);
+    ctx.lineWidth = 3 + 5 * fx.speed;
+    ctx.strokeStyle = 'rgba(255,214,120,' + (0.55 * fx.speed) + ')';
+    ctx.shadowColor = 'rgba(255,200,90,0.9)';
+    ctx.shadowBlur = 16 * fx.speed;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  // Winner: expanding rings from the rim.
+  if (fx.hold > 0) {
+    for (var rg = 0; rg < 3; rg++) {
+      var rt = ((fx.hold / 1000) + rg / 3) % 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 4 + rt * 22, 0, Math.PI * 2);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(245,158,11,' + (0.55 * (1 - rt)) + ')';
+      ctx.stroke();
+    }
+  }
+
   // A subtle metallic rim ring around the whole wheel — the small
   // finishing touch that was missing.
   ctx.beginPath();
@@ -9662,6 +9693,11 @@ function drawWheel(currentRotation, highlightIndex, list) {
   // Pointer drawn directly in canvas space for pixel-perfect alignment.
   var pointerBaseY = cy - radius - 2;
   var pointerTipY = pointerBaseY + 22;
+  // The pointer flicks back each time a divider passes under it, like a real wheel.
+  ctx.save();
+  ctx.translate(cx, pointerBaseY);
+  ctx.rotate(-(fx.kick || 0));
+  ctx.translate(-cx, -pointerBaseY);
   ctx.beginPath();
   ctx.moveTo(cx - 13, pointerBaseY);
   ctx.lineTo(cx + 13, pointerBaseY);
@@ -9669,6 +9705,7 @@ function drawWheel(currentRotation, highlightIndex, list) {
   ctx.closePath();
   ctx.fillStyle = '#16181D';
   ctx.fill();
+  ctx.restore();
 }
 
 // Caps how many segments the wheel actually draws — matches the same
@@ -9727,18 +9764,38 @@ function spinWheelMode(pool, winnerIndex, durationSeconds, onDone) {
   var startTime = performance.now();
   var startRotation = rotation % (2 * Math.PI);
 
+  var HOLD_MS = 1100;                      // winner spotlight before the result is announced
+  var kick = 0, lastSeg = -1, lastNow = startTime, prevRot = startRotation;
+  var overshoot = Math.min(0.014, segAngle * 0.3);   // a real wheel rocks a hair past, then settles
+  function pointerSeg(rot) {
+    var a = ((-(Math.PI / 2) - rot) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+    return Math.floor(a / segAngle);
+  }
   function animate(now) {
     var elapsed = now - startTime;
+    var dt = Math.max(1, Math.min(60, now - lastNow));
+    lastNow = now;
     var t = Math.min(elapsed / duration, 1);
     var eased = 1 - Math.pow(1 - t, 4);
     var current = startRotation + (finalRotation - startRotation) * eased;
+    var after = Math.max(0, elapsed - duration);
+    if (after > 0) current += overshoot * Math.exp(-after / 160) * Math.sin(after / 55) * 0.8;   // damped rock
     rotation = current;
-    drawWheel(current, null, wheelPool);
+    var speed = Math.min(1, Math.abs(current - prevRot) / dt * 1000 / 14);   // 0..1, saturates near 14 rad/s
+    prevRot = current;
+    var sg = pointerSeg(current);
+    if (sg !== lastSeg) { if (lastSeg !== -1 && t < 1) kick = 0.42; lastSeg = sg; }
+    kick *= Math.exp(-dt / 90);
 
     if (t < 1) {
+      drawWheel(current, null, wheelPool, { kick: kick, speed: speed });
+      spinFrame = requestAnimationFrame(animate);
+    } else if (after < HOLD_MS) {
+      drawWheel(current, wheelWinnerIndex, wheelPool, { kick: kick, speed: 0, hold: after });
       spinFrame = requestAnimationFrame(animate);
     } else {
-      drawWheel(current, wheelWinnerIndex, wheelPool);
+      drawWheel(finalRotation, wheelWinnerIndex, wheelPool, { hold: after });
+      rotation = finalRotation;
       onDone();
     }
   }
@@ -10565,9 +10622,9 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
   playDuckQuack();
 
   var duration = Math.max(3, durationSeconds || 6) * 1000;   // the race lasts exactly the time chosen for the draw
-  var COAST_MS = 260;                                         // winner visibly swims through the line, then it stops
+  var COAST_MS = 0;                                           // the race ends exactly on the line: the winner touches it when the time is up
   var ORBIT_MS = 1900, SPOT_MS = 1500, HOLD_MS = 2600;         // close-up on the winner: camera circles, then a spotlight closes on the face
-  var CINE_START = duration + COAST_MS;
+  var CINE_START = duration + 450;                            // short beat on the line, THEN the winner animation
   var FINISH = 100;
 
   // ---- How the race is decided ---------------------------------------
@@ -10583,11 +10640,17 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
   var params = [];
   for (var i = 0; i < duckCount; i++) {
     var isW = i === actualWinnerIndex;
-    var f1 = 0.9 + Math.random() * 0.9, f2 = 1.7 + Math.random() * 1.6;
+    // Wobble speeds are in cycles PER SECOND, so a 10-minute race is as
+    // lively as a 10-second one: ducks keep surging, falling back and
+    // overtaking all along. (On very short races we keep at least ~1-3
+    // cycles so there are still a few overtakes.)
+    var dSec = duration / 1000;
+    var f1 = Math.max(0.12 + Math.random() * 0.14, (0.9 + Math.random() * 0.9) / dSec) / 1000;
+    var f2 = Math.max(0.30 + Math.random() * 0.25, (1.7 + Math.random() * 1.6) / dSec) / 1000;
     params.push({
       F: isW ? 1 : 1 - (0.028 + Math.pow(Math.random(), 1.15) * 0.07),
-      a1: 3.2 + Math.random() * 3.0, f1: f1, p1: Math.random() * Math.PI * 2,
-      a2: 1.0 + Math.random() * 1.8, f2: f2, p2: Math.random() * Math.PI * 2,
+      a1: 4.0 + Math.random() * 3.5, f1: f1, p1: Math.random() * Math.PI * 2,
+      a2: 1.4 + Math.random() * 2.0, f2: f2, p2: Math.random() * Math.PI * 2,
       off: 0
     });
   }
@@ -10595,12 +10658,14 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
   function posAt(i, tau) {
     var p = params[i];
     var tc = Math.min(tau, 1);
-    // wobble envelope: zero at the start line, strong mid-race, gone for the last ~8%
-    var env = Math.pow(Math.sin(Math.PI * tc), 0.8) * (1 - smooth((tc - 0.78) / 0.16));
-    var wob = env * (p.a1 * Math.sin(2 * Math.PI * p.f1 * tc + p.p1) + p.a2 * Math.sin(2 * Math.PI * p.f2 * tc + p.p2));
+    var ms = tc * duration;
+    // wobble envelope: eases in over the first seconds, then the pack
+    // settles over the last stretch so the winner is clearly first on the line
+    var fadeLen = Math.min(duration * 0.16, 22000);
+    var env = smooth(ms / Math.min(3500, duration * 0.3)) * (1 - smooth((ms - (duration * 0.94 - fadeLen)) / fadeLen));
+    var wob = env * (p.a1 * Math.sin(2 * Math.PI * p.f1 * ms + p.p1) + p.a2 * Math.sin(2 * Math.PI * p.f2 * ms + p.p2));
     var base = FINISH * p.F * tc + p.off * (1 - tc);
     var pos = base + wob;
-    if (tau > 1) pos += FINISH * p.F * (tau - 1) * 0.9;   // coast past the line
     return pos;
   }
 
@@ -10622,7 +10687,7 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
     var tau = elapsed / duration;
     duckRaceInfo.elapsed = Math.min(elapsed, duration);
 
-    var tauPos = Math.min(tau, 1 + COAST_MS / duration);          // positions freeze once the coast is over
+    var tauPos = Math.min(tau, 1);                                  // everything stops on the line when time is up
     for (var i = 0; i < duckCount; i++) {
       var np = posAt(i, tauPos);
       var prev = duckPositions[i];
@@ -10863,7 +10928,7 @@ function drawDuckScene(elapsed, winnerIndex) {
   var cam = duckCam;
   var pxU = (w - L.padL - L.padR) / cam.win;                  // pixels per track unit
   function sx(p) { return L.padL + (p - cam.left) * pxU; }
-  var P = cam.left * pxU;                                      // how far the camera has travelled, in pixels
+  var P = cam.left * pxU + Math.min(elapsed, duckRaceInfo.duration || elapsed) * 0.045;   // camera travel + constant current, so the scenery visibly rolls at any duration
   var flow = elapsed * 0.05;
   var env = duckEnv;
   var cine = duckCine;
@@ -11127,18 +11192,19 @@ function drawDuckScene(elapsed, winnerIndex) {
     drawDuck(ctx, pos.x, yy, profile, isWinner, elapsed / 130 + i * 2, i + 1, L.size);
 
     if (!L.swarm) {
-      ctx.font = '600 ' + Math.round(Math.max(10, L.size * 0.42)) + 'px system-ui, -apple-system, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.94)';
-      ctx.shadowColor = 'rgba(10,30,50,0.5)';
-      ctx.shadowBlur = 3;
-      if (pos.x < w - 110) {
-        ctx.textAlign = 'left';
-        ctx.fillText('@' + participant.name, pos.x + L.size * 1.3, pos.y + 3, 90);
-      } else {
-        ctx.textAlign = 'right';
-        ctx.fillText('@' + participant.name, pos.x - L.size * 1.3, pos.y + 3, 90);
-      }
-      ctx.shadowBlur = 0;
+      // Every duck carries its name just above its head.
+      var nf = Math.round(Math.max(8, Math.min(13, L.size * 0.36)));
+      ctx.font = '700 ' + nf + 'px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      var nm = '@' + (participant.name || '');
+      var nx = Math.max(46, Math.min(w - 46, pos.x + L.size * 0.4));
+      var ny = yy - L.size * 1.0;
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(15,30,48,0.78)';
+      ctx.strokeText(nm, nx, ny, 84);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(nm, nx, ny, 84);
     } else if (isWinner) {
       ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
@@ -12239,14 +12305,14 @@ function initPlinkoCanvas(slotCount) {
 
   // Sized like the other games on a computer (wide, but never taller than
   // the window), and compact on a phone. Few slots = a smaller board.
-  var displayWidth = Math.min(available, Math.max(440, Math.min(840, n * 40)));
+  var displayWidth = Math.min(available, Math.max(480, Math.min(900, n * 46)));
   var slotW = displayWidth / n;
   var labelH = slotW < 56 ? 98 : 58;
-  var rowTarget = Math.max(20, Math.min(46, slotW * 0.85));
+  var rowTarget = Math.max(24, Math.min(52, slotW * 0.9));
   var wanted = 30 + (pegRows + 1) * rowTarget + 8 + labelH;
   var fullscreen = document.body.classList.contains('draw-fullscreen');
   var maxHeight = fullscreen ? Math.max(420, Math.min(780, window.innerHeight - 220)) : 640;
-  var displayHeight = Math.round(Math.min(maxHeight, Math.max(320, wanted)));
+  var displayHeight = Math.round(Math.min(maxHeight, Math.max(360, wanted)));
 
   var dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.style.width = displayWidth + 'px';
@@ -12344,7 +12410,7 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
   // is what makes it read as a real ball and not an animation.
   var hops = [];
   var total = 0;
-  var naturalHop = 150 * Math.sqrt(Math.max(0.6, g.rowH / 22));      // a believable fall time for this peg spacing
+  var naturalHop = 108 * Math.sqrt(Math.max(0.6, g.rowH / 22));      // a believable fall time for this peg spacing
   for (var r = 0; r < pegRows; r++) {
     var fromX = r === 0 ? g.w / 2 : g.levelX(r, path[r]);
     var fromY = r === 0 ? g.boardTop - g.ballR * 2 : g.pegY(r) - g.pegR - g.ballR;
@@ -12367,10 +12433,10 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
   var wanted = Math.max(3, durationSeconds || 6) * 1000;
   var targetTotal = Math.max(1200, wanted - DROP_MS - 700);
   var raw = hops.reduce(function(s2, h2) { return s2 + h2.th; }, 0);
-  var scale = Math.max(0.55, Math.min(3.0, targetTotal / raw));
+  var scale = Math.max(0.7, Math.min(1.35, targetTotal / raw));   // brisk, natural pace: never slow-motion
   hops.forEach(function(h2) { h2.th *= scale; });
   var played = raw * scale;
-  var leadDelay = Math.max(0, Math.min(2400, targetTotal - played));
+  var leadDelay = Math.max(0, Math.min(700, targetTotal - played));
   total = leadDelay;
   hops.forEach(function(h2) { h2.start = total; total += h2.th; });
 
@@ -12680,8 +12746,8 @@ function initMarbleCanvas(marbleCount) {
   if (!canvas) return null;
   var container = canvas.parentElement;
   var displayWidth = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
-  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(760, window.innerHeight - 340) : 760;
-  var displayHeight = Math.min(maxHeight, Math.max(480, 380 + marbleCount * 9));
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(820, window.innerHeight - 300) : 820;
+  var displayHeight = Math.min(maxHeight, Math.max(540, 430 + marbleCount * 9));
 
   var dpr = window.devicePixelRatio || 1;
   canvas.style.width = displayWidth + 'px';
@@ -12717,8 +12783,8 @@ var MARBLE_PASSES = 3; // horizontal straights, alternating direction
 var MARBLE_FINISH_FRACTION = 0.9;
 
 function marbleTrackPoint(t, w, h) {
-  var marginX = 46;
-  var marginY = Math.max(50, h * 0.10);
+  var marginX = 72;
+  var marginY = Math.max(56, h * 0.17);
   var usableH = h - marginY * 2;
   var rowGap = usableH / (MARBLE_PASSES - 1);
   var turnRadius = rowGap / 2;
@@ -12785,11 +12851,11 @@ function marbleLaneLayout(count, canvasH) {
   // another — so it's derived from that gap rather than a fixed number.
   var roadWidth = 240;
   if (canvasH) {
-    var marginY = Math.max(50, canvasH * 0.10);
+    var marginY = Math.max(56, canvasH * 0.17);
     var rowGap = (canvasH - marginY * 2) / (MARBLE_PASSES - 1);
-    roadWidth = Math.max(60, Math.min(240, rowGap * 0.62));
+    roadWidth = Math.max(60, Math.min(240, rowGap * 0.66, (marginY - 6) * 2));
   }
-  var laneSpacing = numLanes > 1 ? Math.min(20, Math.max(6, (roadWidth - 30) / (numLanes - 1))) : 20;
+  var laneSpacing = numLanes > 1 ? Math.min(count <= 8 ? 38 : count <= 30 ? 28 : 20, Math.max(6, (roadWidth - 34) / (numLanes - 1))) : 20;
   return { numLanes: numLanes, laneSpacing: laneSpacing, roadWidth: roadWidth };
 }
 
@@ -13041,7 +13107,7 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
     ctx.shadowColor = 'rgba(255, 210, 60, 0.8)';
     ctx.shadowBlur = 8 + pulse * 6;
     ctx.fillStyle = '#FFD23C';
-    ctx.fillRect(-6, -6, 12, 12);
+    ctx.fillRect(-7, -7, 14, 14);
     ctx.restore();
   });
 
@@ -13075,7 +13141,7 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
   // circles: still readable as "a marble", a fraction of the cost.
   var showDetail = marblePool.length <= 120;
   var showLabels = marblePool.length <= 150;
-  var radius = showDetail ? 7.5 : Math.max(3, 7.5 - (marblePool.length / 250));
+  var radius = showDetail ? Math.max(9, Math.min(15, lanes.laneSpacing * 0.48 + 3.5)) : Math.max(3, 8 - (marblePool.length / 200));
 
   marblePool.forEach(function(participant, i) {
     var dist = (positions && positions[i]) || 0;
@@ -13186,16 +13252,17 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
     // Every marble carries its pseudo — smaller and lighter for big
     // fields so it stays out of the way, but never hidden.
     if (showLabels) {
-      var nameSize = marblePool.length <= 15 ? 10 : marblePool.length <= 40 ? 8.5 : 7.5;
-      ctx.font = (isWinner ? 'bold ' : '600 ') + nameSize + 'px "Courier New", monospace';
-      ctx.fillStyle = isWinner ? '#FFE8A3' : 'rgba(207,232,255,0.85)';
+      // Every marble carries its pseudo on a legible outlined tag.
+      var nameSize = marblePool.length <= 15 ? 12 : marblePool.length <= 40 ? 10 : 8.5;
+      ctx.font = '700 ' + nameSize + 'px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('@' + participant.name, mx, my - radius - (isWinner ? 8 : 6), 80);
-
-      if (isWinner) {
-        ctx.font = '15px system-ui, sans-serif';
-        ctx.fillText('👑', mx, my - radius - 8 - nameSize - 4);
-      }
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(8,12,24,0.85)';
+      var ly2 = my - radius - (isWinner ? 9 : 5);
+      ctx.strokeText('@' + participant.name, mx, ly2, 90);
+      ctx.fillStyle = isWinner ? '#FFE8A3' : '#E4EEFB';
+      ctx.fillText('@' + participant.name, mx, ly2, 90);
     } else if (isWinner) {
       ctx.font = 'bold 8px "Courier New", monospace';
       ctx.fillStyle = '#FFE8A3';
@@ -13204,6 +13271,7 @@ function drawMarbleScene(positions, winnerIndex, elapsed, table) {
     }
   });
 }
+
 
 
 
