@@ -874,12 +874,14 @@ input[type="search"].form-input::-webkit-search-cancel-button { -webkit-appearan
 
 .btn.is-loading .btn-label { opacity: 0; }
 .btn.is-loading::after {
-  content: ''; position: absolute; width: 17px; height: 17px;
+  content: ''; position: absolute; inset: auto; top: 50%; left: 50%; width: 17px; height: 17px;
+  margin: -8.5px 0 0 -8.5px; background: none; transform: none; transition: none; will-change: transform;
   border: 2.5px solid rgba(255,255,255,0.4); border-top-color: #fff;
-  border-radius: 50%; animation: spin 0.7s linear infinite;
+  border-radius: 50%; animation: btnSpin 0.7s linear infinite;
 }
 .btn-secondary.is-loading::after { border-color: rgba(15,17,23,0.2); border-top-color: var(--ink); }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes btnSpin { to { transform: rotate(360deg); } }
 
 .link-btn { background: none; border: none; color: var(--accent); font-weight: 600; font-size: inherit; cursor: pointer; padding: 0; font-family: inherit; }
 .link-btn:hover { text-decoration: underline; }
@@ -1856,7 +1858,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
   transition: transform var(--dur-slow) var(--ease-out);
   pointer-events: none;
 }
-.btn-primary:not(:disabled):hover::after { transform: translateX(120%); }
+.btn-primary:not(:disabled):not(.is-loading):hover::after { transform: translateX(120%); }
 
 /* ============================================================
    LANDING — depth & atmosphere pass
@@ -11486,7 +11488,7 @@ async function submitPublicEntry() {
     else showToast(t('join_err_generic'), 'error');
   } catch (err) {
     console.error('Public entry failed:', err);
-    showToast(t('join_err_generic'), 'error');
+    showToast(t('join_err_generic') + (err && err.message ? ' (' + String(err.message).slice(0, 90) + ')' : ''), 'error');
   } finally {
     setBtnLoading(btn, false);
   }
