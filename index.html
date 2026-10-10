@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261010-220533" />
+<meta name="app-build" content="20261010-223059" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -3787,7 +3787,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
           </div>
         </div>
 
-        <div class="form-field">
+        <div class="form-field" id="wizardDurationField">
           <div class="field-row" style="margin-bottom: 8px;">
             <label class="form-label" style="margin:0;" data-i18n="wiz_duration_label">Durée de l'animation</label>
             <span class="duration-value" id="wizardDurationValue">4 s</span>
@@ -3795,6 +3795,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
           <input type="range" id="wizardDuration" class="range-slider" min="2" max="300" step="1" value="4" oninput="updateDurationLabel()" />
           <div class="range-slider-marks"><span>2 s</span><span>5 min</span></div>
         </div>
+        <p id="wizardPlinkoNote" style="display:none;margin:-6px 0 14px;font-size:13px;color:var(--text-muted,#6B7280)" data-i18n="wiz_plinko_fast_note">Plinko n'a pas de durée : la bille tombe rapidement, idéal pour les gros tirages.</p>
 
         <div class="wizard-actions">
           <button class="btn btn-secondary" onclick="wizardBack(3)" data-i18n="btn_back">Retour</button>
@@ -4378,6 +4379,7 @@ function goBackToMainScreen() {
 // link styling in addition to switching screens, and loads fresh data
 // for the screen being entered.
 function navigateTo(screenId) {
+  scrubAutofilledSearch();
   showScreen(screenId); // now also syncs the 4 nav links and pushes history — see showScreen()
 
   if (screenId === 'giveawaysScreen') renderGiveawaysScreen();
@@ -4471,6 +4473,7 @@ function handleSignedOutState() {
   ['userMenu', 'notifMenu'].forEach(function(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
   var legal = document.getElementById('legalOverlay'); if (legal) legal.style.display = 'none';
   ['loginPassword', 'signupPassword'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  SEARCH_IDS.forEach(function(id) { var el = document.getElementById(id); if (el) { el.value = ''; el.dataset.typed = ''; } });
   try { sessionStorage.removeItem('repickwinn-fresh-login'); localStorage.removeItem('repickwinn-last-screen'); } catch (e) { /* ignore */ }
   document.getElementById('appShell').style.display = 'none';
   window.scrollTo(0, 0);
@@ -4646,7 +4649,44 @@ function initLandingPageInteractions() {
   }
 }
 
+// Browsers' password managers sometimes drop the saved e-mail into the first
+// plain text/search field they find after a login form — here, the search
+// boxes of "Mes tirages" / "Participants" — which then hides every result.
+// Search boxes are therefore protected twice: they stay read-only until the
+// person actually taps/clicks them (autofill ignores read-only fields), and
+// any value that appeared without the person typing is wiped.
+var SEARCH_IDS = ['giveawaysSearchInput', 'participantsSearchInput'];
+function scrubAutofilledSearch() {
+  SEARCH_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.value && el.dataset.typed !== '1') {
+      el.value = '';
+      if (id === 'giveawaysSearchInput' && currentUser) renderGiveawaysScreen();
+      if (id === 'participantsSearchInput' && currentUser) renderParticipantsScreen();
+    }
+  });
+}
+function guardSearchInputs() {
+  SEARCH_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el || el.dataset.guarded === '1') return;
+    el.dataset.guarded = '1';
+    el.setAttribute('readonly', 'readonly');
+    var unlock = function() { el.removeAttribute('readonly'); };
+    el.addEventListener('focus', unlock);
+    el.addEventListener('pointerdown', unlock);
+    el.addEventListener('keydown', function() { el.dataset.typed = '1'; });
+    el.addEventListener('blur', function() { if (!el.value) { el.dataset.typed = ''; el.setAttribute('readonly', 'readonly'); } });
+  });
+}
+function scrubSearchSoon() {
+  [0, 300, 900, 2000, 4000].forEach(function(ms) { setTimeout(scrubAutofilledSearch, ms); });
+}
+
 function onAuthSuccess(user) {
+  guardSearchInputs();
+  scrubSearchSoon();
   currentUser = user;
   var myRun = ++authRunId;
   document.getElementById('landingScreen').style.display = 'none';
@@ -5929,6 +5969,7 @@ var TRANSLATIONS = {
     "pricing_medium_f1": "25 tirages actifs",
     "pricing_medium_f2": "2 000 participants / tirage",
     "pricing_at_year": "à l'année",
+    "wiz_plinko_fast_note": "Plinko n'a pas de durée : la bille tombe rapidement, idéal pour les gros tirages.",
     "cmp_title": "Comparer les formules",
     "cmp_col_feature": "Fonctionnalités",
     "cmp_row_giveaways": "Tirages actifs",
@@ -6156,7 +6197,7 @@ var TRANSLATIONS = {
     "mode_duck_name": "Course",
     "mode_duck_desc": "Canards en compétition",
     "mode_plinko_name": "Plinko",
-    "mode_plinko_desc": "La bille décide",
+    "mode_plinko_desc": "Chute rapide, idéal pour les gros tirages",
     "mode_marble_name": "Course de billes",
     "mode_marble_desc": "Trajet sinueux, coudes et lignes droites",
     "wiz_duration_label": "Durée de l'animation",
@@ -6504,6 +6545,7 @@ var TRANSLATIONS = {
     "pricing_medium_f1": "25 active giveaways",
     "pricing_medium_f2": "2,000 participants / giveaway",
     "pricing_at_year": "billed yearly",
+    "wiz_plinko_fast_note": "Plinko has no duration: the ball drops quickly, ideal for big draws.",
     "cmp_title": "Compare plans",
     "cmp_col_feature": "Features",
     "cmp_row_giveaways": "Active giveaways",
@@ -6731,7 +6773,7 @@ var TRANSLATIONS = {
     "mode_duck_name": "Race",
     "mode_duck_desc": "Ducks competing",
     "mode_plinko_name": "Plinko",
-    "mode_plinko_desc": "The ball decides",
+    "mode_plinko_desc": "Fast drop, ideal for big draws",
     "mode_marble_name": "Marble race",
     "mode_marble_desc": "Winding track, curves and straights",
     "wiz_duration_label": "Animation duration",
@@ -7079,6 +7121,7 @@ var TRANSLATIONS = {
     "pricing_medium_f1": "25 aktive Verlosungen",
     "pricing_medium_f2": "2.000 Teilnehmer / Verlosung",
     "pricing_at_year": "jährlich abgerechnet",
+    "wiz_plinko_fast_note": "Plinko hat keine Dauer: Die Kugel fällt schnell, ideal für große Ziehungen.",
     "cmp_title": "Tarife vergleichen",
     "cmp_col_feature": "Funktionen",
     "cmp_row_giveaways": "Aktive Verlosungen",
@@ -7306,7 +7349,7 @@ var TRANSLATIONS = {
     "mode_duck_name": "Rennen",
     "mode_duck_desc": "Enten im Wettbewerb",
     "mode_plinko_name": "Plinko",
-    "mode_plinko_desc": "Die Kugel entscheidet",
+    "mode_plinko_desc": "Schneller Fall, ideal für große Ziehungen",
     "mode_marble_name": "Murmelrennen",
     "mode_marble_desc": "Kurvenreiche Strecke mit Geraden",
     "wiz_duration_label": "Dauer der Animation",
@@ -8696,6 +8739,15 @@ async function fetchInstagramMediaComments(mediaId, token) {
 
 function wizardSetMode(mode) {
   wizardData.mode = mode;
+  // Plinko is the quick mode: it has no duration setting.
+  var df = document.getElementById('wizardDurationField');
+  if (df) {
+    var isP = mode === 'plinko';
+    df.style.opacity = isP ? '0.45' : '';
+    df.style.pointerEvents = isP ? 'none' : '';
+    var note = document.getElementById('wizardPlinkoNote');
+    if (note) note.style.display = isP ? 'block' : 'none';
+  }
   ['Wheel', 'Instant', 'Slot', 'Duck', 'Plinko', 'Marble'].forEach(function(m) {
     var el = document.getElementById('wizMode' + m);
     if (el) el.classList.toggle('active', m.toLowerCase() === mode);
@@ -10654,6 +10706,76 @@ function runDuckCountdown(onComplete) {
   showStep();
 }
 
+
+// Shared by the duck race and the marble race.
+// Every racer sits some distance ("lag") behind a steady pace line that
+// reaches the finish exactly when the time is up. Lags move between a few
+// levels, so you see a group out in front, a chasing group, and racers
+// moving up or dropping back from one group to the other — all as a pure
+// function of time, whatever the duration. The winner's lag is 0 at the
+// end and everybody else finishes at least a few units behind.
+function makePackRace(count, winnerIndex, durationMs) {
+  var D = durationMs;
+  var vSec = 100 / (D / 1000);                       // pace line speed, track units / second
+  var win = Math.max(4, Math.min(40, 24 * vSec));    // visible track units: scenery always moves at a readable speed
+  var u = win / 40;                                  // lag unit, in track units
+  var levels = count > 12 ? [-3, 0.5, 5, 10, 16, 23] : [-3, 0.5, 5, 10, 16];
+  var stepMs = Math.max(3500, Math.min(16000, D / 10));
+  var transMs = stepMs * 0.7;
+  var lastStart = D * 0.9 - transMs;
+  var finalAt = D * 0.94;
+  var ducks = [];
+  function sm(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+  for (var i = 0; i < count; i++) {
+    var isW = i === winnerIndex;
+    var tier = Math.floor(Math.random() * levels.length);
+    var segs = [];
+    var lag = 0;
+    var t0 = Math.min(1500, D * 0.04) * Math.random();
+    var first = true;
+    while (true) {
+      var dur = first ? Math.min(7000, D * 0.16) : transMs * (0.85 + Math.random() * 0.3);
+      if (t0 + dur > lastStart) break;
+      var r = Math.random();
+      if (!first) tier = Math.max(0, Math.min(levels.length - 1, tier + (r < 0.3 ? 0 : r < 0.55 ? -1 : r < 0.8 ? 1 : r < 0.9 ? -2 : 2)));
+      var target = levels[tier] + (Math.random() - 0.5) * 1.0;
+      // dropping back can't be faster than the pace line moves (no reversing)
+      var maxDrop = 0.4 * vSec * (dur / 1000) / u;
+      if (target > lag + maxDrop) target = lag + maxDrop;
+      segs.push({ t0: t0, t1: t0 + dur, a: lag, b: target });
+      lag = target; first = false;
+      t0 += dur + stepMs * 0.3 * (0.5 + Math.random());
+    }
+    var finalLag = isW ? 0 : 3.2 + Math.pow(Math.random(), 1.3) * 7;
+    var dFin = Math.max(1000, finalAt - Math.max(t0, 0));
+    var maxDropFin = 0.4 * vSec * (dFin / 1000) / u;
+    if (!isW && finalLag > lag + maxDropFin) finalLag = Math.max(3.2, lag + maxDropFin);
+    segs.push({ t0: t0, t1: finalAt, a: lag, b: finalLag });
+    ducks.push({ segs: segs, k: 0, ph: Math.random() * 6.28, fq: 0.07 + Math.random() * 0.09, amp: 0.3 + Math.random() * 0.25 });
+  }
+  function lagAt(i, ms) {
+    var d = ducks[i], segs = d.segs;
+    if (d.k > 0 && ms < segs[d.k].t0) d.k = 0;
+    while (d.k < segs.length - 1 && ms >= segs[d.k].t1) d.k++;
+    var sg = segs[d.k];
+    if (ms <= sg.t0) return sg.a;
+    if (ms >= sg.t1) return sg.b;
+    return sg.a + (sg.b - sg.a) * sm((ms - sg.t0) / (sg.t1 - sg.t0));
+  }
+  return {
+    win: win,
+    posAt: function(i, ms) {
+      var tc = Math.max(0, Math.min(1, ms / D));
+      var d = ducks[i];
+      var fade = 1 - sm((tc - 0.88) / 0.08);                       // the little individual drift stops near the end
+      var lag = (lagAt(i, ms) + Math.sin(ms / 1000 * 6.28 * d.fq + d.ph) * d.amp * fade) * u;
+      var floor = -0.8 * (100 - 100 * tc);                         // nobody can be in front of the line before the end
+      if (lag < floor) lag = floor;
+      return Math.max(0, 100 * tc - lag);
+    }
+  };
+}
+
 function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, onDone) {
   playDuckQuack();
 
@@ -10664,46 +10786,13 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
   var FINISH = 100;
 
   // ---- How the race is decided ---------------------------------------
-  // The result is fixed first (actualWinnerIndex). Every duck then follows
-  // a pure function of TIME:   pos(τ) = 100·F·τ  +  start offset fading out
-  //                                    + a wobble that dies away before the end
-  // where τ = elapsed / duration and F is the duck's final fraction of the
-  // track. The winner has F = 1 (it reaches 100 exactly when time is up),
-  // everybody else has F < 1 with a guaranteed gap, so the winner is the
-  // first across the line by construction — not by a correction applied on
-  // screen. The wobble (different speed and phase per duck) is what makes
-  // them overtake each other all along the way.
-  var params = [];
-  for (var i = 0; i < duckCount; i++) {
-    var isW = i === actualWinnerIndex;
-    // Wobble speeds are in cycles PER SECOND, so a 10-minute race is as
-    // lively as a 10-second one: ducks keep surging, falling back and
-    // overtaking all along. (On very short races we keep at least ~1-3
-    // cycles so there are still a few overtakes.)
-    var dSec = duration / 1000;
-    var f1 = Math.max(0.12 + Math.random() * 0.14, (0.9 + Math.random() * 0.9) / dSec) / 1000;
-    var f2 = Math.max(0.30 + Math.random() * 0.25, (1.7 + Math.random() * 1.6) / dSec) / 1000;
-    params.push({
-      F: isW ? 1 : 1 - (0.028 + Math.pow(Math.random(), 1.15) * 0.07),
-      a1: 4.0 + Math.random() * 3.5, f1: f1, p1: Math.random() * Math.PI * 2,
-      a2: 1.4 + Math.random() * 2.0, f2: f2, p2: Math.random() * Math.PI * 2,
-      off: 0
-    });
-  }
-  function smooth(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
-  function posAt(i, tau) {
-    var p = params[i];
-    var tc = Math.min(tau, 1);
-    var ms = tc * duration;
-    // wobble envelope: eases in over the first seconds, then the pack
-    // settles over the last stretch so the winner is clearly first on the line
-    var fadeLen = Math.min(duration * 0.16, 22000);
-    var env = smooth(ms / Math.min(3500, duration * 0.3)) * (1 - smooth((ms - (duration * 0.94 - fadeLen)) / fadeLen));
-    var wob = env * (p.a1 * Math.sin(2 * Math.PI * p.f1 * ms + p.p1) + p.a2 * Math.sin(2 * Math.PI * p.f2 * ms + p.p2));
-    var base = FINISH * p.F * tc + p.off * (1 - tc);
-    var pos = base + wob;
-    return pos;
-  }
+  // The result is fixed first. Positions are then a pure function of time
+  // (see makePackRace): groups of ducks form, a front group and a chasing
+  // group, ducks move up from one group to the next, and everyone ends up
+  // behind the winner, who touches the line exactly when time is up.
+  var pack = makePackRace(duckCount, actualWinnerIndex, duration);
+  function posAt(i, tau) { return pack.posAt(i, Math.min(tau, 1) * duration); }
+  duckCam = { left: -pack.win * 0.3, win: pack.win };
 
   var startTime = performance.now();
   var lastNow = startTime;
@@ -10800,21 +10889,16 @@ function duckCineState(c, winnerIndex, duckCount, orbitMs, spotMs) {
 // the scenery visibly rolls past. It zooms out a little when the pack
 // spreads and in when it bunches up.
 function updateDuckCamera(tau, dt) {
-  var n = duckPositions.length;
-  if (!n) return;
-  var lead = -1e9, last = 1e9;
-  for (var i = 0; i < n; i++) {
-    var p = duckPositions[i];
-    if (p > lead) lead = p;
-    if (p < last) last = p;
-  }
-  var spread = lead - last;
-  var targetWin = Math.max(30, spread * 1.6 + 12);
-  var k = Math.min(1, dt / 220);
-  duckCam.win += (targetWin - duckCam.win) * k;
-  var s = Math.max(0, Math.min(1, tau / 0.2));
-  var frac = 0.22 + 0.43 * (s * s * (3 - 2 * s));       // leader drifts from the left to ~2/3 of the screen
-  duckCam.left = lead - duckCam.win * frac;
+  // The camera glides at the race's own steady pace (never reacting to
+  // individual ducks) and its zoom never changes, so the scenery and the
+  // finish line move smoothly. The leader line settles at ~72% of the
+  // screen, which is exactly where the finish line ends up.
+  var D = duckRaceInfo.duration || 1;
+  var ms = Math.min(1, tau) * D;
+  var ramp = Math.min(0.25 * D, 12000);
+  var x = Math.max(0, Math.min(1, ms / ramp));
+  var frac = 0.28 + 0.44 * (x * x * (3 - 2 * x));
+  duckCam.left = 100 * Math.min(1, tau) - duckCam.win * frac;
 }
 
 // A single splash particle: position is computed fresh each frame from
@@ -10853,7 +10937,7 @@ function updateDuckSplashes(dt) {
 // rigged). Deliberately top-3 only: a full ranking would cover the
 // race it's describing.
 // ============================================================
-function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished, topY) {
+function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished, topY, colorOf) {
   if (!positions || positions.length < 3) return;
 
   var ranked = [];
@@ -10892,7 +10976,7 @@ function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished, top
 
     ctx.beginPath();
     ctx.arc(x + padX + 5, ry - 3.5, 5.5, 0, Math.PI * 2);
-    ctx.fillStyle = (duckProfiles[entry.i] && duckProfiles[entry.i].color) || DUCK_COLORS[entry.i % DUCK_COLORS.length];
+    ctx.fillStyle = colorOf ? colorOf(entry.i) : ((duckProfiles[entry.i] && duckProfiles[entry.i].color) || DUCK_COLORS[entry.i % DUCK_COLORS.length]);
     ctx.fill();
 
     ctx.font = '800 8.5px -apple-system, sans-serif';
@@ -12446,7 +12530,7 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
   // is what makes it read as a real ball and not an animation.
   var hops = [];
   var total = 0;
-  var naturalHop = 108 * Math.sqrt(Math.max(0.6, g.rowH / 22));      // a believable fall time for this peg spacing
+  var naturalHop = 92 * Math.sqrt(Math.max(0.6, g.rowH / 22));      // a believable fall time for this peg spacing
   for (var r = 0; r < pegRows; r++) {
     var fromX = r === 0 ? g.w / 2 : g.levelX(r, path[r]);
     var fromY = r === 0 ? g.boardTop - g.ballR * 2 : g.pegY(r) - g.pegR - g.ballR;
@@ -12462,17 +12546,11 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
     });
   }
 
-  // Fit the drop to the time the draw is set to last: first by playing it
-  // a little slower (never more than 3x), then, if there is still time
-  // to fill, by letting the ball sit ready at the top before it is released.
-  var DROP_MS = 240, SETTLE_MS = 420;
-  var wanted = Math.max(3, durationSeconds || 6) * 1000;
-  var targetTotal = Math.max(1200, wanted - DROP_MS - 700);
-  var raw = hops.reduce(function(s2, h2) { return s2 + h2.th; }, 0);
-  var scale = Math.max(0.7, Math.min(1.35, targetTotal / raw));   // brisk, natural pace: never slow-motion
-  hops.forEach(function(h2) { h2.th *= scale; });
-  var played = raw * scale;
-  var leadDelay = Math.max(0, Math.min(700, targetTotal - played));
+  // Plinko ignores the duration setting on purpose: it is the quick mode,
+  // built for organisers who draw many winners in one go. The ball is
+  // released at once and falls at a natural, brisk pace.
+  var DROP_MS = 180, SETTLE_MS = 300;
+  var leadDelay = 0;
   total = leadDelay;
   hops.forEach(function(h2) { h2.start = total; total += h2.th; });
 
@@ -12777,153 +12855,57 @@ function selectMarbleRacers(pool, winnerIndex) {
   return { racePool: racePool, winnerIndex: insertAt };
 }
 
+// ---- Marble race: a side-view racetrack, built like the duck race ------
+// Glass marbles roll along lanes, groups form and reshuffle (see
+// makePackRace), the camera follows the pace, every marble carries its
+// name, and the winner touches the line exactly when the time is up —
+// then the close-up on the winner plays.
+var MARBLE_COLORS = ['#E5484D', '#F5A524', '#2DB67D', '#3E8FEA', '#8E5CF0', '#E8579D', '#1FB5C9', '#F27C38', '#5B6EE8', '#9AA4B2'];
+var marbleCam = { left: 0, win: 40 };
+var marbleRaceInfo = { duration: 0, elapsed: 0 };
+var marbleCine = null;
+var marbleDpr = 1;
+
+function marbleLayout(count, w, h) {
+  var swarm = count > MAX_DUCKS_SMALL;
+  var rows = duckRowCount(count);
+  var hudH = 34, railH = 16, botH = 24;
+  var trackTop = hudH + railH, trackBottom = h - botH;
+  var rowH = (trackBottom - trackTop) / rows;
+  var size = swarm ? Math.max(8, Math.min(18, rowH * 0.62)) : Math.max(18, Math.min(46, rowH * 0.7));
+  return { swarm: swarm, rows: rows, hudH: hudH, railH: railH, botH: botH, trackTop: trackTop, trackBottom: trackBottom, rowH: rowH, size: size, padL: 40, padR: 40 };
+}
+
 function initMarbleCanvas(marbleCount) {
   var canvas = document.getElementById('marbleCanvas');
   if (!canvas) return null;
   var container = canvas.parentElement;
-  var displayWidth = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
-  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(820, window.innerHeight - 300) : 820;
-  var displayHeight = Math.min(maxHeight, Math.max(540, 430 + marbleCount * 9));
+  var available = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
+  var n = Math.max(1, marbleCount);
+  var swarm = n > MAX_DUCKS_SMALL;
+  var rows = duckRowCount(n);
+  var displayWidth = Math.min(available, swarm ? 880 : n <= 6 ? 980 : 940);
+  var rowTarget = swarm ? 24 : Math.max(46, Math.min(72, 92 - 5 * n));
+  var fullscreen = document.body.classList.contains('draw-fullscreen');
+  var maxHeight = fullscreen ? Math.max(360, Math.min(620, window.innerHeight - 220)) : 560;
+  var wanted = 34 + 16 + rows * rowTarget + 24;
+  var displayHeight = Math.round(Math.min(maxHeight, Math.max(340, wanted)));
 
-  var dpr = window.devicePixelRatio || 1;
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.style.width = displayWidth + 'px';
   canvas.style.height = displayHeight + 'px';
   canvas.width = Math.round(displayWidth * dpr);
   canvas.height = Math.round(displayHeight * dpr);
-
   var ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   marbleCtx = ctx;
   marbleCanvasW = displayWidth;
   marbleCanvasH = displayHeight;
+  marbleDpr = dpr;
+  marbleCine = null;
+  marbleRaceInfo = { duration: 0, elapsed: 0 };
   return ctx;
-}
-
-// The track: a winding path from left to right, described as a plain
-// function of progress t (0–1) → {x, y}, using a couple of sine bends so
-// it reads as a real road with curves and straights rather than a
-// straight line. Both drawing and marble movement use this SAME
-// function, so there's no risk of the marbles drifting off the drawn
-// track (the exact bug that was fixed in the duck/plinko modes).
-// A real serpentine circuit: straights that alternate direction,
-// joined by proper 180° hairpin turns — so marbles genuinely drive
-// left, then right, then left again, instead of the old version's
-// single always-rightward sine wave, which never actually changed
-// direction and so never felt like a course being driven.
-var MARBLE_PASSES = 3; // horizontal straights, alternating direction
-// Single source of truth for where the marble finish line sits along the
-// track (0-1). Shared by both the win check and the flag drawing — the
-// duck race had this exact value duplicated in two places once, and the
-// two drifting apart is what made a race end at the wrong spot.
-var MARBLE_FINISH_FRACTION = 0.9;
-
-function marbleTrackPoint(t, w, h) {
-  var marginX = 72;
-  var marginY = Math.max(56, h * 0.17);
-  var usableH = h - marginY * 2;
-  var rowGap = usableH / (MARBLE_PASSES - 1);
-  var turnRadius = rowGap / 2;
-
-  // A hairpin's arc length (π·r) vs a straight's — used to split t
-  // proportionally so speed stays even through turns (the arc-length
-  // table smooths the rest).
-  var straightLen = w - marginX * 2 - turnRadius * 2;
-  var turnLen = Math.PI * turnRadius;
-  var totalLen = MARBLE_PASSES * straightLen + (MARBLE_PASSES - 1) * turnLen;
-
-  var target = t * totalLen;
-  var acc = 0;
-
-  for (var i = 0; i < MARBLE_PASSES; i++) {
-    var goingRight = (i % 2 === 0);
-    var y = marginY + i * rowGap;
-    var xStart = goingRight ? marginX + turnRadius : w - marginX - turnRadius;
-    var xEnd = goingRight ? w - marginX - turnRadius : marginX + turnRadius;
-
-    // --- straight portion of this pass ---
-    if (target <= acc + straightLen) {
-      var localT = (target - acc) / straightLen;
-      return { x: xStart + (xEnd - xStart) * localT, y: y };
-    }
-    acc += straightLen;
-
-    if (i === MARBLE_PASSES - 1) break;
-
-    // --- hairpin turn into the next pass ---
-    if (target <= acc + turnLen) {
-      var localT = (target - acc) / turnLen;
-      var cx = xEnd;
-      var cy = y + turnRadius;
-      // Sweep from pointing up-ish around to the opposite side.
-      var startAngle = -Math.PI / 2;
-      var angle = goingRight
-        ? startAngle + localT * Math.PI   // right edge: clockwise down
-        : startAngle - localT * Math.PI;  // left edge: counter-clockwise down
-      return { x: cx + turnRadius * Math.cos(angle), y: cy + turnRadius * Math.sin(angle) };
-    }
-    acc += turnLen;
-  }
-
-  // Fallback: the very end of the final straight.
-  var lastGoingRight = ((MARBLE_PASSES - 1) % 2 === 0);
-  return {
-    x: lastGoingRight ? w - marginX - turnRadius : marginX + turnRadius,
-    y: marginY + (MARBLE_PASSES - 1) * rowGap
-  };
-}
-
-// How many side-by-side lanes to spread marbles across, and how wide the
-// track needs to be to comfortably fit them. Capped so it never needs to
-// grow linearly with participant count — extra marbles beyond the lane
-// count simply share a lane (naturally separated since they're rarely at
-// the exact same point on the track at the same time), which is what
-// keeps this workable up to 100 racers instead of the road needing to
-// become absurdly wide.
-function marbleLaneLayout(count, canvasH) {
-  var numLanes = Math.min(count, Math.max(3, Math.round(Math.sqrt(count * 1.3))));
-  // The road can't be wider than the vertical gap between two passes of
-  // the serpentine, or neighbouring straights visibly overlap into one
-  // another — so it's derived from that gap rather than a fixed number.
-  var roadWidth = 240;
-  if (canvasH) {
-    var marginY = Math.max(56, canvasH * 0.17);
-    var rowGap = (canvasH - marginY * 2) / (MARBLE_PASSES - 1);
-    roadWidth = Math.max(60, Math.min(240, rowGap * 0.66, (marginY - 6) * 2));
-  }
-  var laneSpacing = numLanes > 1 ? Math.min(count <= 8 ? 38 : count <= 30 ? 28 : 20, Math.max(6, (roadWidth - 34) / (numLanes - 1))) : 20;
-  return { numLanes: numLanes, laneSpacing: laneSpacing, roadWidth: roadWidth };
-}
-
-// Precomputes a lookup table mapping "distance traveled along the curvy
-// track" (0–1, constant visual speed) back to the parameter t used by
-// marbleTrackPoint — otherwise marbles would visibly speed up/slow down
-// through the curves instead of moving at a steady pace.
-function buildMarbleArcLengthTable(w, h) {
-  var samples = 200;
-  var pts = [];
-  for (var i = 0; i <= samples; i++) pts.push(marbleTrackPoint(i / samples, w, h));
-  var cumulative = [0];
-  for (var i = 1; i <= samples; i++) {
-    var dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y;
-    cumulative.push(cumulative[i - 1] + Math.sqrt(dx * dx + dy * dy));
-  }
-  var total = cumulative[samples];
-  return { cumulative: cumulative, total: total, samples: samples };
-}
-
-// distanceFraction (0–1) → t (0–1), via the arc-length table.
-function marbleDistanceToT(distanceFraction, table) {
-  var target = distanceFraction * table.total;
-  var lo = 0, hi = table.samples;
-  while (lo < hi) {
-    var mid = (lo + hi) >> 1;
-    if (table.cumulative[mid] < target) lo = mid + 1; else hi = mid;
-  }
-  var idx = Math.max(1, lo);
-  var segStart = table.cumulative[idx - 1], segEnd = table.cumulative[idx];
-  var segT = segEnd > segStart ? (target - segStart) / (segEnd - segStart) : 0;
-  return ((idx - 1) + segT) / table.samples;
 }
 
 function setupMarbleStage(pool) {
@@ -12935,14 +12917,9 @@ function setupMarbleStage(pool) {
 
   var ctx = initMarbleCanvas(marblePool.length);
   if (!ctx) return;
+  marbleCam = { left: -40 * 0.3, win: 40 };
   drawMarbleScene(marblePool.map(function() { return 0; }), null, 0);
 }
-
-// Fixed obstacle positions along the track (as a t-fraction 0–1). Purely
-// visual bumpers to weave around — each one plays a "clink" the instant
-// a marble actually passes it, so the sound is tied to something the
-// person can see happening instead of firing on an arbitrary timer.
-var MARBLE_OBSTACLES = [0.1, 0.22, 0.34, 0.46, 0.58, 0.7, 0.82];
 
 function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
   var selection = selectMarbleRacers(pool, winnerIndex);
@@ -12953,363 +12930,329 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
   var ctx = initMarbleCanvas(count);
   if (!ctx) { onDone(); return; }
 
-  var table = buildMarbleArcLengthTable(marbleCanvasW, marbleCanvasH);
-  var positions = marblePool.map(function() { return 0; }); // 0–1 distance fraction per marble — accumulated, see tick()
-  var guaranteedPos = marblePool.map(function() { return 0; }); // drives correctness/timing only, never drawn
-  var obstacleHit = marblePool.map(function() { return MARBLE_OBSTACLES.map(function() { return false; }); });
-
-  var SPRINT_START = 0.72;
-  var speedFactors = positions.map(function(_, i) {
-    return i === actualWinnerIndex ? 1.0 : 0.5 + Math.random() * 0.35;
-  });
-  // Per-marble speed WOBBLE (not position noise) — this is the fix for
-  // the "irrational" backward jitter: earlier the wobble was added
-  // directly to the displayed position, which can decrease a sine wave
-  // goes down, i.e. the marble visibly rolls backward. Multiplying the
-  // per-frame VELOCITY instead — always kept positive — means the pace
-  // still speeds up and slows down (real overtakes happen) but the
-  // marble only ever moves forward along the track, never in reverse.
-  var wobbleParams = positions.map(function() {
-    return {
-      f1: 0.28 + Math.random() * 0.35, p1: Math.random() * Math.PI * 2, a1: 0.22 + Math.random() * 0.2,
-      f2: 0.7 + Math.random() * 0.7, p2: Math.random() * Math.PI * 2, a2: 0.1 + Math.random() * 0.13
-    };
-  });
-  function speedMultiplier(i, t) {
-    var n = wobbleParams[i];
-    var wobble = n.a1 * Math.sin(t * Math.PI * 2 * n.f1 + n.p1) + n.a2 * Math.sin(t * Math.PI * 2 * n.f2 + n.p2);
-    return Math.max(0.3, 1 + wobble); // always positive — forward motion only, pace just varies
-  }
-  function smoothstep(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+  var duration = Math.max(3, durationSeconds || 6) * 1000;
+  var ORBIT_MS = 1300, SPOT_MS = 1000, HOLD_MS = 2400;
+  var CINE_START = duration + 450;
+  var pack = makePackRace(count, actualWinnerIndex, duration);
+  marbleCam = { left: -pack.win * 0.3, win: pack.win };
+  var positions = marblePool.map(function() { return 0; });
+  marbleRaceInfo = { duration: duration, elapsed: 0 };
 
   playMarbleClink();
-  var duration = Math.max(2500, (durationSeconds || 4) * 1000);
   var startTime = performance.now();
   var finished = false;
-  var overshootUntil = null;
-  var FINISH_FRACTION = MARBLE_FINISH_FRACTION;
-  var lastElapsed = 0;
-
+  var nextClink = 500 + Math.random() * 500;
   if (marbleAnimId) cancelAnimationFrame(marbleAnimId);
 
   function tick(now) {
-    var elapsed = now - startTime;
-    var timeProgress = Math.min(elapsed / duration, 1);
-    var dtFrac = Math.max(0, elapsed - lastElapsed) / duration; // this frame's slice of the total race, as a fraction
-    lastElapsed = elapsed;
-
-    var bw = timeProgress <= SPRINT_START ? 0 : smoothstep((timeProgress - SPRINT_START) / (1 - SPRINT_START));
-
-    // Same fix as the duck race: the finish is decided by the winner's
-    // own real, drawn position — never by an invisible timing formula —
-    // so the round can't end before the winner's marble has actually,
-    // visibly reached the line.
+    var elapsed = Math.max(0, now - startTime);
+    var tau = Math.min(1, elapsed / duration);
+    marbleRaceInfo.elapsed = Math.min(elapsed, duration);
     for (var i = 0; i < count; i++) {
-      var gEased = Math.pow(Math.min(timeProgress * speedFactors[i], 1), 1.7);
-      guaranteedPos[i] = Math.min(gEased, 1);
-
-      // Sprint bias: the real winner gets a growing speed boost in the
-      // final stretch, everyone else eases off a little — still always
-      // forward, just a believable closing kick that lines up with who
-      // actually wins.
-      var sprintBoost = 1;
-      if (bw > 0) sprintBoost = i === actualWinnerIndex ? (1 + bw * 1.3) : Math.max(0.35, 1 - bw * 0.45);
-
-      var mult = speedMultiplier(i, timeProgress) * sprintBoost;
-      positions[i] = Math.min(positions[i] + mult * dtFrac, 1);
-
-      // Fire the clink the instant this marble's drawn position actually
-      // passes an obstacle — sound tied to a real visual event.
-      for (var o = 0; o < MARBLE_OBSTACLES.length; o++) {
-        if (!obstacleHit[i][o] && positions[i] >= MARBLE_OBSTACLES[o]) {
-          obstacleHit[i][o] = true;
-          playMarbleClink();
-        }
-      }
+      var np = pack.posAt(i, tau * duration);
+      if (np > positions[i]) positions[i] = np;
     }
+    // the camera glides at the race's own pace; the zoom never changes
+    var ramp = Math.min(0.25 * duration, 12000);
+    var x = Math.max(0, Math.min(1, tau * duration / ramp));
+    marbleCam.left = 100 * tau - marbleCam.win * (0.28 + 0.44 * (x * x * (3 - 2 * x)));
 
-    if (!finished && positions[actualWinnerIndex] >= FINISH_FRACTION) {
-      finished = true;
-      playMarbleWinChime();
-    }
-    // Same tethering fix as the duck race: non-winners stay close behind
-    // the winner's own current position, not just under an absolute cap —
-    // otherwise they can reach and sit right at the edge while the real
-    // winner is still catching up from well behind.
-    var winnerPos = positions[actualWinnerIndex];
-    for (var k = 0; k < count; k++) {
-      if (k === actualWinnerIndex) {
-        if (!finished) positions[k] = Math.min(positions[k], FINISH_FRACTION);
-      } else {
-        positions[k] = Math.min(positions[k], FINISH_FRACTION - 0.006, winnerPos + 0.04);
-      }
-    }
+    if (!finished && elapsed >= duration) { finished = true; playMarbleWinChime(); }
+    if (!finished && elapsed >= nextClink) { playMarbleClink(); nextClink = elapsed + 600 + Math.random() * 800; }
 
-    drawMarbleScene(positions, finished ? actualWinnerIndex : null, elapsed, table);
-    drawRaceLeaderboard(marbleCtx, marbleCanvasW, positions, marblePool, actualWinnerIndex, finished);
-
-    // Stops the instant the winner crosses — no extra animation after
-    // the result is already decided, matching the duck race.
-    if (!finished) {
-      marbleAnimId = requestAnimationFrame(tick);
-    } else {
-      onDone();
+    var cineT = elapsed - CINE_START;
+    marbleCine = cineT > 0 ? marbleCineState(cineT, actualWinnerIndex, count, ORBIT_MS, SPOT_MS) : null;
+    drawMarbleScene(positions, finished ? actualWinnerIndex : null, elapsed);
+    if (!marbleCine) {
+      drawRaceLeaderboard(marbleCtx, marbleCanvasW, positions, marblePool, actualWinnerIndex, finished, marbleLayout(count, marbleCanvasW, marbleCanvasH).trackTop + 8, function(i) { return MARBLE_COLORS[i % MARBLE_COLORS.length]; });
     }
+    if (elapsed < CINE_START + ORBIT_MS + SPOT_MS + HOLD_MS) marbleAnimId = requestAnimationFrame(tick);
+    else onDone();
   }
   marbleAnimId = requestAnimationFrame(tick);
 }
 
-function drawMarbleScene(positions, winnerIndex, elapsed, table) {
+function marbleCineState(c, winnerIndex, count, orbitMs, spotMs) {
+  var L = marbleLayout(count, marbleCanvasW, marbleCanvasH);
+  var rEnd = Math.min((L.trackBottom - L.trackTop) * 0.34, L.size * 3.4);
+  var zEnd = rEnd / (L.size * 1.25);
+  function ease(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+  var st = { winner: winnerIndex, z: 1, focus: 0, irisR: null, hold: 0 };
+  if (c < orbitMs) {
+    var o = ease(c / orbitMs);
+    st.z = 1 + (zEnd * 0.9 - 1) * o;
+    st.focus = o;
+  } else {
+    var sp = ease((c - orbitMs) / spotMs);
+    st.z = zEnd * 0.9 + (zEnd * 0.1) * sp;
+    st.focus = 1;
+    var rStart = Math.sqrt(marbleCanvasW * marbleCanvasW + marbleCanvasH * marbleCanvasH) * 0.62;
+    st.irisR = rStart + (rEnd - rStart) * (1 - Math.pow(1 - sp, 2.2));
+    st.hold = Math.max(0, c - orbitMs - spotMs);
+    st.z *= 1 + 0.03 * Math.sin(st.hold / 260) * Math.min(1, st.hold / 400);
+  }
+  return st;
+}
+
+function drawMarbleBall(ctx, x, y, r, color, rot, isWinner, detail) {
+  if (!detail) {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.beginPath(); ctx.arc(x - r * 0.3, y - r * 0.32, r * 0.28, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
+    return;
+  }
+  // contact shadow on the lane
+  ctx.beginPath();
+  ctx.ellipse(x, y + r * 0.92, r * 0.95, r * 0.24, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill();
+  if (isWinner) {
+    ctx.beginPath(); ctx.arc(x, y, r + 6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(245,200,90,0.35)'; ctx.fill();
+  }
+  // glass body
+  var g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+  g.addColorStop(0, duckShadeColor(color, 85));
+  g.addColorStop(0.45, color);
+  g.addColorStop(1, duckShadeColor(color, -70));
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+  // rolling swirl: three ribbons that turn with the ball
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
+  ctx.translate(x, y); ctx.rotate(rot);
+  ctx.lineWidth = r * 0.34;
+  ctx.lineCap = 'round';
+  for (var k = 0; k < 3; k++) {
+    ctx.rotate(Math.PI * 2 / 3);
+    ctx.strokeStyle = k === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.28)';
+    ctx.beginPath(); ctx.moveTo(-r * 0.9, r * 0.1); ctx.quadraticCurveTo(0, -r * 0.7, r * 0.9, r * 0.1); ctx.stroke();
+  }
+  ctx.restore();
+  // fixed light: sharp highlight + soft rim
+  ctx.beginPath(); ctx.arc(x - r * 0.36, y - r * 0.4, r * 0.2, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r - 0.5, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+}
+
+function drawMarbleScene(positions, winnerIndex, elapsed) {
   var ctx = marbleCtx;
   if (!ctx) return;
   var w = marbleCanvasW, h = marbleCanvasH;
-  table = table || buildMarbleArcLengthTable(w, h);
+  var count = Math.max(1, marblePool.length);
+  var L = marbleLayout(count, w, h);
+  var cam = marbleCam;
+  var pxU = (w - L.padL - L.padR) / cam.win;
+  function sx(p) { return L.padL + (p - cam.left) * pxU; }
+  var P = cam.left * pxU + Math.min(elapsed, marbleRaceInfo.duration || elapsed) * 0.045;
+  var cine = marbleCine;
+  var X0 = -w * 0.6, X1 = w * 1.6;
+  var accent = (typeof currentDrawAccentColor === 'string' && currentDrawAccentColor) || '#5B5BF6';
 
-  // ---- Geek/circuit-board backdrop: dark gradient + faint neon grid ----
+  ctx.clearRect(0, 0, w, h);
   var bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, '#0B0F1A');
-  bg.addColorStop(1, '#131A2B');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
+  bg.addColorStop(0, '#0F1420'); bg.addColorStop(1, '#171E2D');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
 
-  ctx.strokeStyle = 'rgba(80, 220, 255, 0.07)';
-  ctx.lineWidth = 1;
-  for (var gx = 0; gx < w; gx += 22) {
-    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke();
+  // ---- HUD: timer + progress strip ----------------------------------------
+  var trackX0 = 56, trackX1 = w - 26, trackY = 17;
+  var remaining = Math.max(0, (marbleRaceInfo.duration - marbleRaceInfo.elapsed) / 1000);
+  var mm = Math.floor(remaining / 60), ss = Math.floor(remaining % 60);
+  ctx.font = '700 12px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'left'; ctx.fillStyle = '#C9D3E3';
+  ctx.fillText(marbleRaceInfo.duration ? (mm + ':' + (ss < 10 ? '0' : '') + ss) : '–:––', 10, trackY + 4);
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(trackX0, trackY); ctx.lineTo(trackX1, trackY); ctx.stroke();
+  for (var fy = 0; fy < 3; fy++) for (var fx = 0; fx < 2; fx++) {
+    ctx.fillStyle = (fx + fy) % 2 ? '#fff' : '#3B4658';
+    ctx.fillRect(trackX1 + 5.6 + fx * 3.4, trackY - 7 + fy * 3.4, 3.4, 3.4);
   }
-  for (var gy = 0; gy < h; gy += 22) {
-    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+  var dotR = L.swarm ? 1.6 : 3.4;
+  var leadIdx = 0;
+  for (var q = 1; q < count; q++) if (positions[q] > positions[leadIdx]) leadIdx = q;
+  ctx.globalAlpha = L.swarm ? 0.8 : 1;
+  for (var di = 0; di < count; di++) {
+    var fr = Math.max(0, Math.min(1, (positions[di] || 0) / 100));
+    ctx.beginPath();
+    ctx.arc(trackX0 + fr * (trackX1 - trackX0), trackY + (L.swarm ? ((di * 7) % 5 - 2) * 1.6 : 0), dotR, 0, Math.PI * 2);
+    ctx.fillStyle = MARBLE_COLORS[di % MARBLE_COLORS.length];
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (!L.swarm) {
+    ctx.beginPath();
+    ctx.arc(trackX0 + Math.max(0, Math.min(1, (positions[leadIdx] || 0) / 100)) * (trackX1 - trackX0), trackY, dotR + 2.4, 0, Math.PI * 2);
+    ctx.strokeStyle = '#F5C85A'; ctx.lineWidth = 1.6; ctx.stroke();
   }
 
-  // ---- Track: a wide glowing neon tube, sized from the lane layout so
-  // every marble lane fits comfortably inside it (this is also the fix
-  // for marbles previously drifting outside the drawn road). ----
-  var steps = 140;
-  var lanes = marbleLaneLayout(marblePool.length, h);
-  var roadWidth = lanes.roadWidth;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
+  // ---- Scene (clipped; zoomed during the winner close-up) ----------------
+  var sceneTop = L.hudH, sceneH = h - sceneTop;
+  var tcx = w / 2, tcy = sceneTop + sceneH / 2;
+  var laneYOf = function(i) { return L.trackTop + (i % L.rows + 0.5) * L.rowH + (L.swarm ? (((i * 37) % 7) - 3) * L.rowH * 0.07 : 0); };
   ctx.save();
-  ctx.shadowColor = 'rgba(90, 220, 255, 0.55)';
-  ctx.shadowBlur = 14;
-  ctx.strokeStyle = 'rgba(30, 45, 70, 0.9)';
-  ctx.lineWidth = roadWidth;
-  ctx.beginPath();
-  for (var i = 0; i <= steps; i++) {
-    var pt = marbleTrackPoint(i / steps, w, h);
-    if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+  ctx.beginPath(); ctx.rect(0, sceneTop, w, sceneH); ctx.clip();
+  if (cine && winnerIndex !== null && winnerIndex !== undefined) {
+    var wx = sx(positions[winnerIndex] || 0), wy = laneYOf(winnerIndex);
+    var vx = tcx + (wx - tcx) * cine.focus, vy = tcy + (wy - tcy) * cine.focus;
+    ctx.translate(tcx, tcy); ctx.scale(cine.z, cine.z); ctx.translate(-vx, -vy);
   }
+
+  // back wall: soft lights drifting slowly (parallax)
+  var lper = w + 240;
+  for (var lg = 0; lg < 7; lg++) {
+    var lx = (((lg * 0.143 * lper) - P * 0.12) % lper + lper) % lper - 120;
+    var gl = ctx.createRadialGradient(lx, L.hudH + 4, 0, lx, L.hudH + 4, 90);
+    gl.addColorStop(0, 'rgba(120,150,230,0.16)'); gl.addColorStop(1, 'rgba(120,150,230,0)');
+    ctx.fillStyle = gl; ctx.fillRect(lx - 90, L.hudH - 20, 180, 140);
+  }
+
+  // top rail with chasing lights
+  var railY = L.hudH, ry0 = railY + L.railH;
+  var rg = ctx.createLinearGradient(0, railY, 0, ry0);
+  rg.addColorStop(0, '#2A3347'); rg.addColorStop(1, '#1B2231');
+  ctx.fillStyle = rg; ctx.fillRect(X0, railY, X1 - X0, L.railH);
+  var lsp = 26, loff = ((P % lsp) + lsp) % lsp;
+  ctx.fillStyle = accent;
+  for (var lx2 = -loff - lsp; lx2 < w + lsp; lx2 += lsp) {
+    ctx.globalAlpha = 0.85; ctx.fillRect(lx2, railY + L.railH / 2 - 1.5, 10, 3);
+  }
+  ctx.globalAlpha = 1;
+
+  // lanes
+  for (var r2 = 0; r2 < L.rows; r2++) {
+    var ly = L.trackTop + r2 * L.rowH;
+    ctx.fillStyle = r2 % 2 ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.055)';
+    ctx.fillRect(X0, ly, X1 - X0, L.rowH);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (var r3 = 0; r3 <= L.rows; r3++) { var ly2 = L.trackTop + r3 * L.rowH; ctx.moveTo(0, ly2); ctx.lineTo(w, ly2); }
   ctx.stroke();
+  // floor marks rolling past: this is what makes the speed readable
+  var msp = 48, moff = ((P % msp) + msp) % msp;
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  for (var mx = -moff - msp; mx < w + msp; mx += msp) {
+    for (var r4 = 0; r4 < L.rows; r4++) ctx.fillRect(mx, L.trackTop + (r4 + 0.5) * L.rowH - 1, 14, 2);
+  }
+
+  // start line + finish gate
+  var startX = sx(0), finishX = sx(100);
+  if (startX > -10 && startX < w + 10) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.setLineDash([5, 5]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(startX, L.trackTop); ctx.lineTo(startX, L.trackBottom); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if (finishX > -30 && finishX < w + 30) {
+    var cs = 9;
+    for (var cy2 = L.trackTop, ri = 0; cy2 < L.trackBottom; cy2 += cs, ri++) {
+      for (var cx2 = 0; cx2 < 2; cx2++) {
+        ctx.fillStyle = (ri + cx2) % 2 ? 'rgba(255,255,255,0.93)' : 'rgba(18,22,34,0.95)';
+        ctx.fillRect(finishX - cs + cx2 * cs, cy2, cs, Math.min(cs, L.trackBottom - cy2));
+      }
+    }
+    var fg = ctx.createLinearGradient(finishX - 60, 0, finishX, 0);
+    fg.addColorStop(0, 'rgba(245,200,90,0)'); fg.addColorStop(1, 'rgba(245,200,90,0.16)');
+    ctx.fillStyle = fg; ctx.fillRect(finishX - 60, L.trackTop, 60, L.trackBottom - L.trackTop);
+  }
+
+  // ---- Marbles (lane by lane so the nearer ones overlap the farther) -----
+  var lite = count > 160;
+  var winnerIdx = (winnerIndex === null || winnerIndex === undefined) ? -1 : winnerIndex;
+  var r = L.size / 2;
+  var rotK = pxU / r;
+  function drawOne(i, isWinner) {
+    var px = sx(positions[i] || 0), py = laneYOf(i);
+    if (!cine && (px < -60 || px > w + 60)) return;
+    var color = MARBLE_COLORS[i % MARBLE_COLORS.length];
+    var rr = isWinner && cine ? r * (1 + 0.04 * Math.sin(cine.hold / 160)) : r;
+    drawMarbleBall(ctx, px, py, rr, color, (positions[i] || 0) * rotK, isWinner, !lite || isWinner);
+    if (!L.swarm) {
+      var nf = Math.round(Math.max(9, Math.min(13, L.size * 0.34)));
+      ctx.font = '700 ' + nf + 'px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
+      var nm = '@' + ((marblePool[i] || {}).name || '');
+      var nx = Math.max(46, Math.min(w - 46, px)), ny = py - rr - 6;
+      ctx.strokeStyle = 'rgba(8,12,22,0.85)'; ctx.strokeText(nm, nx, ny, 84);
+      ctx.fillStyle = isWinner ? '#FFE8A3' : '#EAF0FA'; ctx.fillText(nm, nx, ny, 84);
+    } else if (isWinner) {
+      ctx.font = '700 13px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+      var nm2 = '@' + ((marblePool[i] || {}).name || '');
+      ctx.strokeStyle = 'rgba(8,12,22,0.85)'; ctx.strokeText(nm2, px, py - rr - 8, 100);
+      ctx.fillStyle = '#FFE8A3'; ctx.fillText(nm2, px, py - rr - 8, 100);
+    }
+  }
+  for (var ln = 0; ln < L.rows; ln++) {
+    for (var mi = ln; mi < count; mi += L.rows) if (mi !== winnerIdx) drawOne(mi, false);
+  }
+  if (winnerIdx >= 0) drawOne(winnerIdx, true);
+
+  // bottom rail with distance plaques
+  var by = L.trackBottom;
+  var bg2 = ctx.createLinearGradient(0, by, 0, h);
+  bg2.addColorStop(0, '#1B2231'); bg2.addColorStop(1, '#2A3347');
+  ctx.fillStyle = bg2; ctx.fillRect(X0, by, X1 - X0, L.botH);
+  ctx.font = '700 9px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center';
+  for (var u = 10; u <= 90; u += 10) {
+    var ux = sx(u);
+    if (ux < 10 || ux > w - 10) continue;
+    ctx.fillStyle = 'rgba(255,255,255,0.14)'; roundRectPath(ctx, ux - 11, by + 6, 22, 12, 3); ctx.fill();
+    ctx.fillStyle = '#C9D3E3'; ctx.fillText(String(u), ux, by + 15);
+  }
   ctx.restore();
 
-  // Neon edge lines on both sides of the track.
-  [-1, 1].forEach(function(side) {
-    ctx.strokeStyle = side < 0 ? 'rgba(90,220,255,0.55)' : 'rgba(255,90,220,0.5)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (var i = 0; i <= steps; i++) {
-      var t = i / steps;
-      var pt = marbleTrackPoint(t, w, h);
-      var tNext = marbleTrackPoint(Math.min(t + 0.01, 1), w, h);
-      var tx = tNext.x - pt.x, ty = tNext.y - pt.y;
-      var tl = Math.sqrt(tx * tx + ty * ty) || 1;
-      var nx = -ty / tl, ny = tx / tl;
-      var ex = pt.x + nx * (roadWidth / 2) * side, ey = pt.y + ny * (roadWidth / 2) * side;
-      if (i === 0) ctx.moveTo(ex, ey); else ctx.lineTo(ex, ey);
-    }
-    ctx.stroke();
-  });
-
-  // Dashed cyan centerline.
-  ctx.strokeStyle = 'rgba(140, 240, 255, 0.4)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([7, 9]);
-  ctx.beginPath();
-  for (var i = 0; i <= steps; i++) {
-    var pt3 = marbleTrackPoint(i / steps, w, h);
-    if (i === 0) ctx.moveTo(pt3.x, pt3.y); else ctx.lineTo(pt3.x, pt3.y);
-  }
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // ---- Obstacles: glowing diamond bumpers along the track ----
-  MARBLE_OBSTACLES.forEach(function(ot) {
-    var op = marbleTrackPoint(ot, w, h);
-    var pulse = 0.6 + Math.sin(elapsed / 220 + ot * 10) * 0.4;
+  // ---- Winner close-up: spotlight + celebration ------------------------------
+  if (cine && cine.irisR != null) {
     ctx.save();
-    ctx.translate(op.x, op.y);
-    ctx.rotate(Math.PI / 4);
-    ctx.shadowColor = 'rgba(255, 210, 60, 0.8)';
-    ctx.shadowBlur = 8 + pulse * 6;
-    ctx.fillStyle = '#FFD23C';
-    ctx.fillRect(-7, -7, 14, 14);
-    ctx.restore();
-  });
-
-  // Start marker.
-  var startPt = marbleTrackPoint(0, w, h);
-  ctx.font = '14px "Courier New", monospace';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#7FF7C4';
-  ctx.fillText('◉ START', startPt.x, startPt.y - roadWidth / 2 - 8);
-
-  // Checkered finish flag, placed a little before the very end of the
-  // track (matching FINISH_FRACTION) so the winner visibly rolls past it.
-  var flagPt = marbleTrackPoint(MARBLE_FINISH_FRACTION, w, h);
-  var checkSize = 6;
-  for (var cy = -14; cy <= 14; cy += checkSize) {
-    for (var cx = 0; cx < 2; cx++) {
-      var isDark = (Math.round((cy + 14) / checkSize) + cx) % 2 === 0;
-      ctx.fillStyle = isDark ? 'rgba(10,10,20,0.9)' : 'rgba(230,240,255,0.95)';
-      ctx.fillRect(flagPt.x - 6 + cx * checkSize, flagPt.y + cy - roadWidth / 2, checkSize, checkSize);
-    }
-  }
-
-  // ---- Marbles: real glass-marble rendering with a swirl core, sharp
-  // specular highlight, and a neon rim matching each marble's color. ----
-  // Past a certain count, the full glass-marble treatment (radial
-  // gradient + blurred glow + swirl clip + specular highlight, all
-  // recomputed every frame) is far more render cost than anyone can
-  // actually appreciate on marbles a few pixels wide — and at real
-  // scale (hundreds+) it's what would turn a smooth race into a
-  // slideshow. Past the threshold, marbles fall back to flat colored
-  // circles: still readable as "a marble", a fraction of the cost.
-  var showDetail = marblePool.length <= 120;
-  var showLabels = marblePool.length <= 150;
-  var radius = showDetail ? Math.max(9, Math.min(15, lanes.laneSpacing * 0.48 + 3.5)) : Math.max(3, 8 - (marblePool.length / 200));
-
-  marblePool.forEach(function(participant, i) {
-    var dist = (positions && positions[i]) || 0;
-    var t = marbleDistanceToT(Math.min(dist, 1), table);
-    var pos = marbleTrackPoint(t, w, h);
-    var tNext = marbleTrackPoint(Math.min(t + 0.01, 1), w, h);
-    var tangentX = tNext.x - pos.x, tangentY = tNext.y - pos.y;
-    var tangentLen = Math.sqrt(tangentX * tangentX + tangentY * tangentY) || 1;
-    var normalX = -tangentY / tangentLen, normalY = tangentX / tangentLen;
-    // Marbles beyond the lane count share a lane with an earlier one —
-    // naturally fine since they're rarely at the exact same point on the
-    // track at the same moment (their speeds/wobble differ).
-    var laneIndex = i % lanes.numLanes;
-    var laneOffset = (laneIndex - (lanes.numLanes - 1) / 2) * lanes.laneSpacing;
-    var mx = pos.x + normalX * laneOffset;
-    var my = pos.y + normalY * laneOffset;
-
-    var color = DUCK_COLORS[i % DUCK_COLORS.length];
-    var isWinner = winnerIndex === i;
-
-    if (isWinner) {
-      ctx.beginPath();
-      ctx.arc(mx, my, radius + 8, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 215, 90, 0.5)';
-      ctx.fill();
-    }
-
-    if (!showDetail) {
-      // Flat, cheap version: shadow + solid circle + thin outline. No
-      // gradients, no shadowBlur, no clip path — the parts that scale
-      // badly are exactly the parts skipped here.
-      ctx.beginPath();
-      ctx.ellipse(mx, my + radius * 0.75, radius * 0.9, radius * 0.32, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(mx, my, radius, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.lineWidth = 0.75;
-      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-      ctx.stroke();
-
-      if (showLabels) {
-        ctx.font = '600 7px "Courier New", monospace';
-        ctx.fillStyle = isWinner ? '#FFE8A3' : 'rgba(207,232,255,0.85)';
-        ctx.textAlign = 'center';
-        ctx.fillText('@' + participant.name, mx, my - radius - 5, 60);
+    ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.arc(tcx, tcy, cine.irisR, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'rgba(6,10,20,0.78)'; ctx.fill('evenodd');
+    var pulse = 1 + 0.025 * Math.sin(elapsed / 170);
+    ctx.beginPath(); ctx.arc(tcx, tcy, cine.irisR * pulse, 0, Math.PI * 2);
+    ctx.strokeStyle = '#F5C85A'; ctx.lineWidth = 3.5;
+    ctx.shadowColor = 'rgba(245,200,90,0.8)'; ctx.shadowBlur = 16; ctx.stroke(); ctx.shadowBlur = 0;
+    var hm = cine.hold;
+    if (hm > 0) {
+      for (var rg2 = 0; rg2 < 3; rg2++) {
+        var rt = ((hm / 1100) + rg2 / 3) % 1;
+        ctx.beginPath(); ctx.arc(tcx, tcy, cine.irisR + 6 + rt * 70, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(245,200,90,' + (0.45 * (1 - rt)) + ')'; ctx.lineWidth = 2; ctx.stroke();
       }
-      return;
+      var cols = ['#F5C85A', '#E5484D', '#3E8FEA', '#2DB67D', '#F4F1EA', '#8E5CF0'];
+      for (var cf = 0; cf < 70; cf++) {
+        var cr = duckSeeded(cf * 7919 + 13);
+        var a = -Math.PI / 2 + (cr() - 0.5) * 2.6, v = 160 + cr() * 260, life = 1700 + cr() * 900;
+        if (hm > life) continue;
+        var ts = hm / 1000;
+        ctx.save();
+        ctx.translate(tcx + Math.cos(a) * v * ts, tcy - cine.irisR * 0.2 + Math.sin(a) * v * ts + 0.5 * 520 * ts * ts);
+        ctx.rotate(cr() * 6 + ts * (3 + cr() * 6));
+        ctx.globalAlpha = Math.max(0, 1 - hm / life);
+        ctx.fillStyle = cols[cf % cols.length]; ctx.fillRect(-3.5, -2, 7, 4);
+        ctx.restore();
+      }
     }
-
-    // Shadow on the track.
-    ctx.beginPath();
-    ctx.ellipse(mx, my + radius * 0.75, radius * 0.9, radius * 0.32, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fill();
-
-    // Neon rim glow behind the glass body.
-    ctx.save();
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 10;
-    ctx.beginPath();
-    ctx.arc(mx, my, radius, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
+    var wname = '@' + ((marblePool[winnerIdx] || {}).name || '');
+    var popT = Math.min(1, Math.max(0, (hm + 200) / 450));
+    var back = popT < 1 ? 1 + 2.2 * Math.pow(popT - 1, 3) + 1.2 * Math.pow(popT - 1, 2) : 1;
+    var bs = Math.max(0.01, back * popT);
+    ctx.font = '800 18px system-ui, -apple-system, sans-serif';
+    var label = (typeof t === 'function' ? t('winner_label') : 'Gagnant');
+    var tw2 = Math.min(w - 40, Math.max(ctx.measureText(wname).width, 90) + 44);
+    var by2 = tcy + cine.irisR + 34;
+    if (by2 > h - 26) by2 = tcy - cine.irisR - 34;
+    ctx.save(); ctx.translate(tcx, by2); ctx.scale(bs, bs);
+    roundRectPath(ctx, -tw2 / 2, -24, tw2, 48, 24);
+    ctx.fillStyle = '#F5C85A'; ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 14; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.textAlign = 'center'; ctx.fillStyle = '#5B4310'; ctx.font = '700 10px system-ui, sans-serif';
+    ctx.fillText(String(label).toUpperCase(), 0, -8);
+    ctx.fillStyle = '#1F1A0C'; ctx.font = '800 18px system-ui, sans-serif';
+    ctx.fillText(wname, 0, 13, tw2 - 24);
     ctx.restore();
-
-    // Glass body: darker rim, bright core, swirl "cat's eye" band —
-    // reads as an actual glass marble rather than a flat dot.
-    var bodyGrad = ctx.createRadialGradient(mx - radius * 0.3, my - radius * 0.35, radius * 0.15, mx, my, radius);
-    bodyGrad.addColorStop(0, '#FFFFFF');
-    bodyGrad.addColorStop(0.28, duckShadeColor(color, 60));
-    bodyGrad.addColorStop(0.65, color);
-    bodyGrad.addColorStop(1, duckShadeColor(color, -60));
-    ctx.beginPath();
-    ctx.arc(mx, my, radius, 0, Math.PI * 2);
-    ctx.fillStyle = bodyGrad;
-    ctx.fill();
-
-    // Swirl core (the classic marble "cat's eye" ribbon).
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(mx, my, radius, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = radius * 0.55;
-    ctx.beginPath();
-    ctx.moveTo(mx - radius, my + radius * 0.3);
-    ctx.quadraticCurveTo(mx, my - radius * 0.6, mx + radius, my + radius * 0.3);
-    ctx.stroke();
     ctx.restore();
-
-    // Sharp specular highlight.
-    ctx.beginPath();
-    ctx.arc(mx - radius * 0.32, my - radius * 0.34, radius * 0.24, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.fill();
-
-    // Thin dark glass outline.
-    ctx.beginPath();
-    ctx.arc(mx, my, radius, 0, Math.PI * 2);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.stroke();
-
-    // Every marble carries its pseudo — smaller and lighter for big
-    // fields so it stays out of the way, but never hidden.
-    if (showLabels) {
-      // Every marble carries its pseudo on a legible outlined tag.
-      var nameSize = marblePool.length <= 15 ? 12 : marblePool.length <= 40 ? 10 : 8.5;
-      ctx.font = '700 ' + nameSize + 'px system-ui, -apple-system, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(8,12,24,0.85)';
-      var ly2 = my - radius - (isWinner ? 9 : 5);
-      ctx.strokeText('@' + participant.name, mx, ly2, 90);
-      ctx.fillStyle = isWinner ? '#FFE8A3' : '#E4EEFB';
-      ctx.fillText('@' + participant.name, mx, ly2, 90);
-    } else if (isWinner) {
-      ctx.font = 'bold 8px "Courier New", monospace';
-      ctx.fillStyle = '#FFE8A3';
-      ctx.textAlign = 'center';
-      ctx.fillText('@' + participant.name, mx, my - radius - 6, 60);
-    }
-  });
+  }
 }
-
-
-
 
 
 // ============================================================
