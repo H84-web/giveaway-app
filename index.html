@@ -10173,6 +10173,8 @@ var duckAnimId = null;       // requestAnimationFrame handle
 var duckCtx = null;
 var duckCanvasW = 0;
 var duckCanvasH = 0;
+var duckCam = { left: -7, win: 30 };          // camera window over the 0–100 track, follows the leader
+var duckRaceInfo = { duration: 0, elapsed: 0 };  // drives the on-canvas timer
 // MAX_DUCKS caps how many ducks race at once (see selectDuckRacers).
 // MAX_DUCKS_SMALL is the point below which each duck still gets its own
 // full-width lane; above it, ducks share a multi-row "swarm" layout
@@ -10273,22 +10275,43 @@ function duckShadeColor(hex, amount) {
   return 'rgb(' + r + ',' + g + ',' + b + ')';
 }
 
-// Sizes the canvas for crisp rendering at the device's actual pixel
-// density, using the visible container width. Falls back to the
-// viewport width if the container still measures 0 for any reason
-// (belt-and-braces on top of the openGiveaway ordering fix above).
+// Layout shared by the canvas sizing and the scene drawing so they can
+// never disagree. Up to MAX_DUCKS_SMALL ducks each get their own lane;
+// beyond that the field shares a handful of rows (a "swarm").
+function duckRowCount(duckCount) {
+  return duckCount > MAX_DUCKS_SMALL ? Math.max(6, Math.min(10, Math.ceil(duckCount / 3))) : Math.max(1, duckCount);
+}
+
+function duckLayout(duckCount, w, h) {
+  var swarm = duckCount > MAX_DUCKS_SMALL;
+  var rows = duckRowCount(duckCount);
+  var hudH = 34;
+  var tubeX0 = 6, tubeX1 = w - 6, tubeY0 = hudH, tubeY1 = h - 6;
+  var laneTop = tubeY0 + 8, laneBottom = tubeY1 - 12;
+  var rowH = (laneBottom - laneTop) / rows;
+  var perRow = Math.ceil(duckCount / rows);
+  var size = Math.max(10, Math.min(20, rowH * (swarm ? (perRow > 4 ? 0.42 : 0.5) : 0.6)));
+  return { swarm: swarm, rows: rows, hudH: hudH, tubeX0: tubeX0, tubeX1: tubeX1, tubeY0: tubeY0, tubeY1: tubeY1,
+           laneTop: laneTop, laneBottom: laneBottom, rowH: rowH, size: size, padL: 30, padR: 30 };
+}
+
+// Sizes the canvas for crisp rendering at the device's pixel density.
+// Compact on purpose: a narrow water channel, not a full-screen scene.
 function initDuckCanvas(pool) {
   var canvas = document.getElementById('duckCanvas');
   if (!canvas) return null;
 
   var container = canvas.parentElement;
-  var displayWidth = (container && container.clientWidth) || 0;
-  if (!displayWidth) displayWidth = Math.max(280, window.innerWidth - 40);
+  var available = (container && container.clientWidth) || 0;
+  if (!available) available = Math.max(280, window.innerWidth - 40);
+  var displayWidth = Math.min(available, 720);
 
   var duckCount = Math.max(1, Math.min(pool.length, MAX_DUCKS));
-  var laneHeight = duckCount <= 3 ? 92 : duckCount <= 5 ? 76 : duckCount <= 6 ? 64 : 54;
-  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(820, window.innerHeight - 300) : 560;
-  var displayHeight = Math.min(maxHeight, Math.max(300, duckCount * laneHeight + 90));
+  var swarm = duckCount > MAX_DUCKS_SMALL;
+  var rows = duckRowCount(duckCount);
+  var rowTarget = swarm ? 26 : Math.max(26, Math.min(40, 44 - duckCount * 1.4));
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.max(230, Math.min(380, window.innerHeight - 300)) : 360;
+  var displayHeight = Math.round(Math.min(maxHeight, Math.max(190, 34 + 8 + rows * rowTarget + 22)));
 
   var dpr = window.devicePixelRatio || 1;
   canvas.style.width = displayWidth + 'px';
@@ -10302,6 +10325,8 @@ function initDuckCanvas(pool) {
   duckCtx = ctx;
   duckCanvasW = displayWidth;
   duckCanvasH = displayHeight;
+  duckCam = { left: -7, win: 30 };
+  duckRaceInfo = { duration: 0, elapsed: 0 };
   return ctx;
 }
 
@@ -10355,6 +10380,7 @@ function spinDuckMode(pool, winnerIndex, durationSeconds, onDone) {
 
   var ctx = initDuckCanvas(duckPool);
   if (!ctx) { onDone(); return; }
+  duckRaceInfo = { duration: Math.max(3, durationSeconds || 6) * 1000, elapsed: 0 };
 
   drawDuckScene(0, null); // static line-up while the countdown plays
 
@@ -10398,136 +10424,114 @@ function runDuckCountdown(onComplete) {
 function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, onDone) {
   playDuckQuack();
 
-  var duration = (durationSeconds || 4) * 1000;
+  var duration = Math.max(3, durationSeconds || 6) * 1000;   // the race lasts exactly the time chosen for the draw
+  var COAST_MS = 260;                                         // winner visibly swims through the line, then it stops
+  var FINISH = 100;
+
+  // ---- How the race is decided ---------------------------------------
+  // The result is fixed first (actualWinnerIndex). Every duck then follows
+  // a pure function of TIME:   pos(τ) = 100·F·τ  +  start offset fading out
+  //                                    + a wobble that dies away before the end
+  // where τ = elapsed / duration and F is the duck's final fraction of the
+  // track. The winner has F = 1 (it reaches 100 exactly when time is up),
+  // everybody else has F < 1 with a guaranteed gap, so the winner is the
+  // first across the line by construction — not by a correction applied on
+  // screen. The wobble (different speed and phase per duck) is what makes
+  // them overtake each other all along the way.
+  var params = [];
+  for (var i = 0; i < duckCount; i++) {
+    var isW = i === actualWinnerIndex;
+    var f1 = 0.9 + Math.random() * 0.9, f2 = 1.7 + Math.random() * 1.6;
+    params.push({
+      F: isW ? 1 : 1 - (0.028 + Math.pow(Math.random(), 1.15) * 0.07),
+      a1: 3.2 + Math.random() * 3.0, f1: f1, p1: Math.random() * Math.PI * 2,
+      a2: 1.0 + Math.random() * 1.8, f2: f2, p2: Math.random() * Math.PI * 2,
+      off: 0
+    });
+  }
+  function smooth(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+  function posAt(i, tau) {
+    var p = params[i];
+    var tc = Math.min(tau, 1);
+    // wobble envelope: zero at the start line, strong mid-race, gone for the last ~8%
+    var env = Math.pow(Math.sin(Math.PI * tc), 0.8) * (1 - smooth((tc - 0.78) / 0.16));
+    var wob = env * (p.a1 * Math.sin(2 * Math.PI * p.f1 * tc + p.p1) + p.a2 * Math.sin(2 * Math.PI * p.f2 * tc + p.p2));
+    var base = FINISH * p.F * tc + p.off * (1 - tc);
+    var pos = base + wob;
+    if (tau > 1) pos += FINISH * p.F * (tau - 1) * 0.9;   // coast past the line
+    return pos;
+  }
+
   var startTime = performance.now();
+  var lastNow = startTime;
   var finished = false;
   var finishedSoundPlayed = false;
-  var FINISH = 100;
-  var FLAG_POSITION = DUCK_FLAG_POSITION;
-  var SPRINT_START = 0.72; // race stays genuinely unpredictable before this point — see below
-
-  // Two parallel tracks per duck, kept deliberately separate:
-  //  - guaranteedPos: the OLD monotonic formula (winner's speed factor is
-  //    always the highest) — used ONLY to decide correctness/timing (who
-  //    has truly won, and when the round is allowed to end). Never drawn.
-  //  - duckPositions: what's actually drawn, accumulated frame by frame
-  //    from a per-duck speed MULTIPLIER (not additive position noise —
-  //    that could make a duck momentarily swim backward, which read as
-  //    a glitch). The multiplier is always positive, so ducks only ever
-  //    move forward, but at a genuinely varying pace — real overtakes
-  //    happen. In the final stretch (SPRINT_START onward) the actual
-  //    winner gets a growing speed boost and everyone else eases off a
-  //    little, so the predetermined winner reliably pulls ahead for a
-  //    believable finish that always matches who's declared the winner.
-  var speedFactors = duckPositions.map(function(_, i) {
-    return i === actualWinnerIndex ? 1.0 : 0.5 + Math.random() * 0.35;
-  });
-  var wobbleParams = duckPositions.map(function() {
-    return {
-      f1: 0.28 + Math.random() * 0.35, p1: Math.random() * Math.PI * 2, a1: 0.22 + Math.random() * 0.2,
-      f2: 0.7 + Math.random() * 0.7, p2: Math.random() * Math.PI * 2, a2: 0.1 + Math.random() * 0.13
-    };
-  });
-  function speedMultiplier(i, t) {
-    var n = wobbleParams[i];
-    var wobble = n.a1 * Math.sin(t * Math.PI * 2 * n.f1 + n.p1) + n.a2 * Math.sin(t * Math.PI * 2 * n.f2 + n.p2);
-    return Math.max(0.3, 1 + wobble); // always positive — forward only, pace just varies
-  }
-  function smoothstep(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
-
-  var guaranteedPos = duckPositions.map(function() { return 0; });
-
-  // Occasional quacks from random ducks while the race is running, not
-  // just at the very start/end — makes it sound alive instead of one lone
-  // blip. Scheduled against elapsed time so it's frame-rate independent.
-  var nextAmbientQuackAt = 250 + Math.random() * 400;
+  var nextAmbientQuackAt = 300 + Math.random() * 500;
+  var lastTick = 0;
+  duckRaceInfo = { duration: duration, elapsed: 0 };
+  duckSplashes = [];
 
   if (duckAnimId) cancelAnimationFrame(duckAnimId);
-  var lastElapsed = 0;
 
   function tick(now) {
-    var elapsed = now - startTime;
-    var timeProgress = Math.min(elapsed / duration, 1);
-    var dtFrac = Math.max(0, elapsed - lastElapsed) / duration; // this frame's slice of the total race
-    var bw = timeProgress <= SPRINT_START ? 0 : smoothstep((timeProgress - SPRINT_START) / (1 - SPRINT_START));
+    var elapsed = Math.max(0, now - startTime);
+    var dt = Math.max(1, Math.min(60, now - lastNow));
+    lastNow = now;
+    var tau = elapsed / duration;
+    duckRaceInfo.elapsed = Math.min(elapsed, duration);
 
-    // The finish is now decided by the winner's own REAL, DRAWN position
-    // reaching the line — never by an invisible timing track. That
-    // "guaranteed" track used to end the round the instant an abstract
-    // formula crossed 70%, even if the winner's actual on-screen duck
-    // hadn't gotten there yet — which is exactly how the round could end
-    // with the winner not visibly at the flag at all. Now there's only
-    // one measure of "did the winner finish", and it's the one drawn on
-    // screen, so the two can never disagree again.
     for (var i = 0; i < duckCount; i++) {
-      var sprintBoost = 1;
-      if (bw > 0) sprintBoost = i === actualWinnerIndex ? (1 + bw * 1.3) : Math.max(0.35, 1 - bw * 0.45);
-
-      var mult = speedMultiplier(i, timeProgress) * sprintBoost;
-      var prevPos = duckPositions[i];
-      duckPositions[i] = Math.min(duckPositions[i] + mult * dtFrac * 82, FINISH); // *82 ≈ average pace needed to comfortably reach FLAG_POSITION by the end
-      guaranteedPos[i] = duckPositions[i]; // kept only for any other code that still reads this array
-
-      // Spawn a small water-splash trail behind each duck while it's
-      // actively moving — purely cosmetic, capped so it never piles up.
-      if (duckPositions[i] > prevPos && Math.random() < 0.5 && duckSplashes.length < 90) {
-        spawnDuckSplash(i, duckCount);
-      }
+      var np = posAt(i, tau);
+      var prev = duckPositions[i];
+      var moved = np > prev;
+      if (moved) duckPositions[i] = np;                       // forward only, never backwards
+      if (moved && Math.random() < 0.3 && duckSplashes.length < 70) spawnDuckSplash(i, duckCount);
     }
 
-    // Hard rule: NOBODY is allowed to visually reach the finish line
-    // before the winner's own real position gets there first — checked
-    // against the winner's un-clamped position above, then enforced here.
-    if (!finished && duckPositions[actualWinnerIndex] >= FLAG_POSITION) {
+    if (!finished && tau >= 1) {
       finished = true;
-    }
-    // On top of the line itself, non-winners are also tethered to stay
-    // close behind the winner's OWN current position — without this, an
-    // absolute cap alone let non-winners reach and then just sit right at
-    // the edge for a stretch while the real winner was still catching up
-    // from well behind, which looked exactly like several ducks were
-    // "waiting at the finish line" for no reason before an unrelated one
-    // got crowned. Tethering keeps the whole field visibly close the
-    // entire time, so the winner is seen pulling ahead at the very end
-    // instead of seeming to catch up from nowhere.
-    var winnerPos = duckPositions[actualWinnerIndex];
-    for (var j = 0; j < duckCount; j++) {
-      if (j === actualWinnerIndex) {
-        if (!finished) duckPositions[j] = Math.min(duckPositions[j], FLAG_POSITION);
-      } else {
-        // Cap at FLAG-4 (not FLAG-0.6) so that when the winner reaches the line
-        // the runner-up is visibly behind it, never level or ahead.
-        duckPositions[j] = Math.min(duckPositions[j], FLAG_POSITION - 4, winnerPos + 4);
-      }
+      playDuckQuack();
     }
 
-    updateDuckSplashes(elapsed - lastElapsed);
-    lastElapsed = elapsed;
+    updateDuckCamera(tau, dt);
+    updateDuckSplashes(dt);
 
     if (!finished && elapsed >= nextAmbientQuackAt) {
       playDuckQuack();
-      nextAmbientQuackAt = elapsed + 450 + Math.random() * 550;
-    }
-
-    if (finished && !finishedSoundPlayed) {
-      finishedSoundPlayed = true;
-      playDuckQuack();
+      nextAmbientQuackAt = elapsed + 500 + Math.random() * 700;
     }
 
     drawDuckScene(elapsed, finished ? actualWinnerIndex : null);
-    drawRaceLeaderboard(duckCtx, duckCanvasW, duckPositions, duckPool, actualWinnerIndex, finished);
+    drawRaceLeaderboard(duckCtx, duckCanvasW, duckPositions, duckPool, actualWinnerIndex, finished, duckLayout(duckCount, duckCanvasW, duckCanvasH).hudH + 8);
 
-    // Stops the instant the winner crosses the line — no extra "swim
-    // past the flag" animation afterward, per how confusing it looked
-    // to have the race visibly keep going after a result was already
-    // decided.
-    if (!finished) {
+    if (tau < 1 + COAST_MS / duration) {
       duckAnimId = requestAnimationFrame(tick);
     } else {
       onDone();
     }
   }
   duckAnimId = requestAnimationFrame(tick);
+}
+
+// Camera: follows the leader so the whole field is always on screen and
+// the scenery visibly rolls past. It zooms out a little when the pack
+// spreads and in when it bunches up.
+function updateDuckCamera(tau, dt) {
+  var n = duckPositions.length;
+  if (!n) return;
+  var lead = -1e9, last = 1e9;
+  for (var i = 0; i < n; i++) {
+    var p = duckPositions[i];
+    if (p > lead) lead = p;
+    if (p < last) last = p;
+  }
+  var spread = lead - last;
+  var targetWin = Math.max(30, spread * 1.6 + 12);
+  var k = Math.min(1, dt / 220);
+  duckCam.win += (targetWin - duckCam.win) * k;
+  var s = Math.max(0, Math.min(1, tau / 0.2));
+  var frac = 0.22 + 0.43 * (s * s * (3 - 2 * s));       // leader drifts from the left to ~2/3 of the screen
+  duckCam.left = lead - duckCam.win * frac;
 }
 
 // A single splash particle: position is computed fresh each frame from
@@ -10566,7 +10570,7 @@ function updateDuckSplashes(dt) {
 // rigged). Deliberately top-3 only: a full ranking would cover the
 // race it's describing.
 // ============================================================
-function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished) {
+function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished, topY) {
   if (!positions || positions.length < 3) return;
 
   var ranked = positions.map(function(p, i) { return { i: i, p: p }; })
@@ -10576,7 +10580,7 @@ function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished) {
   var padX = 10, rowH = 19, headH = 16;
   var panelW = 146;
   var panelH = headH + rowH * ranked.length + 8;
-  var x = w - panelW - 12, y = 12;
+  var x = w - panelW - 16, y = (topY == null ? 12 : topY);
 
   ctx.save();
   ctx.globalAlpha = 0.92;
@@ -10628,197 +10632,261 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Redraws the whole scene for the current frame: a glass-walled water
+// channel with moving water, lane ropes and distance marks scrolling by,
+// the ducks at their real positions, and a progress strip + timer on top.
 function drawDuckScene(elapsed, winnerIndex) {
   var ctx = duckCtx;
   if (!ctx) return;
   var w = duckCanvasW, h = duckCanvasH;
   var duckCount = Math.max(1, duckPool.length);
-  var bankH = 14; // grassy strip top and bottom, framing the water
-  var waterTop = bankH, waterBottom = h - bankH;
+  var L = duckLayout(duckCount, w, h);
+  var cam = duckCam;
+  var pxU = (w - L.padL - L.padR) / cam.win;                  // pixels per track unit
+  function sx(p) { return L.padL + (p - cam.left) * pxU; }
+  var flow = elapsed * 0.05;                                   // the water keeps moving even when the camera doesn't
 
-  // Below MAX_DUCKS_SMALL, every duck gets its own full-width lane and a
-  // visible name label. Above it (large giveaways), ducks share a
-  // multi-row "swarm" — enough rows to keep each one a reasonable size,
-  // with 2–3 ducks per row spread out a little so they don't fully stack.
-  var useSwarm = duckCount > MAX_DUCKS_SMALL;
-  var rows = useSwarm ? Math.max(5, Math.min(duckCount, Math.round(Math.sqrt(duckCount * 1.1)))) : duckCount; // fewer, taller rows = each duck gets noticeably more breathing room than before
-  var perRow = Math.ceil(duckCount / rows);
-  var rowH = (waterBottom - waterTop) / rows;
-  var duckSize = Math.max(11, Math.min(34, rowH * 0.42)); // bigger, more readable ducks — the old 0.3/22px cap left them small even when there was plenty of room per row
-  var trackStart = 34;
-  var duckMaxX = w - 26;                                   // rightmost a duck can swim, near the canvas edge
-  var flagX = trackStart + (duckMaxX - trackStart) * (DUCK_FLAG_POSITION / 100);  // checkered line sits before the end, so the winner visibly swims past it
-
-  // Sky
-  var sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, '#E3EAF1');
-  sky.addColorStop(1, '#C9D6E2');
-  ctx.fillStyle = sky;
+  // Page-coloured backdrop (the channel sits on it like an object).
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#EEF2F6';
   ctx.fillRect(0, 0, w, h);
 
-  // Sun, tucked in the corner with a soft glow.
-  var sunX = w - 34, sunY = 24;
-  var sunGlow = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, 30);
-  sunGlow.addColorStop(0, 'rgba(240, 225, 170, 0.8)');
-  sunGlow.addColorStop(1, 'rgba(240, 225, 170, 0)');
-  ctx.fillStyle = sunGlow;
-  ctx.fillRect(sunX - 30, sunY - 30, 60, 60);
-  ctx.beginPath();
-  ctx.arc(sunX, sunY, 11, 0, Math.PI * 2);
-  ctx.fillStyle = '#EBD99A';
-  ctx.fill();
-
-  // A couple of soft drifting clouds for atmosphere.
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  [0.15, 0.55].forEach(function(cx, idx) {
-    var drift = (elapsed / 9000 + idx * 3) % 1;
-    var x = ((cx + drift) % 1.3 - 0.15) * w;
-    var y = 14 + idx * 12;
+  // ---- Progress strip + timer (top) --------------------------------
+  var trackX0 = 56, trackX1 = w - 26, trackY = 17;
+  var remaining = Math.max(0, (duckRaceInfo.duration - duckRaceInfo.elapsed) / 1000);
+  ctx.font = '700 12px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#3B4658';
+  var mm = Math.floor(remaining / 60), ss = Math.floor(remaining % 60);
+  ctx.fillText(duckRaceInfo.duration ? (mm + ':' + (ss < 10 ? '0' : '') + ss) : '–:––', 10, trackY + 4);
+  ctx.strokeStyle = '#C5CFDB';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(trackX0, trackY); ctx.lineTo(trackX1, trackY); ctx.stroke();
+  // finish flag at the end of the strip
+  ctx.fillStyle = '#3B4658';
+  ctx.fillRect(trackX1 + 4, trackY - 7, 1.6, 14);
+  for (var fy = 0; fy < 3; fy++) for (var fx = 0; fx < 2; fx++) {
+    ctx.fillStyle = (fx + fy) % 2 ? '#fff' : '#3B4658';
+    ctx.fillRect(trackX1 + 5.6 + fx * 3.4, trackY - 7 + fy * 3.4, 3.4, 3.4);
+  }
+  var dotR = L.swarm ? 1.6 : 3.4;
+  var order = [];
+  for (var d = 0; d < duckCount; d++) order.push(d);
+  var leadIdx = 0;
+  for (var q = 1; q < duckCount; q++) if (duckPositions[q] > duckPositions[leadIdx]) leadIdx = q;
+  order.forEach(function(i) {
+    var frac = Math.max(0, Math.min(1, (duckPositions[i] || 0) / 100));
+    var px = trackX0 + frac * (trackX1 - trackX0);
+    var prof = duckProfiles[i] || pickDuckProfile((duckPool[i] || {}).name);
     ctx.beginPath();
-    ctx.ellipse(x, y, 22, 9, 0, 0, Math.PI * 2);
-    ctx.ellipse(x + 16, y + 3, 16, 7, 0, 0, Math.PI * 2);
-    ctx.ellipse(x - 14, y + 4, 14, 6, 0, 0, Math.PI * 2);
+    ctx.arc(px, trackY + (L.swarm ? ((i * 7) % 5 - 2) * 1.6 : 0), dotR, 0, Math.PI * 2);
+    ctx.fillStyle = prof.color;
+    ctx.globalAlpha = L.swarm ? 0.75 : 1;
     ctx.fill();
+    ctx.globalAlpha = 1;
   });
-
-  // A couple of small birds, simple "v" shapes drifting across the sky.
-  ctx.strokeStyle = 'rgba(60,70,90,0.5)';
-  ctx.lineWidth = 1.4;
-  [0.3, 0.75].forEach(function(bx, idx) {
-    var drift = (elapsed / 6000 + idx * 2.2) % 1.4 - 0.2;
-    var x = bx * w + drift * 40;
-    var y = 10 + idx * 16 + Math.sin(elapsed / 500 + idx) * 2;
-    ctx.beginPath();
-    ctx.moveTo(x - 5, y);
-    ctx.quadraticCurveTo(x - 2, y - 4, x, y);
-    ctx.quadraticCurveTo(x + 2, y - 4, x + 5, y);
-    ctx.stroke();
-  });
-
-  // Grassy bank — top.
-  ctx.fillStyle = '#7C9F77';
-  ctx.fillRect(0, 0, w, bankH);
-  ctx.fillStyle = '#688B64';
-  for (var tx = -4; tx < w; tx += 9) {
-    ctx.beginPath();
-    ctx.moveTo(tx, bankH);
-    ctx.lineTo(tx + 4, bankH - 6);
-    ctx.lineTo(tx + 8, bankH);
-    ctx.fill();
+  if (!L.swarm) {
+    var lp = trackX0 + Math.max(0, Math.min(1, (duckPositions[leadIdx] || 0) / 100)) * (trackX1 - trackX0);
+    ctx.beginPath(); ctx.arc(lp, trackY, dotR + 2.4, 0, Math.PI * 2);
+    ctx.strokeStyle = '#D9A441'; ctx.lineWidth = 1.6; ctx.stroke();
   }
 
-  // Water
-  var water = ctx.createLinearGradient(0, waterTop, 0, waterBottom);
-  water.addColorStop(0, '#6C9BBA');
-  water.addColorStop(1, '#4A7A9E');
+  // ---- The channel ---------------------------------------------------
+  var tx0 = L.tubeX0, ty0 = L.tubeY0, tw = L.tubeX1 - L.tubeX0, th = L.tubeY1 - L.tubeY0;
+  ctx.save();
+  roundRectPath(ctx, tx0, ty0, tw, th, 16);
+  ctx.clip();
+
+  var water = ctx.createLinearGradient(0, ty0, 0, ty0 + th);
+  water.addColorStop(0, '#6F9FC0');
+  water.addColorStop(1, '#4A7BA1');
   ctx.fillStyle = water;
-  ctx.fillRect(0, waterTop, w, waterBottom - waterTop);
+  ctx.fillRect(tx0, ty0, tw, th);
 
-  // Faint horizontal ripple lines to break up the flat water color — one
-  // per row, not per duck, so this stays cheap even with 100 ducks.
-  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
-  ctx.lineWidth = 2;
-  for (var r = 0; r <= rows; r++) {
-    var ry = waterTop + r * rowH;
+  // Broad swells: two slow translucent bands that travel with the flow.
+  for (var b = 0; b < 3; b++) {
+    var by0 = ty0 + th * (0.18 + b * 0.3);
     ctx.beginPath();
-    for (var x = 0; x <= w; x += 14) {
-      var wave = Math.sin(x / 22 + elapsed / 260 + r) * 2;
-      if (x === 0) ctx.moveTo(x, ry + wave); else ctx.lineTo(x, ry + wave);
+    for (var x = tx0; x <= tx0 + tw; x += 10) {
+      var yy = by0 + Math.sin((x + cam.left * pxU * 0.7) / 46 - flow / 14 + b * 2) * 5;
+      if (x === tx0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
     }
+    ctx.lineTo(tx0 + tw, by0 + 26); ctx.lineTo(tx0, by0 + 26); ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.045 + b * 0.012) + ')';
+    ctx.fill();
+  }
+
+  // Current streaks: small light dashes sliding past at different speeds
+  // (parallax), so the water visibly runs even before anyone moves.
+  var period = w + 80;
+  ctx.lineCap = 'round';
+  for (var k = 0; k < 44; k++) {
+    var sp = 0.55 + ((k * 13) % 7) / 9;
+    var baseX = ((k * 97) % 1000) / 1000 * period;
+    var sxk = (((baseX - (cam.left * pxU * 0.55 + flow * 1.6) * sp) % period) + period) % period - 40;
+    var syk = L.laneTop + (((k * 53) % 97) / 97) * (L.laneBottom - L.laneTop);
+    var len = 14 + ((k * 31) % 23);
+    ctx.beginPath();
+    ctx.moveTo(sxk, syk);
+    ctx.quadraticCurveTo(sxk + len / 2, syk - 2.2, sxk + len, syk);
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.12 + (k % 4) * 0.035) + ')';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
   }
 
-  // Finish line — checkered flag strip on a pole, placed before the
-  // track's end so ducks (the winner especially) visibly swim past it.
-  var checkSize = 8;
-  for (var cy = waterTop; cy < waterBottom; cy += checkSize) {
-    for (var cx2 = 0; cx2 < 2; cx2++) {
-      var isDark = (Math.round((cy - waterTop) / checkSize) + cx2) % 2 === 0;
-      ctx.fillStyle = isDark ? 'rgba(20,20,30,0.55)' : 'rgba(255,255,255,0.75)';
-      ctx.fillRect(flagX + cx2 * checkSize, cy, checkSize, checkSize);
+  // Lane ropes: a row of little floats between lanes, scrolling with the camera.
+  if (!L.swarm) {
+    for (var r = 1; r < L.rows; r++) {
+      var ry = L.laneTop + r * L.rowH;
+      var shift = ((cam.left * pxU) % 16 + 16) % 16;
+      for (var rx = tx0 - 16 + (16 - shift); rx < tx0 + tw + 16; rx += 16) {
+        ctx.beginPath();
+        ctx.arc(rx, ry + Math.sin(rx / 17 + flow / 9) * 0.8, 2.1, 0, Math.PI * 2);
+        ctx.fillStyle = ((Math.round((rx - (16 - shift)) / 16)) % 2) ? 'rgba(255,255,255,0.62)' : 'rgba(205,220,232,0.55)';
+        ctx.fill();
+      }
+    }
+  } else {
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    for (var r2 = 1; r2 < L.rows; r2++) {
+      ctx.beginPath(); ctx.moveTo(tx0, L.laneTop + r2 * L.rowH); ctx.lineTo(tx0 + tw, L.laneTop + r2 * L.rowH); ctx.stroke();
     }
   }
-  ctx.fillStyle = '#8B5A2B';
-  ctx.fillRect(flagX - 2, 0, 3, waterTop);
-  ctx.fillRect(flagX - 2, waterBottom, 3, bankH);
 
-  // Grassy bank — bottom.
-  ctx.fillStyle = '#7C9F77';
-  ctx.fillRect(0, waterBottom, w, bankH);
-  ctx.fillStyle = '#688B64';
-  for (var tx2 = -4; tx2 < w; tx2 += 9) {
-    ctx.beginPath();
-    ctx.moveTo(tx2, waterBottom);
-    ctx.lineTo(tx2 + 4, waterBottom + 6);
-    ctx.lineTo(tx2 + 8, waterBottom);
-    ctx.fill();
+  // Distance marks along the bottom wall, rolling by with the camera.
+  ctx.font = '600 9px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  for (var u = 10; u <= 90; u += 10) {
+    var ux = sx(u);
+    if (ux < tx0 + 6 || ux > tx0 + tw - 6) continue;
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(ux, L.laneBottom + 2); ctx.lineTo(ux, L.laneBottom + 6); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillText(String(u), ux, L.tubeY1 - 3);
   }
 
-  // Duck count badge, useful once names stop being individually labeled.
-  if (useSwarm) {
-    ctx.font = '600 11px system-ui, -apple-system, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(15,25,40,0.65)';
-    ctx.fillText(duckCount + ' ' + t('lobby_list_title').toLowerCase(), 8, waterTop + 12);
+  // Start line and finish gate.
+  var startX = sx(0), finishX = sx(100);
+  if (startX > tx0 - 4 && startX < tx0 + tw + 4) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(startX, ty0); ctx.lineTo(startX, ty0 + th); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if (finishX > tx0 - 20 && finishX < tx0 + tw + 20) {
+    var cs = 9;
+    for (var cy = ty0, rowi = 0; cy < ty0 + th; cy += cs, rowi++) {
+      for (var cx2 = 0; cx2 < 2; cx2++) {
+        ctx.fillStyle = (rowi + cx2) % 2 ? 'rgba(255,255,255,0.92)' : 'rgba(30,40,56,0.85)';
+        ctx.fillRect(finishX - cs + cx2 * cs, cy, cs, cs);
+      }
+    }
+    var glow = ctx.createLinearGradient(finishX - 40, 0, finishX, 0);
+    glow.addColorStop(0, 'rgba(255,255,255,0)');
+    glow.addColorStop(1, 'rgba(255,255,255,0.14)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(finishX - 40, ty0, 40, th);
   }
 
-  function duckPosition(i) {
-    var row = i % rows;
-    var col = Math.floor(i / rows);
-    var laneCenterY = waterTop + row * rowH + rowH / 2 + ((col % 3) - 1) * (rowH * 0.16);
-    var progress = duckPositions[i] / 100;
-    var x = trackStart + progress * (duckMaxX - trackStart);
-    // No horizontal offset: what you see is the real position, so the duck
-    // drawn furthest right is always the one actually in front.
-    return { x: x, y: laneCenterY };
+  // ---- Ducks -----------------------------------------------------------
+  function duckXY(i) {
+    var row = i % L.rows;
+    var col = Math.floor(i / L.rows);
+    var y = L.laneTop + row * L.rowH + L.rowH / 2 + (L.swarm ? ((col % 3) - 1) * (L.rowH * 0.2) : 0);
+    var jitter = L.swarm ? ((i * 37) % 7 - 3) * (L.size * 0.12) : 0;   // tiny, so a rival can never visually pass the true leader
+    return { x: sx(duckPositions[i] || 0) + jitter, y: y };
   }
 
-  // Water-splash particles, behind the ducks.
+  // Spray behind swimming ducks.
   duckSplashes.forEach(function(p) {
-    var t = p.age / p.life;
-    var pos = duckPosition(p.duckIndex);
-    var px = pos.x - duckSize * 0.9 + p.dx * t;
-    var py = pos.y + duckSize * 0.5 + p.dy * t + 10 * t * t; // slight gravity arc
+    var t2 = p.age / p.life;
+    var pos = duckXY(p.duckIndex);
+    var px = pos.x - L.size * 0.8 - p.dx * t2 * 2;
+    var py = pos.y + L.size * 0.38 + p.dy * t2 + 8 * t2 * t2;
     ctx.beginPath();
-    ctx.arc(px, py, p.size * (1 - t * 0.5), 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * (1 - t)) + ')';
+    ctx.arc(px, py, p.size * (1 - t2 * 0.5), 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.5 * (1 - t2)) + ')';
     ctx.fill();
   });
 
-  // Ducks.
-  duckPool.forEach(function(participant, i) {
-    var pos = duckPosition(i);
-    var bob = Math.sin(elapsed / 220 + i * 1.7) * (duckSize * 0.14);
-    var paddlePhase = elapsed / 130 + i * 2;
-    var profile = duckProfiles[i] || pickDuckProfile(participant.name);
+  // Draw back-to-front: upper lanes first, the declared winner last.
+  var drawOrder = order.slice().sort(function(a, b) {
+    var ya = duckXY(a).y, yb = duckXY(b).y;
+    return ya - yb || (duckPositions[a] - duckPositions[b]);
+  });
+  drawOrder.forEach(function(i) {
+    var pos = duckXY(i);
+    if (pos.x < tx0 - 30 || pos.x > tx0 + tw + 30) return;
     var isWinner = winnerIndex === i;
+    if (isWinner) return;                                  // drawn after the others
+    drawOneDuck(i, pos, false);
+  });
+  if (winnerIndex !== null && winnerIndex !== undefined) drawOneDuck(winnerIndex, duckXY(winnerIndex), true);
 
-    drawDuck(ctx, pos.x, pos.y + bob, profile, isWinner, paddlePhase, i + 1, duckSize);
+  function drawOneDuck(i, pos, isWinner) {
+    var participant = duckPool[i] || {};
+    var bob = Math.sin(elapsed / 240 + i * 1.7) * (L.size * 0.1);
+    var profile = duckProfiles[i] || pickDuckProfile(participant.name);
+    // V-shaped wake on the water behind the duck.
+    if (L.size >= 14) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.32)';
+      ctx.lineWidth = 1.3;
+      var wy = pos.y + L.size * 0.42;
+      ctx.beginPath();
+      ctx.moveTo(pos.x - L.size * 0.5, wy);
+      ctx.lineTo(pos.x - L.size * 1.9, wy - L.size * 0.34 + Math.sin(elapsed / 150 + i) * 1.2);
+      ctx.moveTo(pos.x - L.size * 0.5, wy);
+      ctx.lineTo(pos.x - L.size * 1.9, wy + L.size * 0.3 + Math.cos(elapsed / 150 + i) * 1.2);
+      ctx.stroke();
+    }
+    drawDuck(ctx, pos.x, pos.y + bob, profile, isWinner, elapsed / 130 + i * 2, i + 1, L.size);
 
-    if (!useSwarm) {
-      // Name label. Once a duck has swum past the flag there's no room
-      // for a label to its right, so it flips to sit just above/left of it.
-      ctx.font = '600 ' + Math.round(Math.max(11, duckSize * 0.42)) + 'px system-ui, -apple-system, sans-serif';
-      ctx.fillStyle = 'rgba(15,25,40,0.75)';
-      if (pos.x < w - 70) {
+    if (!L.swarm) {
+      ctx.font = '600 ' + Math.round(Math.max(10, L.size * 0.42)) + 'px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.shadowColor = 'rgba(10,30,50,0.45)';
+      ctx.shadowBlur = 3;
+      if (pos.x < w - 110) {
         ctx.textAlign = 'left';
-        ctx.fillText('@' + participant.name, pos.x + duckSize * 1.5, pos.y + 3, Math.max(30, w - 8 - (pos.x + duckSize * 1.5)));
+        ctx.fillText('@' + participant.name, pos.x + L.size * 1.3, pos.y + 3, 90);
       } else {
         ctx.textAlign = 'right';
-        ctx.fillText('@' + participant.name, pos.x - duckSize * 1.2, pos.y - duckSize - 4, 80);
+        ctx.fillText('@' + participant.name, pos.x - L.size * 1.3, pos.y + 3, 90);
       }
+      ctx.shadowBlur = 0;
     } else if (isWinner) {
-      // In swarm mode, only the winner ever gets a name label — right
-      // above the crown, once the race has revealed them.
       ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#fff';
-      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
       ctx.shadowBlur = 4;
-      ctx.fillText('@' + participant.name, pos.x, pos.y - duckSize * 1.9);
+      ctx.fillText('@' + participant.name, pos.x, pos.y - L.size * 1.5 < ty0 + 14 ? pos.y + L.size * 1.7 : pos.y - L.size * 1.5);
       ctx.shadowBlur = 0;
     }
-  });
+  }
+
+  // Glass: a soft highlight along the top wall and a shade along the bottom.
+  var gl = ctx.createLinearGradient(0, ty0, 0, ty0 + th);
+  gl.addColorStop(0, 'rgba(255,255,255,0.30)');
+  gl.addColorStop(0.14, 'rgba(255,255,255,0.04)');
+  gl.addColorStop(0.8, 'rgba(0,20,40,0)');
+  gl.addColorStop(1, 'rgba(0,20,40,0.22)');
+  ctx.fillStyle = gl;
+  ctx.fillRect(tx0, ty0, tw, th);
+  ctx.restore();
+
+  roundRectPath(ctx, tx0, ty0, tw, th, 16);
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  roundRectPath(ctx, tx0 - 1, ty0 - 1, tw + 2, th + 2, 17);
+  ctx.strokeStyle = 'rgba(40,60,85,0.22)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }
 
 // Draws one duck: ripple, body with belly patch, layered wing, head,
@@ -11888,13 +11956,29 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
       start: 0
     });
   }
-  // Short boards would finish in a blink — stretch only as far as needed
-  // for a minimum of ~1.9s of drama, and never slow long boards down.
-  var raw = hops.reduce(function(s, h2) { return s + h2.th + h2.hold; }, 0);
-  var stretch = raw < 1900 ? Math.min(2.0, 1900 / raw) : 1;
-  hops.forEach(function(h2) { h2.th *= stretch; h2.hold *= stretch; h2.start = total; total += h2.th + h2.hold; });
-
+  // The drop lasts as long as the draw is set to last. The bounces are
+  // stretched (or squeezed) to fill that time; a hop never gets floaty
+  // (capped at 0.7s) — any leftover time becomes the ball balancing on a
+  // peg, weighted toward the last rows where the suspense is.
   var DROP_MS = 240, SETTLE_MS = 420;
+  var wanted = Math.max(3, durationSeconds || 6) * 1000;
+  var targetTotal = Math.max(1400, wanted - DROP_MS - 700);
+  var raw = hops.reduce(function(s2, h2) { return s2 + h2.th + h2.hold; }, 0);
+  var scale = targetTotal / raw;
+  var leftover = 0;
+  hops.forEach(function(h2) {
+    h2.th *= scale; h2.hold *= scale;
+    if (h2.th > 700) { leftover += h2.th - 700; h2.th = 700; }
+  });
+  var used = hops.reduce(function(s2, h2) { return s2 + h2.th + h2.hold; }, 0);
+  leftover += Math.max(0, targetTotal - used - leftover);
+  if (leftover > 1) {
+    var weights = hops.map(function(_, ri) { return ri === 0 ? 0 : Math.pow(ri + 1, 1.6); });
+    var wsum = weights.reduce(function(a2, b2) { return a2 + b2; }, 0) || 1;
+    hops.forEach(function(h2, ri) { h2.hold += leftover * weights[ri] / wsum; });
+  }
+  hops.forEach(function(h2) { h2.start = total; total += h2.th + h2.hold; });
+
   var finalX = g.levelX(pegRows, path[pegRows]);
   var finalFromY = g.pegY(pegRows) - g.pegR - g.ballR;
   var finalToY = g.boardBottom + g.ballR + 6;
