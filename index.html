@@ -1322,7 +1322,7 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 800px); }
    ============================================================ */
 .duck-canvas {
   width: 100%; border-radius: 16px; display: block;
-  box-shadow: 0 4px 20px rgba(30,143,187,0.25);
+  box-shadow: 0 4px 20px rgba(30,60,90,0.18);
 }
 .duck-sound-toggle {
   position: absolute; top: 10px; right: 10px; z-index: 2;
@@ -10189,16 +10189,16 @@ var DUCK_QUACK_SOUND = 'data:audio/wav;base64,UklGRqQgAABXQVZFZm10IBAAAAABAAEAgD
 // every racer stays distinguishable even at swarm sizes — which matters
 // here because colour is how you follow your own entry through a race.
 var DUCK_COLORS = [
-  '#FFB300', // amber
-  '#FF5A3C', // vermilion
-  '#17C964', // emerald
-  '#0EA5E9', // sky
-  '#9333EA', // violet
-  '#FF2E8B', // magenta
-  '#06B6A4', // teal
-  '#F97316', // orange
-  '#4F46E5', // indigo
-  '#D946EF'  // fuchsia
+  '#D9A441', // mustard
+  '#C2614B', // terracotta
+  '#4E9A78', // sage green
+  '#4A86C5', // steel blue
+  '#7B6BB5', // soft violet
+  '#C26B8E', // dusty rose
+  '#3E9099', // teal
+  '#D08A45', // ochre
+  '#5E6FB8', // slate indigo
+  '#8C7A6B'  // warm taupe
 ];
 
 // Original, non-branded "personality" system for the ducks: an accessory
@@ -10495,7 +10495,9 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
       if (j === actualWinnerIndex) {
         if (!finished) duckPositions[j] = Math.min(duckPositions[j], FLAG_POSITION);
       } else {
-        duckPositions[j] = Math.min(duckPositions[j], FLAG_POSITION - 0.6, winnerPos + 4);
+        // Cap at FLAG-4 (not FLAG-0.6) so that when the winner reaches the line
+        // the runner-up is visibly behind it, never level or ahead.
+        duckPositions[j] = Math.min(duckPositions[j], FLAG_POSITION - 4, winnerPos + 4);
       }
     }
 
@@ -10597,7 +10599,7 @@ function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished) {
 
     ctx.beginPath();
     ctx.arc(x + padX + 5, ry - 3.5, 5.5, 0, Math.PI * 2);
-    ctx.fillStyle = DUCK_COLORS[entry.i % DUCK_COLORS.length];
+    ctx.fillStyle = (duckProfiles[entry.i] && duckProfiles[entry.i].color) || DUCK_COLORS[entry.i % DUCK_COLORS.length];
     ctx.fill();
 
     ctx.font = '800 8.5px -apple-system, sans-serif';
@@ -10649,21 +10651,21 @@ function drawDuckScene(elapsed, winnerIndex) {
 
   // Sky
   var sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, '#BFEBFF');
-  sky.addColorStop(1, '#8FD8F7');
+  sky.addColorStop(0, '#E3EAF1');
+  sky.addColorStop(1, '#C9D6E2');
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, w, h);
 
   // Sun, tucked in the corner with a soft glow.
   var sunX = w - 34, sunY = 24;
   var sunGlow = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, 30);
-  sunGlow.addColorStop(0, 'rgba(255, 240, 180, 0.9)');
-  sunGlow.addColorStop(1, 'rgba(255, 240, 180, 0)');
+  sunGlow.addColorStop(0, 'rgba(240, 225, 170, 0.8)');
+  sunGlow.addColorStop(1, 'rgba(240, 225, 170, 0)');
   ctx.fillStyle = sunGlow;
   ctx.fillRect(sunX - 30, sunY - 30, 60, 60);
   ctx.beginPath();
   ctx.arc(sunX, sunY, 11, 0, Math.PI * 2);
-  ctx.fillStyle = '#FFE58A';
+  ctx.fillStyle = '#EBD99A';
   ctx.fill();
 
   // A couple of soft drifting clouds for atmosphere.
@@ -10694,9 +10696,9 @@ function drawDuckScene(elapsed, winnerIndex) {
   });
 
   // Grassy bank — top.
-  ctx.fillStyle = '#6FBF5C';
+  ctx.fillStyle = '#7C9F77';
   ctx.fillRect(0, 0, w, bankH);
-  ctx.fillStyle = '#5CA84C';
+  ctx.fillStyle = '#688B64';
   for (var tx = -4; tx < w; tx += 9) {
     ctx.beginPath();
     ctx.moveTo(tx, bankH);
@@ -10707,8 +10709,8 @@ function drawDuckScene(elapsed, winnerIndex) {
 
   // Water
   var water = ctx.createLinearGradient(0, waterTop, 0, waterBottom);
-  water.addColorStop(0, '#4FB3E8');
-  water.addColorStop(1, '#2E8FCB');
+  water.addColorStop(0, '#6C9BBA');
+  water.addColorStop(1, '#4A7A9E');
   ctx.fillStyle = water;
   ctx.fillRect(0, waterTop, w, waterBottom - waterTop);
 
@@ -10741,9 +10743,9 @@ function drawDuckScene(elapsed, winnerIndex) {
   ctx.fillRect(flagX - 2, waterBottom, 3, bankH);
 
   // Grassy bank — bottom.
-  ctx.fillStyle = '#6FBF5C';
+  ctx.fillStyle = '#7C9F77';
   ctx.fillRect(0, waterBottom, w, bankH);
-  ctx.fillStyle = '#5CA84C';
+  ctx.fillStyle = '#688B64';
   for (var tx2 = -4; tx2 < w; tx2 += 9) {
     ctx.beginPath();
     ctx.moveTo(tx2, waterBottom);
@@ -10766,14 +10768,9 @@ function drawDuckScene(elapsed, winnerIndex) {
     var laneCenterY = waterTop + row * rowH + rowH / 2 + ((col % 3) - 1) * (rowH * 0.16);
     var progress = duckPositions[i] / 100;
     var x = trackStart + progress * (duckMaxX - trackStart);
-    // Ducks sharing a row (there can be several per row once the field is
-    // large) also get a small, per-duck horizontal stagger — without it,
-    // any two ducks with similar progress (very common early in the race,
-    // or once several are clamped near the same cap) land almost exactly
-    // on top of each other, which is what looked like one packed blob
-    // with no visible separation between them.
-    var xJitter = ((i * 37) % 7 - 3) * (duckSize * 0.45);
-    return { x: x + xJitter, y: laneCenterY };
+    // No horizontal offset: what you see is the real position, so the duck
+    // drawn furthest right is always the one actually in front.
+    return { x: x, y: laneCenterY };
   }
 
   // Water-splash particles, behind the ducks.
@@ -10850,7 +10847,7 @@ function drawDuck(ctx, x, y, profile, isWinner, paddlePhase, laneNumber, size) {
   // Paddling feet, peeking out to the sides.
   if (showDetail) {
     var footSwing = Math.sin(paddlePhase) * 3.5;
-    ctx.fillStyle = '#F2A33E';
+    ctx.fillStyle = '#D9A55B';
     ctx.beginPath();
     ctx.ellipse(x - size * 0.38 + footSwing, y + size * 0.5, 4.6, 2.3, 0.4, 0, Math.PI * 2);
     ctx.fill();
@@ -10925,7 +10922,7 @@ function drawDuck(ctx, x, y, profile, isWinner, paddlePhase, laneNumber, size) {
   ctx.quadraticCurveTo(headX + size * 0.92, headY - size * 0.04, headX + size * 0.9, headY + size * 0.1);
   ctx.quadraticCurveTo(headX + size * 0.62, headY + size * 0.22, headX + size * 0.32, headY + size * 0.18);
   ctx.closePath();
-  ctx.fillStyle = '#F5A93E';
+  ctx.fillStyle = '#DDA85C';
   ctx.fill();
 
   var eyeX = headX + size * 0.1, eyeY = headY - size * 0.14;
@@ -11760,13 +11757,47 @@ function selectPlinkoSlots(pool, winnerIndex) {
   return { slotPool: slotPool, winnerSlot: insertAt };
 }
 
+// ---- Plinko geometry ------------------------------------------------
+// Everything (pegs, slots, ball path) derives from this one function so
+// the drawing and the physics can never disagree. Board size follows the
+// number of slots: a handful of participants gives a compact board, a
+// full 31-slot board stays within a readable ~560px column instead of
+// stretching across the whole screen.
+function plinkoGeometry() {
+  var w = plinkoCanvasW, h = plinkoCanvasH;
+  var n = Math.max(1, plinkoPool.length);
+  var pegRows = Math.max(1, n - 1);
+  var slotW = w / n;
+  var rotated = slotW < 56;                    // narrow slots: names run vertically
+  var labelH = rotated ? 98 : 58;
+  var boardTop = 30, boardBottom = h - labelH;
+  var rowH = (boardBottom - boardTop - 8) / (pegRows + 1);
+  var pegR = Math.max(2, Math.min(5, slotW * 0.11));
+  var ballR = Math.max(3.5, Math.min(8, slotW * 0.26));
+  return {
+    w: w, h: h, n: n, pegRows: pegRows, slotW: slotW, rotated: rotated, labelH: labelH,
+    boardTop: boardTop, boardBottom: boardBottom, rowH: rowH, pegR: pegR, ballR: ballR,
+    levelX: function(level, channel) { return w / 2 + (channel - level / 2) * slotW; },
+    pegY: function(level) { return boardTop + level * rowH; }
+  };
+}
+
 function initPlinkoCanvas(slotCount) {
   var canvas = document.getElementById('plinkoCanvas');
   if (!canvas) return null;
   var container = canvas.parentElement;
-  var displayWidth = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
-  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.min(640, window.innerHeight - 340) : 520;
-  var displayHeight = Math.min(maxHeight, Math.max(360, 300 + slotCount * 10));
+  var available = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
+  var n = Math.max(1, slotCount);
+  var pegRows = Math.max(1, n - 1);
+
+  var displayWidth = Math.min(available, Math.max(340, Math.min(560, n * 30)));
+  var slotW = displayWidth / n;
+  var labelH = slotW < 56 ? 98 : 58;
+  var rowTarget = Math.max(18, Math.min(38, slotW * 0.85));
+  var wanted = 30 + (pegRows + 1) * rowTarget + 8 + labelH;
+  var fullscreen = document.body.classList.contains('draw-fullscreen');
+  var maxHeight = fullscreen ? Math.max(380, Math.min(640, window.innerHeight - 260)) : 600;
+  var displayHeight = Math.round(Math.min(maxHeight, Math.max(300, wanted)));
 
   var dpr = window.devicePixelRatio || 1;
   canvas.style.width = displayWidth + 'px';
@@ -11792,7 +11823,7 @@ function setupPlinkoStage(pool) {
 
   var ctx = initPlinkoCanvas(plinkoPool.length);
   if (!ctx) return;
-  drawPlinkoScene(null, -1, 1); // static board, ball parked above the top
+  drawPlinkoScene(null, [], null, null); // static board, ball parked above the top
 }
 
 // Builds a bounce path: exactly `winnerSlot` right-moves and the rest
@@ -11819,191 +11850,221 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
   plinkoPool = selection.slotPool;
   var slotCount = plinkoPool.length;
   var winnerSlot = selection.winnerSlot;
-  var pegRows = Math.max(1, slotCount - 1);
 
   var ctx = initPlinkoCanvas(slotCount);
   if (!ctx) { onDone(); return; }
 
   if (slotCount === 1) {
-    // Nothing to animate — just reveal immediately.
-    drawPlinkoScene(0, 0, 1);
+    drawPlinkoScene(null, [], null, 0);
     playPlinkoWinChime();
     setTimeout(onDone, 500);
     return;
   }
 
+  var g = plinkoGeometry();
+  var pegRows = g.pegRows;
+  // Which way the ball goes at each peg is shuffled (the winning slot is
+  // fixed, the order of left/right bounces is not), and every hop below
+  // gets its own random pace, bounce height and the occasional hesitation
+  // on top of a peg — so no two drops look alike and the finish can't be
+  // read from the first few bounces.
   var path = buildPlinkoPath(pegRows, winnerSlot);
-  // Per-row horizontal target with a jitter that tapers off near the
-  // bottom, so the path looks bouncy early and settles precisely into
-  // the winning slot by the last row (see drawPlinkoScene for geometry).
-  var duration = Math.max(2200, (durationSeconds || 4) * 1000);
-  var rowDuration = duration / (pegRows + 1);
-  var startTime = performance.now();
 
+  var hops = [];
+  var total = 0;
+  for (var r = 0; r < pegRows; r++) {
+    var fromX = r === 0 ? g.w / 2 : g.levelX(r, path[r]);
+    var fromY = r === 0 ? g.boardTop - g.ballR * 2 : g.pegY(r) - g.pegR - g.ballR;
+    var toX = g.levelX(r + 1, path[r + 1]);
+    var toY = g.pegY(r + 1) - g.pegR - g.ballR;
+    var toGo = pegRows - r;                       // hops remaining including this one
+    var suspense = toGo === 3 ? 1.2 : toGo === 2 ? 1.5 : toGo === 1 ? 1.9 : 1;   // the last bounces slow down a little
+    var th = (88 + Math.random() * 70) * suspense;
+    var hold = (r > 0 && Math.random() < 0.16 + (toGo <= 4 ? 0.2 : 0)) ? 70 + Math.random() * 150 : 0;
+    hops.push({
+      fromX: fromX, fromY: fromY, toX: toX, toY: toY,
+      th: th, hold: hold, b: r === 0 ? 0 : 0.15 + Math.random() * 0.55,
+      rock: (Math.random() < 0.5 ? -1 : 1) * (0.08 + Math.random() * 0.12) * g.slotW,
+      start: 0
+    });
+  }
+  // Short boards would finish in a blink — stretch only as far as needed
+  // for a minimum of ~1.9s of drama, and never slow long boards down.
+  var raw = hops.reduce(function(s, h2) { return s + h2.th + h2.hold; }, 0);
+  var stretch = raw < 1900 ? Math.min(2.0, 1900 / raw) : 1;
+  hops.forEach(function(h2) { h2.th *= stretch; h2.hold *= stretch; h2.start = total; total += h2.th + h2.hold; });
+
+  var DROP_MS = 240, SETTLE_MS = 420;
+  var finalX = g.levelX(pegRows, path[pegRows]);
+  var finalFromY = g.pegY(pegRows) - g.pegR - g.ballR;
+  var finalToY = g.boardBottom + g.ballR + 6;
+  var endAll = total + DROP_MS + SETTLE_MS;
+
+  var trail = [];
+  var hit = null;
+  var lastHop = -1;
+  var settledPlayed = false;
+  var startTime = performance.now();
   if (plinkoAnimId) cancelAnimationFrame(plinkoAnimId);
 
-  function tick(now) {
-    var elapsed = now - startTime;
-    var rowFloat = Math.min(elapsed / rowDuration, pegRows + 1);
-    var row = Math.min(Math.floor(rowFloat), pegRows);
-    var rowT = rowFloat - row; // 0..1 progress within the current row's fall
-
-    if (row !== tick.lastBounceRow && row > 0) {
-      playPlinkoTick();
-      tick.lastBounceRow = row;
+  function ballAt(elapsed) {
+    if (elapsed >= total) {
+      var d = elapsed - total;
+      if (d < DROP_MS) {
+        var u = d / DROP_MS;
+        return { x: finalX, y: finalFromY + (finalToY - finalFromY) * u * u, hop: pegRows, done: false };
+      }
+      var s = d - DROP_MS;
+      var bounce = 11 * Math.exp(-s / 110) * Math.abs(Math.sin(s / 48));
+      return { x: finalX, y: finalToY - bounce, hop: pegRows, done: s >= SETTLE_MS * 0.55 };
     }
+    var idx = 0;
+    while (idx < hops.length - 1 && elapsed >= hops[idx + 1].start) idx++;
+    var hp = hops[idx];
+    var t = elapsed - hp.start;
+    if (hp.hold > 0 && t < hp.hold) {
+      // Balanced on the peg: a small rock before it commits to a side.
+      var rockX = hp.fromX + hp.rock * Math.sin((t / Math.max(1, hp.hold)) * Math.PI * 2.4) * (1 - t / hp.hold);
+      return { x: rockX, y: hp.fromY, hop: idx, done: false };
+    }
+    var tt = t - hp.hold;
+    var u2 = Math.min(1, tt / hp.th);
+    var dy = hp.toY - hp.fromY;
+    var vy0 = -hp.b * dy / hp.th;                 // small upward kick off the peg
+    var gr = 2 * (dy - vy0 * hp.th) / (hp.th * hp.th);
+    return { x: hp.fromX + (hp.toX - hp.fromX) * u2, y: hp.fromY + vy0 * tt + 0.5 * gr * tt * tt, hop: idx, done: false };
+  }
 
-    drawPlinkoScene(path, row, Math.min(rowT, 1));
+  function tick(now) {
+    var elapsed = Math.max(0, now - startTime);   // rAF timestamps can land a hair before startTime
+    var b = ballAt(elapsed);
 
-    if (rowFloat < pegRows + 1) {
-      plinkoAnimId = requestAnimationFrame(tick);
-    } else {
-      drawPlinkoScene(path, pegRows, 1, true);
+    if (b.hop !== lastHop) {
+      if (b.hop > 0 && b.hop <= pegRows) {
+        // The ball has just landed on the peg of level `hop`.
+        hit = { x: g.levelX(b.hop, path[b.hop]), y: g.pegY(b.hop), t: now };
+        playPlinkoTick();
+      }
+      lastHop = b.hop;
+    }
+    trail.push({ x: b.x, y: b.y });
+    if (trail.length > 9) trail.shift();
+
+    var settled = elapsed >= total + DROP_MS;
+    drawPlinkoScene(b, trail, hit && (now - hit.t < 260) ? { x: hit.x, y: hit.y, age: (now - hit.t) / 260 } : null, settled ? winnerSlot : null);
+
+    if (settled && !settledPlayed) {
+      settledPlayed = true;
       playPlinkoDrop();
       setTimeout(playPlinkoWinChime, 120);
-      setTimeout(onDone, 650);
+    }
+
+    if (elapsed < endAll) {
+      plinkoAnimId = requestAnimationFrame(tick);
+    } else {
+      drawPlinkoScene({ x: finalX, y: finalToY, hop: pegRows, done: true }, [], null, winnerSlot);
+      setTimeout(onDone, 450);
     }
   }
   plinkoAnimId = requestAnimationFrame(tick);
 }
 
-// Draws the whole board every frame: peg field, slots, and the ball at
-// its current row/position. `path` is the cumulative right-move array
-// from buildPlinkoPath (or null for the static pre-race board). `row`
-// is which peg-row the ball is currently falling past, `rowT` its
-// progress (0–1) through that fall, `settled` marks the final frame.
-function drawPlinkoScene(path, row, rowT, settled) {
+// Draws the whole board every frame. `ball` is {x, y} (null = parked above
+// the top), `trail` the last few ball positions, `hit` an optional peg
+// flash {x, y, age 0–1}, `winnerSlot` the slot to highlight once settled.
+function drawPlinkoScene(ball, trail, hit, winnerSlot) {
   var ctx = plinkoCtx;
   if (!ctx) return;
-  var w = plinkoCanvasW, h = plinkoCanvasH;
-  var slotCount = Math.max(1, plinkoPool.length);
-  var pegRows = Math.max(1, slotCount - 1);
-  var slotLabelH = 46;
-  var boardTop = 26, boardBottom = h - slotLabelH;
-  var slotW = w / slotCount;
+  var g = plinkoGeometry();
+  var w = g.w, h = g.h;
 
-  // Every "level" from 0 (top, before any pegs) to pegRows (bottom,
-  // matching the final slots exactly) uses this SAME formula for both
-  // the pegs and the ball. That's the key fix: previously the ball's
-  // x-position was computed against the fixed bottom slot grid at every
-  // row, while the pegs were drawn on a narrower triangular grid — the
-  // two didn't line up, which is why the ball looked disconnected from
-  // the pegs it was supposedly bouncing off. Now level 0 is a single
-  // centered channel (matching the ball's true starting point at w/2),
-  // and level pegRows lands exactly on the labeled slot centers.
-  function levelX(level, channel) {
-    return w / 2 + (channel - level / 2) * slotW;
-  }
-
-  // Background.
+  // Background: deep slate, one quiet gradient — no neon.
   var bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, '#2A1D52');
-  bg.addColorStop(1, '#16181D');
+  bg.addColorStop(0, '#1F2638');
+  bg.addColorStop(1, '#151A27');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
-  // Peg field — a symmetric quincunx grid on the exact same coordinate
-  // system as the ball's path (see levelX above).
-  var rowH = (boardBottom - boardTop) / (pegRows + 1);
-  var PEG_RADIUS = 5;
-  var BALL_RADIUS = 7;
-  // The ball rests ON TOP of a peg at each contact point rather than
-  // passing through its center — that gap is exactly the difference
-  // between "the ball visibly bounces off the pegs" and "the ball
-  // slides through them", which is what it looked like before.
-  var contactOffset = PEG_RADIUS + BALL_RADIUS;
-
-  for (var r = 1; r <= pegRows; r++) {
-    var y = boardTop + r * rowH;
+  // Pegs.
+  for (var r = 1; r <= g.pegRows; r++) {
+    var y = g.pegY(r);
     for (var p = 0; p <= r; p++) {
-      var x = levelX(r, p);
-      // Pegs get a little dimension (shadow + highlight) so a ball
-      // sitting on one reads as a real contact, not an overlap.
+      var x = g.levelX(r, p);
       ctx.beginPath();
-      ctx.arc(x, y + 1, PEG_RADIUS, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x, y, PEG_RADIUS, 0, Math.PI * 2);
-      ctx.fillStyle = '#D8DCF0';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x - PEG_RADIUS * 0.3, y - PEG_RADIUS * 0.3, PEG_RADIUS * 0.35, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.arc(x, y, g.pegR, 0, Math.PI * 2);
+      ctx.fillStyle = '#9AA5BD';
       ctx.fill();
     }
   }
+  if (hit) {
+    ctx.beginPath();
+    ctx.arc(hit.x, hit.y, g.pegR + 2 + hit.age * g.pegR * 2.4, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(233,185,73,' + (0.65 * (1 - hit.age)) + ')';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(hit.x, hit.y, g.pegR, 0, Math.PI * 2);
+    ctx.fillStyle = '#E9B949';
+    ctx.fill();
+  }
 
-  // Slot dividers + labels.
-  for (var s = 0; s <= slotCount; s++) {
-    var dx = s * slotW;
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  // Slots.
+  for (var s = 0; s <= g.n; s++) {
+    var dx = s * g.slotW;
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(dx, boardBottom - 10);
-    ctx.lineTo(dx, h - 6);
+    ctx.moveTo(dx, g.boardBottom - 6);
+    ctx.lineTo(dx, h - 4);
     ctx.stroke();
   }
   plinkoPool.forEach(function(participant, i) {
-    var isWinnerSlot = settled && path && i === path[path.length - 1];
-    var cx = i * slotW + slotW / 2;
-    ctx.fillStyle = isWinnerSlot ? 'rgba(245,165,36,0.35)' : 'rgba(255,255,255,0.08)';
-    ctx.fillRect(i * slotW + 1, boardBottom - 10, slotW - 2, h - (boardBottom - 10) - 4);
-    ctx.font = (isWinnerSlot ? 'bold ' : '600 ') + Math.min(11, slotW * 0.32) + 'px system-ui, -apple-system, sans-serif';
-    ctx.fillStyle = isWinnerSlot ? '#FFD873' : 'rgba(255,255,255,0.75)';
-    ctx.textAlign = 'center';
-    var label = '@' + participant.name;
-    if (label.length > 10) label = label.slice(0, 9) + '…';
-    ctx.fillText(label, cx, h - 16, slotW - 4);
+    var isWin = winnerSlot === i;
+    var cx = i * g.slotW + g.slotW / 2;
+    ctx.fillStyle = isWin ? 'rgba(76,175,138,0.30)' : (i % 2 ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.06)');
+    ctx.fillRect(i * g.slotW + 1, g.boardBottom - 6, g.slotW - 2, h - (g.boardBottom - 6) - 4);
+    var name = '@' + participant.name;
+    ctx.fillStyle = isWin ? '#D5F2E6' : 'rgba(255,255,255,0.72)';
+    if (g.rotated) {
+      if (name.length > 13) name = name.slice(0, 12) + '…';
+      ctx.save();
+      ctx.translate(cx + 3.5, h - 9);
+      ctx.rotate(-Math.PI / 2);
+      ctx.font = (isWin ? '700 ' : '500 ') + Math.max(9, Math.min(11, g.slotW * 0.55)) + 'px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(name, 0, 0, g.labelH - 36);
+      ctx.restore();
+    } else {
+      if (name.length > 14) name = name.slice(0, 13) + '…';
+      ctx.font = (isWin ? '700 ' : '500 ') + Math.min(12, g.slotW * 0.2) + 'px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(name, cx, h - 12, g.slotW - 6);
+    }
   });
 
-  // Ball position — uses levelX(), the exact same formula as the pegs
-  // above, so the ball's path always lines up with what it's bouncing off.
-  var ballX, ballY;
-  if (!path || row < 0) {
-    ballX = w / 2;
-    ballY = boardTop - contactOffset;
-  } else if (row >= pegRows) {
-    // Past the last peg row: drop straight down into the slot.
-    ballX = levelX(pegRows, path[pegRows]);
-    var restY = boardTop + pegRows * rowH - contactOffset;
-    ballY = restY + (boardBottom - 14 - restY) * rowT;
-  } else {
-    var fromCol = path[row];
-    var toCol = path[row + 1];
-    var fromX = levelX(row, fromCol);
-    var toX = levelX(row + 1, toCol);
-    // Both endpoints sit ON TOP of their peg (minus contactOffset), so
-    // the ball is always tangent to the pegs it touches instead of
-    // overlapping them.
-    var y0 = boardTop + row * rowH - contactOffset;
-    var y1 = boardTop + (row + 1) * rowH - contactOffset;
-
-    // Deflection arc: the ball pushes up and sideways off the peg it
-    // just struck, then falls to the next one — an ease that starts
-    // fast sideways (the bounce) and accelerates downward (gravity),
-    // rather than a straight diagonal slide.
-    var sideT = Math.sin(rowT * (Math.PI / 2));      // quick sideways deflection
-    var fallT = rowT * rowT;                          // gravity-like acceleration down
-    ballX = fromX + (toX - fromX) * sideT;
-    ballY = y0 + (y1 - y0) * fallT - Math.sin(rowT * Math.PI) * (rowH * 0.18);
+  // Ball: short fading trail, soft shadow, warm gold sphere.
+  var bx, by;
+  if (!ball) { bx = w / 2; by = g.boardTop - g.ballR * 2; } else { bx = ball.x; by = ball.y; }
+  if (trail && trail.length > 1) {
+    for (var k = 0; k < trail.length - 1; k++) {
+      var a = (k + 1) / trail.length;
+      ctx.beginPath();
+      ctx.arc(trail[k].x, trail[k].y, g.ballR * (0.35 + a * 0.4), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(233,185,73,' + (0.07 + a * 0.12) + ')';
+      ctx.fill();
+    }
   }
-
   ctx.beginPath();
-  ctx.arc(ballX, ballY + 2, BALL_RADIUS * 0.9, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.arc(bx, by + g.ballR * 0.35, g.ballR * 0.95, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.fill();
-  var ballGrad = ctx.createRadialGradient(ballX - BALL_RADIUS * 0.35, ballY - BALL_RADIUS * 0.35, BALL_RADIUS * 0.2, ballX, ballY, BALL_RADIUS);
-  ballGrad.addColorStop(0, '#FFB4A8');
-  ballGrad.addColorStop(0.5, '#FF6B5C');
-  ballGrad.addColorStop(1, '#C93F32');
+  var grad = ctx.createRadialGradient(bx - g.ballR * 0.35, by - g.ballR * 0.35, g.ballR * 0.15, bx, by, g.ballR);
+  grad.addColorStop(0, '#F6DB95');
+  grad.addColorStop(0.55, '#E9B949');
+  grad.addColorStop(1, '#B98B25');
   ctx.beginPath();
-  ctx.arc(ballX, ballY, BALL_RADIUS, 0, Math.PI * 2);
-  ctx.fillStyle = ballGrad;
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(ballX - BALL_RADIUS * 0.3, ballY - BALL_RADIUS * 0.3, BALL_RADIUS * 0.26, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.arc(bx, by, g.ballR, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
   ctx.fill();
 }
 
