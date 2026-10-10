@@ -1014,12 +1014,12 @@ body.draw-fullscreen .topnav { display: none; }
 /* Draw screen in fullscreen mode: no narrow column, no nav bar (see
    body.draw-fullscreen .topnav above) — every game gets the full
    viewport to be as big and show as many participants as it can. */
-body.draw-fullscreen #drawScreen .page-container-narrow { max-width: 880px; margin-left: auto; margin-right: auto; }
+body.draw-fullscreen #drawScreen .page-container-narrow { max-width: 1040px; margin-left: auto; margin-right: auto; }
 body.draw-fullscreen #drawScreen .page-container { padding: 16px 16px 24px; min-height: 100vh; display: flex; flex-direction: column; }
 body.draw-fullscreen #drawScreen .card-center { display: flex; flex-direction: column; align-items: center; }
 body.draw-fullscreen #drawScreen .draw-stage { width: 100%; display: flex; align-items: center; justify-content: center; }
 body.draw-fullscreen .wheel-wrap { max-width: min(85vw, 72vh, 520px); }
-body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 800px); }
+body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
 .page-title { font-size: var(--fs-xl); font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
@@ -10175,6 +10175,9 @@ var duckCanvasW = 0;
 var duckCanvasH = 0;
 var duckCam = { left: -7, win: 30 };          // camera window over the 0–100 track, follows the leader
 var duckRaceInfo = { duration: 0, elapsed: 0 };  // drives the on-canvas timer
+var duckEnv = null;                               // pre-rendered scenery strips (houses, hills, banks)
+var duckCache = null;                             // per-race lane / draw-order lookups
+var duckCine = null;                              // winner close-up state (orbit + spotlight), null during the race
 // MAX_DUCKS caps how many ducks race at once (see selectDuckRacers).
 // MAX_DUCKS_SMALL is the point below which each duck still gets its own
 // full-width lane; above it, ducks share a multi-row "swarm" layout
@@ -10282,21 +10285,154 @@ function duckRowCount(duckCount) {
   return duckCount > MAX_DUCKS_SMALL ? Math.max(6, Math.min(10, Math.ceil(duckCount / 3))) : Math.max(1, duckCount);
 }
 
+// One layout for sizing, drawing and the winner close-up, so they can
+// never disagree. Top to bottom: progress strip, the far bank (houses,
+// road with cars), the river with one lane per duck, the near bank.
 function duckLayout(duckCount, w, h) {
   var swarm = duckCount > MAX_DUCKS_SMALL;
   var rows = duckRowCount(duckCount);
   var hudH = 34;
-  var tubeX0 = 6, tubeX1 = w - 6, tubeY0 = hudH, tubeY1 = h - 6;
-  var laneTop = tubeY0 + 8, laneBottom = tubeY1 - 12;
+  var envH = Math.round(Math.min(150, Math.max(96, h * 0.3)));
+  var nearH = 18;
+  var sceneTop = hudH, riverTop = sceneTop + envH;
+  var laneTop = riverTop + 12, laneBottom = h - nearH - 4;
   var rowH = (laneBottom - laneTop) / rows;
   var perRow = Math.ceil(duckCount / rows);
-  var size = Math.max(10, Math.min(20, rowH * (swarm ? (perRow > 4 ? 0.42 : 0.5) : 0.6)));
-  return { swarm: swarm, rows: rows, hudH: hudH, tubeX0: tubeX0, tubeX1: tubeX1, tubeY0: tubeY0, tubeY1: tubeY1,
-           laneTop: laneTop, laneBottom: laneBottom, rowH: rowH, size: size, padL: 30, padR: 30 };
+  var size = swarm ? Math.max(10, Math.min(20, rowH * (perRow > 4 ? 0.42 : 0.5)))
+                   : Math.max(12, Math.min(36, rowH * 0.64));
+  return { swarm: swarm, rows: rows, hudH: hudH, envH: envH, nearH: nearH, sceneTop: sceneTop, riverTop: riverTop,
+           tubeX0: 0, tubeX1: w, tubeY0: sceneTop, tubeY1: h,
+           laneTop: laneTop, laneBottom: laneBottom, rowH: rowH, size: size, padL: 34, padR: 34 };
 }
 
-// Sizes the canvas for crisp rendering at the device's pixel density.
-// Compact on purpose: a narrow water channel, not a full-screen scene.
+function duckSeeded(seed) {
+  var s = seed >>> 0;
+  return function() { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+// Scenery is painted ONCE into seamless offscreen strips (hills, houses,
+// banks) and then only scrolled and blitted each frame at different
+// speeds for depth. Drawing a few hundred shapes 60 times a second is
+// what would make the race stutter on a phone; this makes it cheap.
+function duckBuildEnv(L, w, dpr) {
+  var period = Math.max(1500, Math.ceil(w * 1.6));
+  function mk(hei) {
+    var c = document.createElement('canvas');
+    c.width = Math.round(period * dpr); c.height = Math.round(hei * dpr);
+    var x = c.getContext('2d');
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { c: c, x: x, h: hei };
+  }
+  function wrap(x0, width, fn) { fn(x0); if (x0 + width > period) fn(x0 - period); }
+  var rng = duckSeeded(20240917);
+  var envH = L.envH;
+
+  // ---- far hills + tree line ----
+  var far = mk(envH);
+  var fx = far.x;
+  [[0.60, 0.20, 2, 0.5, 'rgba(166,190,188,0.55)'], [0.70, 0.14, 3, 2.1, 'rgba(150,178,168,0.6)']].forEach(function(l) {
+    fx.beginPath();
+    fx.moveTo(0, envH);
+    for (var x = 0; x <= period; x += 12) {
+      var y = envH * l[0] - envH * l[1] * (0.6 * Math.sin(2 * Math.PI * l[2] * x / period + l[3]) + 0.4 * Math.sin(2 * Math.PI * (l[2] * 3) * x / period + l[3] * 2));
+      fx.lineTo(x, y);
+    }
+    fx.lineTo(period, envH); fx.closePath();
+    fx.fillStyle = l[4];
+    fx.fill();
+  });
+  fx.fillStyle = 'rgba(128,165,141,0.85)';
+  for (var tx = 0; tx < period; tx += 14 + rng() * 14) {
+    var tr = 9 + rng() * 11;
+    (function(cx, r) { wrap(cx - r, r * 2, function(ox) { fx.beginPath(); fx.arc(ox + r, envH * 0.8 - r * 0.3, r, 0, Math.PI * 2); fx.fill(); }); })(tx, tr);
+  }
+
+  // ---- houses and trees along the far bank ----
+  var houses = mk(envH);
+  var hx = houses.x;
+  var walls = ['#EADFCB', '#DCCBB1', '#CBD5DB', '#E8D5C6', '#DDE5D9', '#D9C3B6', '#EFE6D6'];
+  var roofs = ['#8E5B4C', '#6D6F7C', '#7B5A47', '#5E6E76', '#9A6A53'];
+  var baseY = envH - 24;
+  function house(x, ww, hh) {
+    var wall = walls[Math.floor(rng() * walls.length)], roof = roofs[Math.floor(rng() * roofs.length)];
+    wrap(x, ww + 10, function(ox) {
+      hx.fillStyle = 'rgba(40,55,70,0.12)';
+      hx.fillRect(ox + 3, baseY - 2, ww, 4);
+      hx.fillStyle = wall;
+      hx.fillRect(ox, baseY - hh, ww, hh);
+      hx.fillStyle = 'rgba(0,0,0,0.05)';
+      hx.fillRect(ox + ww * 0.62, baseY - hh, ww * 0.38, hh);
+      var flat = rng() < 0.25;
+      hx.fillStyle = roof;
+      hx.beginPath();
+      if (flat) { hx.rect(ox - 2, baseY - hh - 5, ww + 4, 6); }
+      else { hx.moveTo(ox - 5, baseY - hh); hx.lineTo(ox + ww / 2, baseY - hh - Math.min(26, ww * 0.42)); hx.lineTo(ox + ww + 5, baseY - hh); }
+      hx.closePath(); hx.fill();
+      if (!flat && rng() < 0.5) { hx.fillStyle = '#7A6A62'; hx.fillRect(ox + ww * 0.7, baseY - hh - Math.min(26, ww * 0.42) * 0.7, 5, 9); }
+      var cols = Math.max(2, Math.floor(ww / 20)), rowsW = hh > 46 ? 2 : 1;
+      for (var rr = 0; rr < rowsW; rr++) for (var cc = 0; cc < cols; cc++) {
+        var wx = ox + 7 + cc * ((ww - 14) / cols) + 1, wy = baseY - hh + 8 + rr * 20;
+        if (rr === rowsW - 1 && cc === Math.floor(cols / 2) && rowsW === 1) continue;
+        hx.fillStyle = 'rgba(120,160,190,0.85)'; hx.fillRect(wx, wy, 7, 9);
+        hx.fillStyle = 'rgba(255,255,255,0.5)'; hx.fillRect(wx, wy, 7, 2.5);
+      }
+      hx.fillStyle = '#7A5B47';
+      hx.fillRect(ox + ww / 2 - 4, baseY - 15, 8, 15);
+    });
+  }
+  function tree(x) {
+    var r = 9 + rng() * 6, th2 = 14 + rng() * 10;
+    wrap(x - r, r * 2, function(ox) {
+      hx.fillStyle = '#6B5A48'; hx.fillRect(ox + r - 1.5, baseY - th2, 3, th2);
+      hx.fillStyle = '#6F9A78'; hx.beginPath(); hx.arc(ox + r, baseY - th2 - r * 0.6, r, 0, Math.PI * 2); hx.fill();
+      hx.fillStyle = '#7FAA87'; hx.beginPath(); hx.arc(ox + r - r * 0.3, baseY - th2 - r * 0.9, r * 0.6, 0, Math.PI * 2); hx.fill();
+    });
+  }
+  var cursor = 6;
+  while (cursor < period - 70) {
+    if (rng() < 0.26) { tree(cursor + 10); cursor += 24 + rng() * 14; continue; }
+    var ww = 46 + rng() * 40, hh = 32 + rng() * 34;
+    if (cursor + ww > period - 4) break;
+    house(cursor, ww, hh);
+    cursor += ww + 8 + rng() * 22;
+  }
+
+  // ---- far bank (grass + reeds) and near bank ----
+  function bank(hei, dark, light, tufts, big) {
+    var b = mk(hei), bx = b.x;
+    var g2 = bx.createLinearGradient(0, 0, 0, hei);
+    g2.addColorStop(0, light); g2.addColorStop(1, dark);
+    bx.fillStyle = g2; bx.fillRect(0, 0, period, hei);
+    for (var i2 = 0; i2 < tufts; i2++) {
+      var x2 = rng() * period, hh2 = (big ? 5 : 3) + rng() * (big ? 8 : 5);
+      bx.strokeStyle = 'rgba(70,110,72,' + (0.45 + rng() * 0.4) + ')';
+      bx.lineWidth = 1.3;
+      for (var k = -1; k <= 1; k++) { bx.beginPath(); bx.moveTo(x2 + k * 2, hei * (big ? 0.55 : 0.8)); bx.lineTo(x2 + k * 3.4, hei * (big ? 0.55 : 0.8) - hh2); bx.stroke(); }
+    }
+    if (big) for (var j = 0; j < 40; j++) { bx.beginPath(); bx.arc(rng() * period, hei * (0.6 + rng() * 0.3), 1.3, 0, Math.PI * 2); bx.fillStyle = rng() < 0.5 ? 'rgba(255,255,255,0.8)' : 'rgba(235,205,110,0.85)'; bx.fill(); }
+    return b;
+  }
+  var farBank = bank(14, '#6F9468', '#8FB08A', 90, false);
+  var nearBank = bank(L.nearH + 6, '#5C8559', '#79A073', 70, true);
+
+  return { period: period, far: far, houses: houses, farBank: farBank, nearBank: nearBank, dpr: dpr };
+}
+
+// Per-race lookups computed once instead of 60 times a second: each
+// duck's lane and draw order.
+function duckBuildCache(duckCount, L) {
+  var laneY = new Array(duckCount), jit = new Array(duckCount), order = [];
+  for (var i = 0; i < duckCount; i++) {
+    var row = i % L.rows, col = Math.floor(i / L.rows);
+    laneY[i] = L.laneTop + row * L.rowH + L.rowH / 2 + (L.swarm ? ((col % 3) - 1) * (L.rowH * 0.2) : 0);
+    jit[i] = L.swarm ? ((i * 37) % 7 - 3) * (L.size * 0.12) : 0;
+    order.push(i);
+  }
+  order.sort(function(a, b) { return laneY[a] - laneY[b] || a - b; });
+  return { count: duckCount, laneY: laneY, jit: jit, order: order };
+}
+
+// Sizes the canvas for crisp rendering, builds the scenery once.
 function initDuckCanvas(pool) {
   var canvas = document.getElementById('duckCanvas');
   if (!canvas) return null;
@@ -10304,16 +10440,16 @@ function initDuckCanvas(pool) {
   var container = canvas.parentElement;
   var available = (container && container.clientWidth) || 0;
   if (!available) available = Math.max(280, window.innerWidth - 40);
-  var displayWidth = Math.min(available, 720);
-
   var duckCount = Math.max(1, Math.min(pool.length, MAX_DUCKS));
   var swarm = duckCount > MAX_DUCKS_SMALL;
+  var displayWidth = Math.min(available, swarm ? 880 : duckCount <= 6 ? 980 : 940);
   var rows = duckRowCount(duckCount);
-  var rowTarget = swarm ? 26 : Math.max(26, Math.min(40, 44 - duckCount * 1.4));
-  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.max(230, Math.min(380, window.innerHeight - 300)) : 360;
-  var displayHeight = Math.round(Math.min(maxHeight, Math.max(190, 34 + 8 + rows * rowTarget + 22)));
+  var rowTarget = swarm ? 24 : Math.max(34, Math.min(64, 84 - duckCount * 5));
+  var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.max(360, Math.min(620, window.innerHeight - 220)) : 560;
+  var minHeight = swarm ? 330 : 360;
+  var displayHeight = Math.round(Math.min(maxHeight, Math.max(minHeight, 34 + 130 + 12 + rows * rowTarget + 22)));
 
-  var dpr = window.devicePixelRatio || 1;
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.style.width = displayWidth + 'px';
   canvas.style.height = displayHeight + 'px';
   canvas.width = Math.round(displayWidth * dpr);
@@ -10327,6 +10463,10 @@ function initDuckCanvas(pool) {
   duckCanvasH = displayHeight;
   duckCam = { left: -7, win: 30 };
   duckRaceInfo = { duration: 0, elapsed: 0 };
+  duckCine = null;
+  var L = duckLayout(duckCount, displayWidth, displayHeight);
+  duckEnv = duckBuildEnv(L, displayWidth, dpr);
+  duckCache = duckBuildCache(duckCount, L);
   return ctx;
 }
 
@@ -10426,6 +10566,8 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
 
   var duration = Math.max(3, durationSeconds || 6) * 1000;   // the race lasts exactly the time chosen for the draw
   var COAST_MS = 260;                                         // winner visibly swims through the line, then it stops
+  var ORBIT_MS = 1900, SPOT_MS = 1500, HOLD_MS = 2600;         // close-up on the winner: camera circles, then a spotlight closes on the face
+  var CINE_START = duration + COAST_MS;
   var FINISH = 100;
 
   // ---- How the race is decided ---------------------------------------
@@ -10480,8 +10622,9 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
     var tau = elapsed / duration;
     duckRaceInfo.elapsed = Math.min(elapsed, duration);
 
+    var tauPos = Math.min(tau, 1 + COAST_MS / duration);          // positions freeze once the coast is over
     for (var i = 0; i < duckCount; i++) {
-      var np = posAt(i, tau);
+      var np = posAt(i, tauPos);
       var prev = duckPositions[i];
       var moved = np > prev;
       if (moved) duckPositions[i] = np;                       // forward only, never backwards
@@ -10493,7 +10636,7 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
       playDuckQuack();
     }
 
-    updateDuckCamera(tau, dt);
+    updateDuckCamera(Math.min(tau, 1), dt);
     updateDuckSplashes(dt);
 
     if (!finished && elapsed >= nextAmbientQuackAt) {
@@ -10501,16 +10644,55 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
       nextAmbientQuackAt = elapsed + 500 + Math.random() * 700;
     }
 
-    drawDuckScene(elapsed, finished ? actualWinnerIndex : null);
-    drawRaceLeaderboard(duckCtx, duckCanvasW, duckPositions, duckPool, actualWinnerIndex, finished, duckLayout(duckCount, duckCanvasW, duckCanvasH).hudH + 8);
+    var cineT = elapsed - CINE_START;
+    duckCine = cineT > 0 ? duckCineState(cineT, actualWinnerIndex, duckCount, ORBIT_MS, SPOT_MS) : null;
 
-    if (tau < 1 + COAST_MS / duration) {
+    drawDuckScene(elapsed, finished ? actualWinnerIndex : null);
+    if (!duckCine) {
+      drawRaceLeaderboard(duckCtx, duckCanvasW, duckPositions, duckPool, actualWinnerIndex, finished, duckLayout(duckCount, duckCanvasW, duckCanvasH).riverTop + 8);
+    }
+
+    if (elapsed < CINE_START + ORBIT_MS + SPOT_MS + HOLD_MS) {
       duckAnimId = requestAnimationFrame(tick);
     } else {
       onDone();
     }
   }
   duckAnimId = requestAnimationFrame(tick);
+}
+
+// Winner close-up, as a pure function of time since the finish:
+//  1. ORBIT: the camera glides from the race view onto the winner while
+//     circling around them and zooming in;
+//  2. SPOT: everything outside a circle darkens and the circle closes
+//     in until it fits the winner's face.
+function duckCineState(c, winnerIndex, duckCount, orbitMs, spotMs) {
+  var L = duckLayout(duckCount, duckCanvasW, duckCanvasH);
+  var tw = L.tubeX1 - L.tubeX0, th = L.tubeY1 - L.tubeY0;
+  var faceR = L.size * 1.3;
+  var rEnd = Math.min(th * 0.34, L.size * 3.6);
+  var zEnd = rEnd / faceR;
+  function ease(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+  var st = { winner: winnerIndex, z: 1, focus: 0, ox: 0, oy: 0, roll: 0, irisR: null, zEnd: zEnd, hold: 0 };
+  if (c < orbitMs) {
+    var o = ease(c / orbitMs);
+    var ang = o * Math.PI * 2 - Math.PI / 2;
+    var rad = Math.min(tw, th) * 0.2 * Math.sin(Math.PI * o);
+    st.z = 1 + (zEnd * 0.9 - 1) * o;
+    st.focus = o;
+    st.ox = Math.cos(ang) * rad;
+    st.oy = Math.sin(ang) * rad * 0.7;
+    st.roll = 0.08 * Math.sin(2 * Math.PI * o);
+  } else {
+    var sp = ease((c - orbitMs) / spotMs);
+    st.z = zEnd * 0.9 + (zEnd - zEnd * 0.9) * sp;
+    st.focus = 1;
+    var rStart = Math.sqrt(tw * tw + th * th) * 0.62;
+    st.irisR = rStart + (rEnd - rStart) * (1 - Math.pow(1 - sp, 2.2));
+    st.hold = Math.max(0, c - orbitMs - spotMs);
+    st.z = st.z * (1 + 0.035 * Math.sin(st.hold / 260) * Math.min(1, st.hold / 400));   // gentle breathing zoom on the winner
+  }
+  return st;
 }
 
 // Camera: follows the leader so the whole field is always on screen and
@@ -10573,9 +10755,15 @@ function updateDuckSplashes(dt) {
 function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished, topY) {
   if (!positions || positions.length < 3) return;
 
-  var ranked = positions.map(function(p, i) { return { i: i, p: p }; })
-    .sort(function(a, b) { return b.p - a.p; })
-    .slice(0, 3);
+  var ranked = [];
+  for (var ri = 0; ri < positions.length; ri++) {
+    var pv = positions[ri];
+    if (ranked.length < 3 || pv > ranked[ranked.length - 1].p) {
+      ranked.push({ i: ri, p: pv });
+      ranked.sort(function(a2, b2) { return b2.p - a2.p; });
+      if (ranked.length > 3) ranked.pop();
+    }
+  }
 
   var padX = 10, rowH = 19, headH = 16;
   var panelW = 146;
@@ -10632,26 +10820,59 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Redraws the whole scene for the current frame: a glass-walled water
-// channel with moving water, lane ropes and distance marks scrolling by,
-// the ducks at their real positions, and a progress strip + timer on top.
+var DUCK_CAR_COLORS = ['#B5503F', '#3F6FA3', '#E0B84C', '#5B8F6E', '#E9E5DB', '#4A4F5C', '#8E6BA8'];
+
+function drawDuckCar(ctx, x, y, dir, color, len) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (dir < 0) ctx.scale(-1, 1);
+  var bodyH = 7, cab = len * 0.5;
+  ctx.fillStyle = color;
+  roundRectPath(ctx, -len / 2, -bodyH, len, bodyH, 2.5); ctx.fill();
+  roundRectPath(ctx, -cab / 2 - 1, -bodyH - 5, cab, 6, 2.5); ctx.fill();
+  ctx.fillStyle = 'rgba(200,225,240,0.9)';
+  ctx.fillRect(-cab / 2 + 1, -bodyH - 4, cab - 4, 3.6);
+  ctx.fillStyle = '#23262E';
+  ctx.beginPath(); ctx.arc(-len * 0.3, 0, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(len * 0.3, 0, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,240,170,0.95)';
+  ctx.fillRect(len / 2 - 2, -bodyH + 1.5, 2, 2);
+  ctx.restore();
+}
+
+// Cheap duck for very large fields (hundreds on screen at once).
+function drawDuckLite(ctx, x, y, color, size) {
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.ellipse(x, y, size * 0.9, size * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + size * 0.7, y - size * 0.42, size * 0.42, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#DDA85C';
+  ctx.fillRect(x + size * 1.05, y - size * 0.45, size * 0.38, size * 0.2);
+}
+
+// Redraws the whole scene for the current frame: a river between two
+// banks — houses and a road with passing cars on the far side — with a
+// lane per duck, scenery scrolling at different speeds for depth, the
+// ducks at their real positions, and a progress strip + timer on top.
 function drawDuckScene(elapsed, winnerIndex) {
   var ctx = duckCtx;
   if (!ctx) return;
   var w = duckCanvasW, h = duckCanvasH;
   var duckCount = Math.max(1, duckPool.length);
   var L = duckLayout(duckCount, w, h);
+  if (!duckCache || duckCache.count !== duckCount) duckCache = duckBuildCache(duckCount, L);
   var cam = duckCam;
   var pxU = (w - L.padL - L.padR) / cam.win;                  // pixels per track unit
   function sx(p) { return L.padL + (p - cam.left) * pxU; }
-  var flow = elapsed * 0.05;                                   // the water keeps moving even when the camera doesn't
+  var P = cam.left * pxU;                                      // how far the camera has travelled, in pixels
+  var flow = elapsed * 0.05;
+  var env = duckEnv;
+  var cine = duckCine;
 
-  // Page-coloured backdrop (the channel sits on it like an object).
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = '#EEF2F6';
   ctx.fillRect(0, 0, w, h);
 
-  // ---- Progress strip + timer (top) --------------------------------
+  // ---- Progress strip + timer (top, never zoomed) ----------------------
   var trackX0 = 56, trackX1 = w - 26, trackY = 17;
   var remaining = Math.max(0, (duckRaceInfo.duration - duckRaceInfo.elapsed) / 1000);
   ctx.font = '700 12px system-ui, -apple-system, sans-serif';
@@ -10663,7 +10884,6 @@ function drawDuckScene(elapsed, winnerIndex) {
   ctx.lineWidth = 3;
   ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(trackX0, trackY); ctx.lineTo(trackX1, trackY); ctx.stroke();
-  // finish flag at the end of the strip
   ctx.fillStyle = '#3B4658';
   ctx.fillRect(trackX1 + 4, trackY - 7, 1.6, 14);
   for (var fy = 0; fy < 3; fy++) for (var fx = 0; fx < 2; fx++) {
@@ -10671,79 +10891,146 @@ function drawDuckScene(elapsed, winnerIndex) {
     ctx.fillRect(trackX1 + 5.6 + fx * 3.4, trackY - 7 + fy * 3.4, 3.4, 3.4);
   }
   var dotR = L.swarm ? 1.6 : 3.4;
-  var order = [];
-  for (var d = 0; d < duckCount; d++) order.push(d);
   var leadIdx = 0;
   for (var q = 1; q < duckCount; q++) if (duckPositions[q] > duckPositions[leadIdx]) leadIdx = q;
-  order.forEach(function(i) {
+  ctx.globalAlpha = L.swarm ? 0.75 : 1;
+  for (var i = 0; i < duckCount; i++) {
     var frac = Math.max(0, Math.min(1, (duckPositions[i] || 0) / 100));
-    var px = trackX0 + frac * (trackX1 - trackX0);
-    var prof = duckProfiles[i] || pickDuckProfile((duckPool[i] || {}).name);
+    var prof0 = duckProfiles[i] || pickDuckProfile((duckPool[i] || {}).name);
     ctx.beginPath();
-    ctx.arc(px, trackY + (L.swarm ? ((i * 7) % 5 - 2) * 1.6 : 0), dotR, 0, Math.PI * 2);
-    ctx.fillStyle = prof.color;
-    ctx.globalAlpha = L.swarm ? 0.75 : 1;
+    ctx.arc(trackX0 + frac * (trackX1 - trackX0), trackY + (L.swarm ? ((i * 7) % 5 - 2) * 1.6 : 0), dotR, 0, Math.PI * 2);
+    ctx.fillStyle = prof0.color;
     ctx.fill();
-    ctx.globalAlpha = 1;
-  });
+  }
+  ctx.globalAlpha = 1;
   if (!L.swarm) {
     var lp = trackX0 + Math.max(0, Math.min(1, (duckPositions[leadIdx] || 0) / 100)) * (trackX1 - trackX0);
     ctx.beginPath(); ctx.arc(lp, trackY, dotR + 2.4, 0, Math.PI * 2);
     ctx.strokeStyle = '#D9A441'; ctx.lineWidth = 1.6; ctx.stroke();
   }
 
-  // ---- The channel ---------------------------------------------------
-  var tx0 = L.tubeX0, ty0 = L.tubeY0, tw = L.tubeX1 - L.tubeX0, th = L.tubeY1 - L.tubeY0;
+  // ---- The scene (clipped, and zoomed during the winner close-up) ------
+  var sceneTop = L.sceneTop, sceneH = h - sceneTop;
+  var tcx = w / 2, tcy = sceneTop + sceneH / 2;
   ctx.save();
-  roundRectPath(ctx, tx0, ty0, tw, th, 16);
-  ctx.clip();
+  ctx.beginPath(); ctx.rect(0, sceneTop, w, sceneH); ctx.clip();
 
-  var water = ctx.createLinearGradient(0, ty0, 0, ty0 + th);
+  if (cine && winnerIndex !== null && winnerIndex !== undefined) {
+    var wp0 = duckXY(winnerIndex);
+    var headX = wp0.x + L.size * 0.72, headY = wp0.y - L.size * 0.44;
+    var vx = tcx + (headX - tcx) * cine.focus + cine.ox;
+    var vy = tcy + (headY - tcy) * cine.focus + cine.oy;
+    ctx.translate(tcx, tcy);
+    ctx.rotate(cine.roll);
+    ctx.scale(cine.z, cine.z);
+    ctx.translate(-vx, -vy);
+  }
+  // While zoomed, paint well past the canvas so no edge shows.
+  var X0 = -w * 0.6, X1 = w * 1.6;
+
+  // Sky
+  var sky = ctx.createLinearGradient(0, sceneTop, 0, L.riverTop);
+  sky.addColorStop(0, '#CFE0EC');
+  sky.addColorStop(1, '#EEF1EC');
+  ctx.fillStyle = sky;
+  ctx.fillRect(X0, sceneTop - h, X1 - X0, L.envH + h);
+  // Soft clouds
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  for (var cl = 0; cl < 4; cl++) {
+    var cwid = w + 260;
+    var cx0 = (((cl * 0.27 * cwid) + elapsed * 0.006 - P * 0.04) % cwid + cwid) % cwid - 130;
+    var cy0 = sceneTop + 14 + (cl % 2) * 15;
+    ctx.beginPath();
+    ctx.ellipse(cx0, cy0, 26, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx0 + 18, cy0 + 3, 18, 7, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx0 - 16, cy0 + 4, 15, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function tileX(factor) { var per = env.period; return -((((P * factor) % per) + per) % per); }
+  function blit(tile, factor, y) {
+    for (var x = tileX(factor) + Math.floor((X0 - tileX(factor)) / env.period) * env.period; x < X1; x += env.period) {
+      ctx.drawImage(tile.c, x, y, env.period, tile.h);
+    }
+  }
+  var envTop = sceneTop;
+  blit(env.far, 0.10, envTop);
+  blit(env.houses, 0.28, envTop);
+
+  // Road along the far bank, with cars driving past (both directions).
+  var roadY = L.riverTop - 22;
+  ctx.fillStyle = '#6B7380';
+  ctx.fillRect(X0, roadY, X1 - X0, 12);
+  ctx.fillStyle = '#B9C0C7';
+  ctx.fillRect(X0, roadY, X1 - X0, 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([12, 10]);
+  ctx.lineDashOffset = P * 0.5;
+  ctx.beginPath(); ctx.moveTo(X0, roadY + 7); ctx.lineTo(X1, roadY + 7); ctx.stroke();
+  ctx.setLineDash([]);
+  var carPeriod = w + 420;
+  for (var c = 0; c < 8; c++) {
+    var dir = c % 2 ? -1 : 1;
+    var speed = 34 + ((c * 29) % 46);
+    var xx = ((((c * 0.19 * carPeriod) + dir * speed * elapsed / 1000 - P * 0.5) % carPeriod) + carPeriod) % carPeriod - 90;
+    drawDuckCar(ctx, xx, roadY + (dir > 0 ? 10.5 : 6.5), dir, DUCK_CAR_COLORS[c % DUCK_CAR_COLORS.length], 26 + (c % 3) * 5);
+  }
+
+  blit(env.farBank, 0.62, L.riverTop - 10);
+
+  // ---- River -------------------------------------------------------------
+  var rTop = L.riverTop, rBot = h - L.nearH;
+  var water = ctx.createLinearGradient(0, rTop, 0, rBot);
   water.addColorStop(0, '#6F9FC0');
   water.addColorStop(1, '#4A7BA1');
   ctx.fillStyle = water;
-  ctx.fillRect(tx0, ty0, tw, th);
+  ctx.fillRect(X0, rTop, X1 - X0, rBot - rTop + 2);
 
-  // Broad swells: two slow translucent bands that travel with the flow.
+  // reflection of the far bank: a faint darker band under it
+  var refl = ctx.createLinearGradient(0, rTop, 0, rTop + 18);
+  refl.addColorStop(0, 'rgba(40,70,60,0.28)');
+  refl.addColorStop(1, 'rgba(40,70,60,0)');
+  ctx.fillStyle = refl;
+  ctx.fillRect(X0, rTop, X1 - X0, 18);
+
   for (var b = 0; b < 3; b++) {
-    var by0 = ty0 + th * (0.18 + b * 0.3);
+    var by0 = rTop + (rBot - rTop) * (0.16 + b * 0.3);
     ctx.beginPath();
-    for (var x = tx0; x <= tx0 + tw; x += 10) {
-      var yy = by0 + Math.sin((x + cam.left * pxU * 0.7) / 46 - flow / 14 + b * 2) * 5;
-      if (x === tx0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+    for (var x = 0; x <= w; x += 12) {
+      var yy = by0 + Math.sin((x + P * 0.8) / 46 - flow / 14 + b * 2) * 5;
+      if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
     }
-    ctx.lineTo(tx0 + tw, by0 + 26); ctx.lineTo(tx0, by0 + 26); ctx.closePath();
+    ctx.lineTo(w, by0 + 26); ctx.lineTo(0, by0 + 26); ctx.closePath();
     ctx.fillStyle = 'rgba(255,255,255,' + (0.045 + b * 0.012) + ')';
     ctx.fill();
   }
 
-  // Current streaks: small light dashes sliding past at different speeds
-  // (parallax), so the water visibly runs even before anyone moves.
   var period = w + 80;
   ctx.lineCap = 'round';
-  for (var k = 0; k < 44; k++) {
+  ctx.lineWidth = 1.5;
+  for (var k = 0; k < 40; k++) {
     var sp = 0.55 + ((k * 13) % 7) / 9;
     var baseX = ((k * 97) % 1000) / 1000 * period;
-    var sxk = (((baseX - (cam.left * pxU * 0.55 + flow * 1.6) * sp) % period) + period) % period - 40;
+    var sxk = (((baseX - (P * 0.55 + flow * 1.6) * sp) % period) + period) % period - 40;
     var syk = L.laneTop + (((k * 53) % 97) / 97) * (L.laneBottom - L.laneTop);
     var len = 14 + ((k * 31) % 23);
     ctx.beginPath();
     ctx.moveTo(sxk, syk);
     ctx.quadraticCurveTo(sxk + len / 2, syk - 2.2, sxk + len, syk);
     ctx.strokeStyle = 'rgba(255,255,255,' + (0.12 + (k % 4) * 0.035) + ')';
-    ctx.lineWidth = 1.5;
     ctx.stroke();
   }
 
-  // Lane ropes: a row of little floats between lanes, scrolling with the camera.
+  // Lane buoys rolling past with the camera.
   if (!L.swarm) {
+    var shift = ((P % 16) + 16) % 16;
     for (var r = 1; r < L.rows; r++) {
       var ry = L.laneTop + r * L.rowH;
-      var shift = ((cam.left * pxU) % 16 + 16) % 16;
-      for (var rx = tx0 - 16 + (16 - shift); rx < tx0 + tw + 16; rx += 16) {
+      for (var rx = -(shift); rx < w + 16; rx += 16) {
         ctx.beginPath();
         ctx.arc(rx, ry + Math.sin(rx / 17 + flow / 9) * 0.8, 2.1, 0, Math.PI * 2);
-        ctx.fillStyle = ((Math.round((rx - (16 - shift)) / 16)) % 2) ? 'rgba(255,255,255,0.62)' : 'rgba(205,220,232,0.55)';
+        ctx.fillStyle = (Math.round((rx + shift) / 16) % 2) ? 'rgba(255,255,255,0.62)' : 'rgba(205,220,232,0.55)';
         ctx.fill();
       }
     }
@@ -10751,87 +11038,81 @@ function drawDuckScene(elapsed, winnerIndex) {
     ctx.strokeStyle = 'rgba(255,255,255,0.10)';
     ctx.lineWidth = 1;
     for (var r2 = 1; r2 < L.rows; r2++) {
-      ctx.beginPath(); ctx.moveTo(tx0, L.laneTop + r2 * L.rowH); ctx.lineTo(tx0 + tw, L.laneTop + r2 * L.rowH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, L.laneTop + r2 * L.rowH); ctx.lineTo(w, L.laneTop + r2 * L.rowH); ctx.stroke();
     }
   }
 
-  // Distance marks along the bottom wall, rolling by with the camera.
-  ctx.font = '600 9px system-ui, -apple-system, sans-serif';
-  ctx.textAlign = 'center';
-  for (var u = 10; u <= 90; u += 10) {
-    var ux = sx(u);
-    if (ux < tx0 + 6 || ux > tx0 + tw - 6) continue;
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(ux, L.laneBottom + 2); ctx.lineTo(ux, L.laneBottom + 6); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.fillText(String(u), ux, L.tubeY1 - 3);
-  }
-
-  // Start line and finish gate.
+  // Start line and finish gate (poles on both banks, checkered line on the water).
   var startX = sx(0), finishX = sx(100);
-  if (startX > tx0 - 4 && startX < tx0 + tw + 4) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-    ctx.setLineDash([5, 5]);
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(startX, ty0); ctx.lineTo(startX, ty0 + th); ctx.stroke();
+  if (startX > -10 && startX < w + 10) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.setLineDash([5, 5]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(startX, rTop); ctx.lineTo(startX, rBot); ctx.stroke();
     ctx.setLineDash([]);
   }
-  if (finishX > tx0 - 20 && finishX < tx0 + tw + 20) {
+  if (finishX > -30 && finishX < w + 30) {
     var cs = 9;
-    for (var cy = ty0, rowi = 0; cy < ty0 + th; cy += cs, rowi++) {
+    for (var cy = rTop, rowi = 0; cy < rBot; cy += cs, rowi++) {
       for (var cx2 = 0; cx2 < 2; cx2++) {
         ctx.fillStyle = (rowi + cx2) % 2 ? 'rgba(255,255,255,0.92)' : 'rgba(30,40,56,0.85)';
-        ctx.fillRect(finishX - cs + cx2 * cs, cy, cs, cs);
+        ctx.fillRect(finishX - cs + cx2 * cs, cy, cs, Math.min(cs, rBot - cy));
       }
     }
-    var glow = ctx.createLinearGradient(finishX - 40, 0, finishX, 0);
+    var glow = ctx.createLinearGradient(finishX - 46, 0, finishX, 0);
     glow.addColorStop(0, 'rgba(255,255,255,0)');
     glow.addColorStop(1, 'rgba(255,255,255,0.14)');
     ctx.fillStyle = glow;
-    ctx.fillRect(finishX - 40, ty0, 40, th);
+    ctx.fillRect(finishX - 46, rTop, 46, rBot - rTop);
+    // pennant poles
+    ctx.fillStyle = '#3B4658';
+    ctx.fillRect(finishX - 10, rTop - 30, 2.5, 34);
+    ctx.fillRect(finishX - 10, rBot - 2, 2.5, L.nearH + 4);
+    for (var py = 0; py < 3; py++) for (var pxx = 0; pxx < 4; pxx++) {
+      ctx.fillStyle = (py + pxx) % 2 ? '#fff' : '#3B4658';
+      ctx.fillRect(finishX - 7.5 + pxx * 4, rTop - 30 + py * 4, 4, 4);
+    }
   }
 
-  // ---- Ducks -----------------------------------------------------------
+  // ---- Ducks -------------------------------------------------------------
   function duckXY(i) {
-    var row = i % L.rows;
-    var col = Math.floor(i / L.rows);
-    var y = L.laneTop + row * L.rowH + L.rowH / 2 + (L.swarm ? ((col % 3) - 1) * (L.rowH * 0.2) : 0);
-    var jitter = L.swarm ? ((i * 37) % 7 - 3) * (L.size * 0.12) : 0;   // tiny, so a rival can never visually pass the true leader
-    return { x: sx(duckPositions[i] || 0) + jitter, y: y };
+    return { x: sx(duckPositions[i] || 0) + duckCache.jit[i], y: duckCache.laneY[i] };
   }
 
   // Spray behind swimming ducks.
-  duckSplashes.forEach(function(p) {
+  for (var si = 0; si < duckSplashes.length; si++) {
+    var p = duckSplashes[si];
     var t2 = p.age / p.life;
     var pos = duckXY(p.duckIndex);
-    var px = pos.x - L.size * 0.8 - p.dx * t2 * 2;
-    var py = pos.y + L.size * 0.38 + p.dy * t2 + 8 * t2 * t2;
     ctx.beginPath();
-    ctx.arc(px, py, p.size * (1 - t2 * 0.5), 0, Math.PI * 2);
+    ctx.arc(pos.x - L.size * 0.8 - p.dx * t2 * 2, pos.y + L.size * 0.38 + p.dy * t2 + 8 * t2 * t2, p.size * (1 - t2 * 0.5), 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(255,255,255,' + (0.5 * (1 - t2)) + ')';
     ctx.fill();
-  });
+  }
 
-  // Draw back-to-front: upper lanes first, the declared winner last.
-  var drawOrder = order.slice().sort(function(a, b) {
-    var ya = duckXY(a).y, yb = duckXY(b).y;
-    return ya - yb || (duckPositions[a] - duckPositions[b]);
-  });
-  drawOrder.forEach(function(i) {
-    var pos = duckXY(i);
-    if (pos.x < tx0 - 30 || pos.x > tx0 + tw + 30) return;
-    var isWinner = winnerIndex === i;
-    if (isWinner) return;                                  // drawn after the others
-    drawOneDuck(i, pos, false);
-  });
-  if (winnerIndex !== null && winnerIndex !== undefined) drawOneDuck(winnerIndex, duckXY(winnerIndex), true);
+  var lite = duckCount > 160;
+  var winnerIdx = (winnerIndex === null || winnerIndex === undefined) ? -1 : winnerIndex;
+  var holdMs = cine ? cine.hold : 0;
+  for (var oi = 0; oi < duckCache.order.length; oi++) {
+    var di = duckCache.order[oi];
+    if (di === winnerIdx) continue;
+    var dpos = duckXY(di);
+    if (dpos.x < X0 + 40 && !cine) continue;
+    if (!cine && (dpos.x < -40 || dpos.x > w + 40)) continue;
+    drawOneDuck(di, dpos, false);
+  }
+  if (winnerIdx >= 0) drawOneDuck(winnerIdx, duckXY(winnerIdx), true);
 
   function drawOneDuck(i, pos, isWinner) {
     var participant = duckPool[i] || {};
-    var bob = Math.sin(elapsed / 240 + i * 1.7) * (L.size * 0.1);
+    var bobAmp = isWinner && holdMs > 0 ? 0.1 : 0.1;
+    var bob = Math.sin(elapsed / 240 + i * 1.7) * (L.size * bobAmp);
     var profile = duckProfiles[i] || pickDuckProfile(participant.name);
-    // V-shaped wake on the water behind the duck.
+    var yy = pos.y + bob;
+    if (isWinner && holdMs > 0) {
+      // Victory hops, settling down as the spotlight holds.
+      yy -= Math.abs(Math.sin(holdMs / 190)) * L.size * 0.32 * Math.exp(-holdMs / 1500);
+    }
+    if (lite && !isWinner) { drawDuckLite(ctx, pos.x, yy, profile.color, L.size); return; }
     if (L.size >= 14) {
       ctx.strokeStyle = 'rgba(255,255,255,0.32)';
       ctx.lineWidth = 1.3;
@@ -10843,12 +11124,12 @@ function drawDuckScene(elapsed, winnerIndex) {
       ctx.lineTo(pos.x - L.size * 1.9, wy + L.size * 0.3 + Math.cos(elapsed / 150 + i) * 1.2);
       ctx.stroke();
     }
-    drawDuck(ctx, pos.x, pos.y + bob, profile, isWinner, elapsed / 130 + i * 2, i + 1, L.size);
+    drawDuck(ctx, pos.x, yy, profile, isWinner, elapsed / 130 + i * 2, i + 1, L.size);
 
     if (!L.swarm) {
       ctx.font = '600 ' + Math.round(Math.max(10, L.size * 0.42)) + 'px system-ui, -apple-system, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.shadowColor = 'rgba(10,30,50,0.45)';
+      ctx.fillStyle = 'rgba(255,255,255,0.94)';
+      ctx.shadowColor = 'rgba(10,30,50,0.5)';
       ctx.shadowBlur = 3;
       if (pos.x < w - 110) {
         ctx.textAlign = 'left';
@@ -10864,29 +11145,125 @@ function drawDuckScene(elapsed, winnerIndex) {
       ctx.fillStyle = '#fff';
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
       ctx.shadowBlur = 4;
-      ctx.fillText('@' + participant.name, pos.x, pos.y - L.size * 1.5 < ty0 + 14 ? pos.y + L.size * 1.7 : pos.y - L.size * 1.5);
+      var ly = pos.y - L.size * 1.5;
+      ctx.fillText('@' + participant.name, pos.x, ly < sceneTop + 14 ? pos.y + L.size * 1.7 : ly);
       ctx.shadowBlur = 0;
     }
   }
 
-  // Glass: a soft highlight along the top wall and a shade along the bottom.
-  var gl = ctx.createLinearGradient(0, ty0, 0, ty0 + th);
-  gl.addColorStop(0, 'rgba(255,255,255,0.30)');
-  gl.addColorStop(0.14, 'rgba(255,255,255,0.04)');
-  gl.addColorStop(0.8, 'rgba(0,20,40,0)');
-  gl.addColorStop(1, 'rgba(0,20,40,0.22)');
+  // Near bank in front of everything, with distance plaques.
+  blit(env.nearBank, 1.0, h - L.nearH - 6);
+  ctx.font = '700 9px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  for (var u = 10; u <= 90; u += 10) {
+    var ux = sx(u);
+    if (ux < 10 || ux > w - 10) continue;
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    roundRectPath(ctx, ux - 11, h - 14, 22, 11, 3); ctx.fill();
+    ctx.fillStyle = '#41566B';
+    ctx.fillText(String(u), ux, h - 5.5);
+  }
+
+  // Soft light from above on the water.
+  var gl = ctx.createLinearGradient(0, rTop, 0, rBot);
+  gl.addColorStop(0, 'rgba(255,255,255,0.10)');
+  gl.addColorStop(0.2, 'rgba(255,255,255,0)');
+  gl.addColorStop(1, 'rgba(0,20,40,0.12)');
   ctx.fillStyle = gl;
-  ctx.fillRect(tx0, ty0, tw, th);
+  ctx.fillRect(0, rTop, w, rBot - rTop);
   ctx.restore();
 
-  roundRectPath(ctx, tx0, ty0, tw, th, 16);
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-  roundRectPath(ctx, tx0 - 1, ty0 - 1, tw + 2, th + 2, 17);
-  ctx.strokeStyle = 'rgba(40,60,85,0.22)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  // ---- Winner close-up: spotlight + celebration ---------------------------
+  if (cine && cine.irisR != null) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.arc(tcx, tcy, cine.irisR, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'rgba(9, 16, 28, 0.76)';
+    ctx.fill('evenodd');
+
+    var pulse = 1 + 0.025 * Math.sin(elapsed / 170);
+    ctx.beginPath();
+    ctx.arc(tcx, tcy, cine.irisR * pulse, 0, Math.PI * 2);
+    ctx.strokeStyle = '#E9C46A';
+    ctx.lineWidth = 3.5;
+    ctx.shadowColor = 'rgba(233,196,106,0.75)';
+    ctx.shadowBlur = 16;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    if (holdMs > 0) {
+      // expanding rings
+      for (var rg = 0; rg < 3; rg++) {
+        var rt = ((holdMs / 1100) + rg / 3) % 1;
+        ctx.beginPath();
+        ctx.arc(tcx, tcy, cine.irisR + 6 + rt * 70, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(233,196,106,' + (0.45 * (1 - rt)) + ')';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      // orbiting sparkles
+      for (var sp2 = 0; sp2 < 10; sp2++) {
+        var ang = holdMs / 900 + sp2 * (Math.PI * 2 / 10);
+        var rad = cine.irisR + 14 + Math.sin(holdMs / 260 + sp2) * 5;
+        var star = 2.4 + 2.2 * (0.5 + 0.5 * Math.sin(holdMs / 150 + sp2 * 1.7));
+        var stx = tcx + Math.cos(ang) * rad, sty = tcy + Math.sin(ang) * rad;
+        ctx.fillStyle = 'rgba(255,236,170,0.95)';
+        ctx.beginPath();
+        ctx.moveTo(stx, sty - star * 1.6); ctx.lineTo(stx + star * 0.45, sty - star * 0.45);
+        ctx.lineTo(stx + star * 1.6, sty); ctx.lineTo(stx + star * 0.45, sty + star * 0.45);
+        ctx.lineTo(stx, sty + star * 1.6); ctx.lineTo(stx - star * 0.45, sty + star * 0.45);
+        ctx.lineTo(stx - star * 1.6, sty); ctx.lineTo(stx - star * 0.45, sty - star * 0.45);
+        ctx.closePath(); ctx.fill();
+      }
+      // confetti burst from the winner
+      var cols2 = ['#E9C46A', '#E76F51', '#6FB1D8', '#8FC9A0', '#F4F1EA', '#B58BD6'];
+      for (var cf = 0; cf < 70; cf++) {
+        var cr = duckSeeded(cf * 7919 + 13);
+        var a = -Math.PI / 2 + (cr() - 0.5) * 2.6, v = 160 + cr() * 260, life = 1700 + cr() * 900;
+        var tsec = holdMs / 1000;
+        if (holdMs > life) continue;
+        var px2 = tcx + Math.cos(a) * v * tsec;
+        var py2 = tcy - cine.irisR * 0.2 + Math.sin(a) * v * tsec + 0.5 * 520 * tsec * tsec;
+        ctx.save();
+        ctx.translate(px2, py2);
+        ctx.rotate(cr() * 6 + tsec * (3 + cr() * 6));
+        ctx.globalAlpha = Math.max(0, 1 - holdMs / life);
+        ctx.fillStyle = cols2[cf % cols2.length];
+        ctx.fillRect(-3.5, -2, 7, 4);
+        ctx.restore();
+      }
+    }
+
+    // name banner that pops in under the circle
+    var wname = '@' + ((duckPool[winnerIdx] || {}).name || '');
+    var popT = Math.min(1, Math.max(0, (holdMs + 200) / 450));
+    var back = popT < 1 ? 1 + 2.2 * Math.pow(popT - 1, 3) + 1.2 * Math.pow(popT - 1, 2) : 1;   // easeOutBack
+    var bs = Math.max(0.01, back * popT);
+    ctx.font = '800 20px system-ui, -apple-system, sans-serif';
+    var label = (typeof t === 'function' ? t('winner_label') : 'Gagnant');
+    var tw2 = Math.min(w - 40, Math.max(ctx.measureText(wname).width, 90) + 44);
+    var by2 = tcy + cine.irisR + 34;
+    if (by2 > h - 26) by2 = tcy - cine.irisR - 34;
+    ctx.save();
+    ctx.translate(tcx, by2);
+    ctx.scale(bs, bs);
+    roundRectPath(ctx, -tw2 / 2, -24, tw2, 48, 24);
+    ctx.fillStyle = '#E9C46A';
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 14;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#5B4310';
+    ctx.font = '700 10px system-ui, -apple-system, sans-serif';
+    ctx.fillText(String(label).toUpperCase(), 0, -8);
+    ctx.fillStyle = '#1F1A0C';
+    ctx.font = '800 18px system-ui, -apple-system, sans-serif';
+    ctx.fillText(wname, 0, 13, tw2 - 24);
+    ctx.restore();
+    ctx.restore();
+  }
 }
 
 // Draws one duck: ripple, body with belly patch, layered wing, head,
@@ -11699,6 +12076,8 @@ var plinkoCtx = null;
 var plinkoCanvasW = 0;
 var plinkoCanvasH = 0;
 var plinkoAnimId = null;
+var plinkoBoardCache = null;   // the static board (pegs, slots, names) rendered once, then just blitted every frame
+var plinkoDpr = 1;
 var plinkoSoundEnabled = true;
 try {
   var __savedPlinkoSound = localStorage.getItem('repickwinn-plinko-sound');
@@ -11841,7 +12220,7 @@ function plinkoGeometry() {
   var boardTop = 30, boardBottom = h - labelH;
   var rowH = (boardBottom - boardTop - 8) / (pegRows + 1);
   var pegR = Math.max(2, Math.min(5, slotW * 0.11));
-  var ballR = Math.max(3.5, Math.min(8, slotW * 0.26));
+  var ballR = Math.max(3.2, Math.min(8, slotW * 0.26, rowH * 0.34));
   return {
     w: w, h: h, n: n, pegRows: pegRows, slotW: slotW, rotated: rotated, labelH: labelH,
     boardTop: boardTop, boardBottom: boardBottom, rowH: rowH, pegR: pegR, ballR: ballR,
@@ -11858,16 +12237,18 @@ function initPlinkoCanvas(slotCount) {
   var n = Math.max(1, slotCount);
   var pegRows = Math.max(1, n - 1);
 
-  var displayWidth = Math.min(available, Math.max(340, Math.min(560, n * 30)));
+  // Sized like the other games on a computer (wide, but never taller than
+  // the window), and compact on a phone. Few slots = a smaller board.
+  var displayWidth = Math.min(available, Math.max(440, Math.min(840, n * 40)));
   var slotW = displayWidth / n;
   var labelH = slotW < 56 ? 98 : 58;
-  var rowTarget = Math.max(18, Math.min(38, slotW * 0.85));
+  var rowTarget = Math.max(20, Math.min(46, slotW * 0.85));
   var wanted = 30 + (pegRows + 1) * rowTarget + 8 + labelH;
   var fullscreen = document.body.classList.contains('draw-fullscreen');
-  var maxHeight = fullscreen ? Math.max(380, Math.min(640, window.innerHeight - 260)) : 600;
-  var displayHeight = Math.round(Math.min(maxHeight, Math.max(300, wanted)));
+  var maxHeight = fullscreen ? Math.max(420, Math.min(780, window.innerHeight - 220)) : 640;
+  var displayHeight = Math.round(Math.min(maxHeight, Math.max(320, wanted)));
 
-  var dpr = window.devicePixelRatio || 1;
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.style.width = displayWidth + 'px';
   canvas.style.height = displayHeight + 'px';
   canvas.width = Math.round(displayWidth * dpr);
@@ -11879,6 +12260,8 @@ function initPlinkoCanvas(slotCount) {
   plinkoCtx = ctx;
   plinkoCanvasW = displayWidth;
   plinkoCanvasH = displayHeight;
+  plinkoBoardCache = null;
+  plinkoDpr = dpr;
   return ctx;
 }
 
@@ -11898,11 +12281,28 @@ function setupPlinkoStage(pool) {
 // left-moves, order shuffled — guarantees the ball ends in the right
 // slot while the sequence of bounces still looks unpredictable.
 function buildPlinkoPath(pegRows, winnerSlot) {
+  // Exactly `winnerSlot` right-moves and the rest left-moves, so the ball
+  // always ends in the winning slot — but the order has momentum: a ball
+  // that just went right tends to keep drifting right for a couple of
+  // pegs, like a real one, instead of flipping L-R-L-R every row (that
+  // zig-zag is what read as jitter). The odds also follow how many
+  // moves of each kind are still owed, so the end can't be guessed early.
+  var rights = winnerSlot, lefts = pegRows - winnerSlot;
   var moves = [];
-  for (var i = 0; i < pegRows; i++) moves.push(i < winnerSlot ? 1 : 0);
-  for (var i = moves.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1));
-    var tmp = moves[i]; moves[i] = moves[j]; moves[j] = tmp;
+  var last = Math.random() < 0.5 ? 1 : 0;
+  for (var i = 0; i < pegRows; i++) {
+    var pRight;
+    if (rights === 0) pRight = 0;
+    else if (lefts === 0) pRight = 1;
+    else {
+      var owed = rights / (rights + lefts);
+      var persist = last === 1 ? 0.74 : 0.26;
+      pRight = 0.5 * persist + 0.5 * owed;
+    }
+    var m = Math.random() < pRight ? 1 : 0;
+    moves.push(m);
+    if (m) rights--; else lefts--;
+    last = m;
   }
   var cumulative = [0];
   var running = 0;
@@ -11938,48 +12338,69 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
   // read from the first few bounces.
   var path = buildPlinkoPath(pegRows, winnerSlot);
 
+  // One smooth ballistic hop per peg row: the ball lands on a peg, kicks
+  // off to the side with a small bounce, and falls onto the next peg.
+  // No stopping or wobbling on the pegs — it never loses momentum, which
+  // is what makes it read as a real ball and not an animation.
   var hops = [];
   var total = 0;
+  var naturalHop = 150 * Math.sqrt(Math.max(0.6, g.rowH / 22));      // a believable fall time for this peg spacing
   for (var r = 0; r < pegRows; r++) {
     var fromX = r === 0 ? g.w / 2 : g.levelX(r, path[r]);
     var fromY = r === 0 ? g.boardTop - g.ballR * 2 : g.pegY(r) - g.pegR - g.ballR;
     var toX = g.levelX(r + 1, path[r + 1]);
     var toY = g.pegY(r + 1) - g.pegR - g.ballR;
-    var toGo = pegRows - r;                       // hops remaining including this one
-    var suspense = toGo === 3 ? 1.2 : toGo === 2 ? 1.5 : toGo === 1 ? 1.9 : 1;   // the last bounces slow down a little
-    var th = (88 + Math.random() * 70) * suspense;
-    var hold = (r > 0 && Math.random() < 0.16 + (toGo <= 4 ? 0.2 : 0)) ? 70 + Math.random() * 150 : 0;
+    var toGo = pegRows - r;                                         // hops remaining including this one
+    var ending = toGo === 3 ? 1.08 : toGo === 2 ? 1.18 : toGo === 1 ? 1.3 : 1;   // the last bounces ease off a touch
     hops.push({
       fromX: fromX, fromY: fromY, toX: toX, toY: toY,
-      th: th, hold: hold, b: r === 0 ? 0 : 0.15 + Math.random() * 0.55,
-      rock: (Math.random() < 0.5 ? -1 : 1) * (0.08 + Math.random() * 0.12) * g.slotW,
+      th: naturalHop * (0.92 + Math.random() * 0.16) * ending,
+      b: r === 0 ? 0 : 0.05 + Math.random() * 0.1,
       start: 0
     });
   }
-  // The drop lasts as long as the draw is set to last. The bounces are
-  // stretched (or squeezed) to fill that time; a hop never gets floaty
-  // (capped at 0.7s) — any leftover time becomes the ball balancing on a
-  // peg, weighted toward the last rows where the suspense is.
+
+  // Fit the drop to the time the draw is set to last: first by playing it
+  // a little slower (never more than 3x), then, if there is still time
+  // to fill, by letting the ball sit ready at the top before it is released.
   var DROP_MS = 240, SETTLE_MS = 420;
   var wanted = Math.max(3, durationSeconds || 6) * 1000;
-  var targetTotal = Math.max(1400, wanted - DROP_MS - 700);
-  var raw = hops.reduce(function(s2, h2) { return s2 + h2.th + h2.hold; }, 0);
-  var scale = targetTotal / raw;
-  var leftover = 0;
-  hops.forEach(function(h2) {
-    h2.th *= scale; h2.hold *= scale;
-    if (h2.th > 700) { leftover += h2.th - 700; h2.th = 700; }
-  });
-  var used = hops.reduce(function(s2, h2) { return s2 + h2.th + h2.hold; }, 0);
-  leftover += Math.max(0, targetTotal - used - leftover);
-  if (leftover > 1) {
-    var weights = hops.map(function(_, ri) { return ri === 0 ? 0 : Math.pow(ri + 1, 1.6); });
-    var wsum = weights.reduce(function(a2, b2) { return a2 + b2; }, 0) || 1;
-    hops.forEach(function(h2, ri) { h2.hold += leftover * weights[ri] / wsum; });
-  }
-  hops.forEach(function(h2) { h2.start = total; total += h2.th + h2.hold; });
+  var targetTotal = Math.max(1200, wanted - DROP_MS - 700);
+  var raw = hops.reduce(function(s2, h2) { return s2 + h2.th; }, 0);
+  var scale = Math.max(0.55, Math.min(3.0, targetTotal / raw));
+  hops.forEach(function(h2) { h2.th *= scale; });
+  var played = raw * scale;
+  var leadDelay = Math.max(0, Math.min(2400, targetTotal - played));
+  total = leadDelay;
+  hops.forEach(function(h2) { h2.start = total; total += h2.th; });
 
   var finalX = g.levelX(pegRows, path[pegRows]);
+
+  // Lateral motion is one smooth curve through the peg positions (a
+  // monotone cubic: no overshoot, no sawtooth). The ball is carried
+  // sideways by its momentum and only slows to nothing where it actually
+  // turns around — instead of a hard left/right snap at every peg.
+  var kT = hops.map(function(h2) { return h2.start; });
+  var kX = hops.map(function(h2) { return h2.fromX; });
+  kT.push(total); kX.push(finalX);
+  var kN = kT.length;
+  var kD = [];
+  for (var q = 0; q < kN - 1; q++) kD.push((kX[q + 1] - kX[q]) / (kT[q + 1] - kT[q]));
+  var kM = [];
+  for (var q2 = 0; q2 < kN; q2++) {
+    if (q2 === 0) kM.push(kD[0]);
+    else if (q2 === kN - 1) kM.push(0);                              // arrives over the slot, no sideways drift
+    else if (kD[q2 - 1] * kD[q2] <= 0) kM.push(0);                   // turning around: sideways speed passes through zero
+    else kM.push(2 * kD[q2 - 1] * kD[q2] / (kD[q2 - 1] + kD[q2]));   // keeps going: smooth, no overshoot
+  }
+  function smoothX(time, seg) {
+    var t0 = kT[seg], t1 = kT[seg + 1], hh = t1 - t0;
+    var u = Math.max(0, Math.min(1, (time - t0) / hh));
+    var u2 = u * u, u3 = u2 * u;
+    return (2 * u3 - 3 * u2 + 1) * kX[seg] + (u3 - 2 * u2 + u) * hh * kM[seg] +
+           (-2 * u3 + 3 * u2) * kX[seg + 1] + (u3 - u2) * hh * kM[seg + 1];
+  }
+
   var finalFromY = g.pegY(pegRows) - g.pegR - g.ballR;
   var finalToY = g.boardBottom + g.ballR + 6;
   var endAll = total + DROP_MS + SETTLE_MS;
@@ -12002,21 +12423,20 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
       var bounce = 11 * Math.exp(-s / 110) * Math.abs(Math.sin(s / 48));
       return { x: finalX, y: finalToY - bounce, hop: pegRows, done: s >= SETTLE_MS * 0.55 };
     }
+    if (elapsed < hops[0].start) {
+      // Waiting at the top, about to be released.
+      return { x: hops[0].fromX, y: hops[0].fromY, hop: 0, done: false };
+    }
     var idx = 0;
     while (idx < hops.length - 1 && elapsed >= hops[idx + 1].start) idx++;
     var hp = hops[idx];
     var t = elapsed - hp.start;
-    if (hp.hold > 0 && t < hp.hold) {
-      // Balanced on the peg: a small rock before it commits to a side.
-      var rockX = hp.fromX + hp.rock * Math.sin((t / Math.max(1, hp.hold)) * Math.PI * 2.4) * (1 - t / hp.hold);
-      return { x: rockX, y: hp.fromY, hop: idx, done: false };
-    }
-    var tt = t - hp.hold;
+    var tt = t;
     var u2 = Math.min(1, tt / hp.th);
     var dy = hp.toY - hp.fromY;
     var vy0 = -hp.b * dy / hp.th;                 // small upward kick off the peg
     var gr = 2 * (dy - vy0 * hp.th) / (hp.th * hp.th);
-    return { x: hp.fromX + (hp.toX - hp.fromX) * u2, y: hp.fromY + vy0 * tt + 0.5 * gr * tt * tt, hop: idx, done: false };
+    return { x: smoothX(elapsed, idx), y: hp.fromY + vy0 * tt + 0.5 * gr * tt * tt, hop: idx, done: false };
   }
 
   function tick(now) {
@@ -12031,9 +12451,6 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
       }
       lastHop = b.hop;
     }
-    trail.push({ x: b.x, y: b.y });
-    if (trail.length > 9) trail.shift();
-
     var settled = elapsed >= total + DROP_MS;
     drawPlinkoScene(b, trail, hit && (now - hit.t < 260) ? { x: hit.x, y: hit.y, age: (now - hit.t) / 260 } : null, settled ? winnerSlot : null);
 
@@ -12053,46 +12470,27 @@ function spinPlinkoMode(pool, winnerIndex, durationSeconds, onDone) {
   plinkoAnimId = requestAnimationFrame(tick);
 }
 
-// Draws the whole board every frame. `ball` is {x, y} (null = parked above
-// the top), `trail` the last few ball positions, `hit` an optional peg
-// flash {x, y, age 0–1}, `winnerSlot` the slot to highlight once settled.
-function drawPlinkoScene(ball, trail, hit, winnerSlot) {
-  var ctx = plinkoCtx;
-  if (!ctx) return;
-  var g = plinkoGeometry();
+// The board (background, pegs, slots, names) never changes during a
+// drop, so it is painted once into an offscreen canvas and then just
+// copied each frame — only the ball and the peg flash are drawn live.
+function drawPlinkoBoard(ctx, g, winnerSlot) {
   var w = g.w, h = g.h;
-
-  // Background: deep slate, one quiet gradient — no neon.
   var bg = ctx.createLinearGradient(0, 0, 0, h);
   bg.addColorStop(0, '#1F2638');
   bg.addColorStop(1, '#151A27');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
-  // Pegs.
+  ctx.fillStyle = '#9AA5BD';
   for (var r = 1; r <= g.pegRows; r++) {
     var y = g.pegY(r);
     for (var p = 0; p <= r; p++) {
-      var x = g.levelX(r, p);
       ctx.beginPath();
-      ctx.arc(x, y, g.pegR, 0, Math.PI * 2);
-      ctx.fillStyle = '#9AA5BD';
+      ctx.arc(g.levelX(r, p), y, g.pegR, 0, Math.PI * 2);
       ctx.fill();
     }
   }
-  if (hit) {
-    ctx.beginPath();
-    ctx.arc(hit.x, hit.y, g.pegR + 2 + hit.age * g.pegR * 2.4, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(233,185,73,' + (0.65 * (1 - hit.age)) + ')';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(hit.x, hit.y, g.pegR, 0, Math.PI * 2);
-    ctx.fillStyle = '#E9B949';
-    ctx.fill();
-  }
 
-  // Slots.
   for (var s = 0; s <= g.n; s++) {
     var dx = s * g.slotW;
     ctx.strokeStyle = 'rgba(255,255,255,0.14)';
@@ -12120,24 +12518,46 @@ function drawPlinkoScene(ball, trail, hit, winnerSlot) {
       ctx.restore();
     } else {
       if (name.length > 14) name = name.slice(0, 13) + '…';
-      ctx.font = (isWin ? '700 ' : '500 ') + Math.min(12, g.slotW * 0.2) + 'px system-ui, -apple-system, sans-serif';
+      ctx.font = (isWin ? '700 ' : '500 ') + Math.min(13, g.slotW * 0.2) + 'px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(name, cx, h - 12, g.slotW - 6);
     }
   });
+}
 
-  // Ball: short fading trail, soft shadow, warm gold sphere.
-  var bx, by;
-  if (!ball) { bx = w / 2; by = g.boardTop - g.ballR * 2; } else { bx = ball.x; by = ball.y; }
-  if (trail && trail.length > 1) {
-    for (var k = 0; k < trail.length - 1; k++) {
-      var a = (k + 1) / trail.length;
-      ctx.beginPath();
-      ctx.arc(trail[k].x, trail[k].y, g.ballR * (0.35 + a * 0.4), 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(233,185,73,' + (0.07 + a * 0.12) + ')';
-      ctx.fill();
+// `ball` is {x, y} (null = parked above the top), `hit` an optional peg
+// flash {x, y, age 0–1}, `winnerSlot` the slot to highlight once settled.
+function drawPlinkoScene(ball, trail, hit, winnerSlot) {
+  var ctx = plinkoCtx;
+  if (!ctx) return;
+  var g = plinkoGeometry();
+
+  if (winnerSlot === null || winnerSlot === undefined) {
+    var key = g.w + 'x' + g.h + '|' + g.n + '|' + plinkoDpr + '|' + (plinkoPool[0] ? plinkoPool[0].name : '') + '|' + (plinkoPool[g.n - 1] ? plinkoPool[g.n - 1].name : '');
+    if (!plinkoBoardCache || plinkoBoardCache.key !== key) {
+      var off = document.createElement('canvas');
+      off.width = Math.round(g.w * plinkoDpr);
+      off.height = Math.round(g.h * plinkoDpr);
+      var octx = off.getContext('2d');
+      octx.setTransform(plinkoDpr, 0, 0, plinkoDpr, 0, 0);
+      drawPlinkoBoard(octx, g, null);
+      plinkoBoardCache = { key: key, canvas: off };
     }
+    ctx.drawImage(plinkoBoardCache.canvas, 0, 0, g.w, g.h);
+  } else {
+    drawPlinkoBoard(ctx, g, winnerSlot);
   }
+
+  if (hit) {
+    ctx.beginPath();
+    ctx.arc(hit.x, hit.y, g.pegR + 1 + hit.age * g.pegR * 1.8, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(233,185,73,' + (0.5 * (1 - hit.age)) + ')';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+
+  var bx, by;
+  if (!ball) { bx = g.w / 2; by = g.boardTop - g.ballR * 2; } else { bx = ball.x; by = ball.y; }
   ctx.beginPath();
   ctx.arc(bx, by + g.ballR * 0.35, g.ballR * 0.95, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
