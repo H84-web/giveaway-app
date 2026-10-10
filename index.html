@@ -1014,12 +1014,12 @@ body.draw-fullscreen .topnav { display: none; }
 /* Draw screen in fullscreen mode: no narrow column, no nav bar (see
    body.draw-fullscreen .topnav above) — every game gets the full
    viewport to be as big and show as many participants as it can. */
-body.draw-fullscreen #drawScreen .page-container-narrow { max-width: none; }
+body.draw-fullscreen #drawScreen .page-container-narrow { max-width: 880px; margin-left: auto; margin-right: auto; }
 body.draw-fullscreen #drawScreen .page-container { padding: 16px 16px 24px; min-height: 100vh; display: flex; flex-direction: column; }
 body.draw-fullscreen #drawScreen .card-center { display: flex; flex-direction: column; align-items: center; }
 body.draw-fullscreen #drawScreen .draw-stage { width: 100%; display: flex; align-items: center; justify-content: center; }
-body.draw-fullscreen .wheel-wrap { max-width: min(85vw, 85vh, 640px); }
-body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
+body.draw-fullscreen .wheel-wrap { max-width: min(85vw, 72vh, 520px); }
+body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 800px); }
 
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
 .page-title { font-size: var(--fs-xl); font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
@@ -2176,6 +2176,18 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .lp-door p { font-size: var(--fs-sm); color: rgba(var(--lp-ink-rgb),0.6); margin: 0 0 16px; line-height: 1.6; }
 .lp-door-note { display: block; font-size: var(--fs-xs); color: rgba(var(--lp-ink-rgb),0.45); margin-top: 12px; line-height: 1.5; }
 
+
+/* ---- Plan comparison table ---- */
+.lp-compare { max-width: 980px; margin: 44px auto 0; }
+.lp-compare-title { font-size: var(--fs-md); font-weight: 800; color: var(--lp-ink); text-align: center; margin: 0 0 16px; }
+.lp-compare-scroll { overflow-x: auto; border: 1px solid rgba(var(--lp-border-rgb),0.1); border-radius: 16px; background: var(--lp-card); box-shadow: var(--shadow-sm); }
+.lp-compare-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: var(--fs-sm); }
+.lp-compare-table th, .lp-compare-table td { padding: 13px 16px; text-align: center; border-bottom: 1px solid rgba(var(--lp-border-rgb),0.07); color: rgba(var(--lp-ink-rgb),0.75); font-variant-numeric: tabular-nums; }
+.lp-compare-table thead th { font-weight: 800; color: var(--lp-ink); background: rgba(var(--lp-ink-rgb),0.025); }
+.lp-compare-table th:first-child { text-align: left; font-weight: 600; color: var(--lp-ink); }
+.lp-compare-table tbody tr:last-child th, .lp-compare-table tbody tr:last-child td { border-bottom: none; }
+.lp-compare-table .is-featured { color: #6355E0; }
+.lp-compare-table .cmp-yes { width: 18px; height: 18px; color: var(--green); display: inline-block; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -2716,6 +2728,23 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
           <li data-i18n="billing_feature_unlimited_participants">Participants illimités</li>
         </ul>
         <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('pro', 'annual')" data-i18n="pricing_start">Commencer</button>
+      </div>
+    </div>
+    <div class="lp-compare lp-reveal">
+      <h3 class="lp-compare-title" data-i18n="cmp_title">Comparer les formules</h3>
+      <div class="lp-compare-scroll">
+        <table class="lp-compare-table">
+          <thead><tr><th scope="col" data-i18n="cmp_col_feature">Fonctionnalités</th><th scope="col" data-i18n="tier_free">Gratuit</th><th scope="col" data-i18n="tier_basic">Basique</th><th scope="col" class="is-featured" data-i18n="tier_medium">Medium</th><th scope="col" data-i18n="tier_pro">Pro</th></tr></thead>
+          <tbody>
+          <tr><th scope="row" data-i18n="cmp_row_giveaways">Tirages actifs</th><td>3</td><td>10</td><td>25</td><td><span data-i18n="cmp_unlimited">Illimité</span></td></tr>
+          <tr><th scope="row" data-i18n="cmp_row_participants">Participants par tirage</th><td>100</td><td>500</td><td><span data-i18n="cmp_n2000">2 000</span></td><td><span data-i18n="cmp_unlimited">Illimité</span></td></tr>
+          <tr><th scope="row" data-i18n="cmp_row_modes">Tous les modes de tirage</th><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td></tr>
+          <tr><th scope="row" data-i18n="cmp_row_certs">Certificats de tirage</th><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td></tr>
+          <tr><th scope="row" data-i18n="cmp_row_history">Historique des tirages</th><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td></tr>
+          <tr><th scope="row" data-i18n="cmp_row_public">Page de participation publique</th><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td></tr>
+          <tr><th scope="row" data-i18n="cmp_row_growth">Suivi de croissance</th><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td><td><svg class="ic cmp-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="✓"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
     <p class="lp-pricing-footnote lp-reveal" data-i18n="pricing_footnote">Chaque formule est aussi disponible en 3 mois, 6 mois ou 1 an, avec jusqu'à -37% — choisis la durée une fois connecté(e), dans Paramètres.</p>
@@ -5861,6 +5890,19 @@ var TRANSLATIONS = {
     "pricing_medium_f1": "25 tirages actifs",
     "pricing_medium_f2": "2 000 participants / tirage",
     "pricing_at_year": "à l'année",
+    "cmp_title": "Comparer les formules",
+    "cmp_col_feature": "Fonctionnalités",
+    "cmp_row_giveaways": "Tirages actifs",
+    "cmp_row_participants": "Participants par tirage",
+    "cmp_row_modes": "Tous les modes de tirage",
+    "cmp_row_certs": "Certificats de tirage",
+    "cmp_row_history": "Historique des tirages",
+    "cmp_row_public": "Page de participation publique",
+    "cmp_row_growth": "Suivi de croissance",
+    "cmp_unlimited": "Illimité",
+    "cmp_n2000": "2 000",
+    "cmp_included": "Inclus",
+    "cmp_not_included": "Non inclus",
     "lobby_badge_ready": "participants prêts pour le tirage",
     "lobby_track_start": "DÉPART",
     "lobby_track_finish": "ARRIVÉE",
@@ -6423,6 +6465,19 @@ var TRANSLATIONS = {
     "pricing_medium_f1": "25 active giveaways",
     "pricing_medium_f2": "2,000 participants / giveaway",
     "pricing_at_year": "billed yearly",
+    "cmp_title": "Compare plans",
+    "cmp_col_feature": "Features",
+    "cmp_row_giveaways": "Active giveaways",
+    "cmp_row_participants": "Participants per giveaway",
+    "cmp_row_modes": "All draw modes",
+    "cmp_row_certs": "Draw certificates",
+    "cmp_row_history": "Draw history",
+    "cmp_row_public": "Public entry page",
+    "cmp_row_growth": "Growth tracking",
+    "cmp_unlimited": "Unlimited",
+    "cmp_n2000": "2,000",
+    "cmp_included": "Included",
+    "cmp_not_included": "Not included",
     "lobby_badge_ready": "participants ready for the draw",
     "lobby_track_start": "START",
     "lobby_track_finish": "FINISH",
@@ -6985,6 +7040,19 @@ var TRANSLATIONS = {
     "pricing_medium_f1": "25 aktive Verlosungen",
     "pricing_medium_f2": "2.000 Teilnehmer / Verlosung",
     "pricing_at_year": "jährlich abgerechnet",
+    "cmp_title": "Tarife vergleichen",
+    "cmp_col_feature": "Funktionen",
+    "cmp_row_giveaways": "Aktive Verlosungen",
+    "cmp_row_participants": "Teilnehmer pro Verlosung",
+    "cmp_row_modes": "Alle Ziehungsmodi",
+    "cmp_row_certs": "Ziehungszertifikate",
+    "cmp_row_history": "Ziehungsverlauf",
+    "cmp_row_public": "Öffentliche Teilnahmeseite",
+    "cmp_row_growth": "Wachstums-Tracking",
+    "cmp_unlimited": "Unbegrenzt",
+    "cmp_n2000": "2.000",
+    "cmp_included": "Enthalten",
+    "cmp_not_included": "Nicht enthalten",
     "lobby_badge_ready": "Teilnehmer bereit für die Verlosung",
     "lobby_track_start": "START",
     "lobby_track_finish": "ZIEL",
