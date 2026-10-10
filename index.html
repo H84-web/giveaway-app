@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261010-223059" />
+<meta name="app-build" content="20261010-224711" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -4468,6 +4468,7 @@ function handleSignedOutState() {
   currentHistory = [];
   activeGiveaway = null;
   isSpinning = false;
+  pendingNextRound = null;
   currentActiveScreen = 'dashboardScreen';
   document.body.classList.remove('draw-fullscreen');
   ['userMenu', 'notifMenu'].forEach(function(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -5970,6 +5971,7 @@ var TRANSLATIONS = {
     "pricing_medium_f2": "2 000 participants / tirage",
     "pricing_at_year": "à l'année",
     "wiz_plinko_fast_note": "Plinko n'a pas de durée : la bille tombe rapidement, idéal pour les gros tirages.",
+    "draw_next_winner": "Gagnant suivant ({n}/{total})",
     "cmp_title": "Comparer les formules",
     "cmp_col_feature": "Fonctionnalités",
     "cmp_row_giveaways": "Tirages actifs",
@@ -6546,6 +6548,7 @@ var TRANSLATIONS = {
     "pricing_medium_f2": "2,000 participants / giveaway",
     "pricing_at_year": "billed yearly",
     "wiz_plinko_fast_note": "Plinko has no duration: the ball drops quickly, ideal for big draws.",
+    "draw_next_winner": "Next winner ({n}/{total})",
     "cmp_title": "Compare plans",
     "cmp_col_feature": "Features",
     "cmp_row_giveaways": "Active giveaways",
@@ -7122,6 +7125,7 @@ var TRANSLATIONS = {
     "pricing_medium_f2": "2.000 Teilnehmer / Verlosung",
     "pricing_at_year": "jährlich abgerechnet",
     "wiz_plinko_fast_note": "Plinko hat keine Dauer: Die Kugel fällt schnell, ideal für große Ziehungen.",
+    "draw_next_winner": "Nächster Gewinner ({n}/{total})",
     "cmp_title": "Tarife vergleichen",
     "cmp_col_feature": "Funktionen",
     "cmp_row_giveaways": "Aktive Verlosungen",
@@ -8881,23 +8885,58 @@ async function wizardCreate() {
 // ============================================================
 // OPEN GIVEAWAY → DRAW SCREEN
 // ============================================================
+var openingGiveaway = false;
 async function openGiveaway(giveawayId, prefetched) {
+  // One click = one opening: repeated clicks while it loads used to start
+  // several overlapping openings, which is what made the screen glitch.
+  if (openingGiveaway) return;
+  openingGiveaway = true;
+  document.body.style.cursor = 'progress';
+  try {
+    await openGiveawayInner(giveawayId, prefetched);
+  } catch (e) {
+    console.error('openGiveaway failed:', e);
+    showToast(t('toast_load_participants_error'), 'error');
+  } finally {
+    openingGiveaway = false;
+    document.body.style.cursor = '';
+  }
+}
+
+async function openGiveawayInner(giveawayId, prefetched) {
   var giveaway = prefetched || currentGiveaways.find(function(g) { return g.id === giveawayId; });
   if (!giveaway) return;
   activeGiveaway = giveaway;
+  stopAllDrawAnimations();
 
-  var { data: participants, error } = await supabaseClient
-    .from('participants')
-    .select('*')
-    .eq('giveaway_id', giveawayId);
-
-  if (error) {
-    showToast(t('toast_load_participants_error'), 'error');
-    return;
+  function mapParticipants(rows) {
+    return (rows || []).map(function(p) {
+      return { id: p.id, name: p.name, raw: p.raw_text || p.name, mentions: p.mentions || 0 };
+    });
   }
-  activeParticipants = (participants || []).map(function(p) {
-    return { id: p.id, name: p.name, raw: p.raw_text || p.name, mentions: p.mentions || 0 };
-  });
+  // The dashboard already loaded every giveaway with its participants, so
+  // the draw screen opens instantly from that copy; the list is refreshed
+  // from the server in the background right after.
+  var haveCached = Array.isArray(giveaway.participants) && giveaway.participants.length > 0;
+  if (haveCached) {
+    activeParticipants = mapParticipants(giveaway.participants);
+  } else {
+    var fetched = await supabaseClient.from('participants').select('*').eq('giveaway_id', giveawayId);
+    if (fetched.error) {
+      showToast(t('toast_load_participants_error'), 'error');
+      return;
+    }
+    activeParticipants = mapParticipants(fetched.data);
+  }
+  if (haveCached) {
+    supabaseClient.from('participants').select('*').eq('giveaway_id', giveawayId).then(function(res) {
+      if (res.error || !activeGiveaway || activeGiveaway.id !== giveawayId) return;
+      var lobbyOpen = document.getElementById('drawLobby') && document.getElementById('drawLobby').style.display !== 'none';
+      if (!lobbyOpen || isSpinning) return;       // never change the list once the game has started
+      var fresh = mapParticipants(res.data);
+      if (fresh.length !== activeParticipants.length) { activeParticipants = fresh; renderDrawLobby(); }
+    }, function() { /* offline: keep the cached list */ });
+  }
 
   document.getElementById('drawGiveawayTitle').textContent = giveaway.title;
   drawMode = giveaway.draw_mode || 'wheel';
@@ -10136,10 +10175,12 @@ function cancelSchedule() {
 // ============================================================
 // MAIN DRAW DISPATCH
 // ============================================================
+var pendingNextRound = null;   // set while the organiser has to press "next winner"
 var sessionWinners = []; // winners drawn during this visit to the draw screen, most recent first
 
 function resetSessionWinners() {
   sessionWinners = [];
+  pendingNextRound = null;
   clearSchedule();
   document.getElementById('scheduleActive').style.display = 'none';
   document.getElementById('scheduleForm').style.display = 'none';
@@ -10196,6 +10237,12 @@ function proceedToGameStage() {
 // Step 2 — "Lancer le tirage": the actual random draw. Only reachable
 // after proceedToGameStage() above, once the game is already visible.
 function runDraw() {
+  if (pendingNextRound && !isSpinning) {
+    var go = pendingNextRound;
+    pendingNextRound = null;
+    go();
+    return;
+  }
   var pool = getDrawFilteredEntries();
   if (pool.length === 0 || isSpinning) return;
 
@@ -10246,25 +10293,42 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
     renderSessionWinners();
     launchConfetti();
 
-    await supabaseClient.from('draw_results').insert({
-      giveaway_id: activeGiveaway.id,
-      user_id: currentUser.id,
-      winner_name: winner.name,
-      pool_size: remainingPool.length,
-      draw_mode: drawMode
-    });
-
-    notifyWinnerByEmail(winner.name, activeGiveaway.title, drawMode, remainingPool.length);
-
     var nextPool = remainingPool.filter(function(_, i) { return i !== winnerIndex; });
     updateLiveStatsWinner(roundNumber);
+    var hasNext = roundNumber < totalWinnersWanted && nextPool.length > 0;
 
-    if (roundNumber < totalWinnersWanted && nextPool.length > 0) {
-      // Brief pause so the current winner is clearly readable before the
-      // next round starts automatically.
-      setTimeout(function() {
-        runDrawRound(nextPool, roundNumber + 1, totalWinnersWanted);
-      }, 1400);
+    // The next step must never depend on the network: saving the result is
+    // done in the background, and a failure there only shows a message —
+    // it can no longer freeze the draw halfway.
+    (async function saveResult() {
+      try {
+        var res = await supabaseClient.from('draw_results').insert({
+          giveaway_id: activeGiveaway.id,
+          user_id: currentUser.id,
+          winner_name: winner.name,
+          pool_size: remainingPool.length,
+          draw_mode: drawMode
+        });
+        if (res && res.error) showToast(t('toast_error_prefix', { msg: res.error.message }), 'error');
+        notifyWinnerByEmail(winner.name, activeGiveaway.title, drawMode, remainingPool.length);
+      } catch (e) {
+        console.error('save draw result failed:', e);
+      }
+    })();
+
+    if (hasNext) {
+      var nextRun = function() { runDrawRound(nextPool, roundNumber + 1, totalWinnersWanted); };
+      if (drawMode === 'plinko' || drawMode === 'instant') {
+        // quick modes (made for many winners in one go) chain by themselves
+        setTimeout(nextRun, drawMode === 'plinko' ? 900 : 1400);
+      } else {
+        // the other modes stop here: the organiser decides when the next
+        // winner is drawn, and the result stays on screen until then
+        isSpinning = false;
+        pendingNextRound = nextRun;
+        btn.querySelector('.btn-label').textContent = t('draw_next_winner', { n: roundNumber + 1, total: totalWinnersWanted });
+        btn.disabled = false;
+      }
     } else {
       stopLiveStatsTimer();
       isSpinning = false;
