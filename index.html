@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261011-232254" />
+<meta name="app-build" content="20261011233654" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -1406,31 +1406,52 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 .wheel-wrap { position: relative; width: 100%; max-width: 480px; margin-bottom: 8px; }
 .wheel-canvas { width: 100%; height: auto; display: block; filter: drop-shadow(0 8px 20px rgba(16,24,40,0.12)); }
 
-.instant-stage { width: 100%; max-width: 320px; min-height: 220px; display: flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 8px; }
+.instant-stage { width: 100%; max-width: 320px; margin-left: auto; margin-right: auto; min-height: 220px; display: flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 8px; }
 .instant-card { background: var(--card); color: var(--ink); border-radius: var(--radius-sm); padding: 30px 24px; box-shadow: var(--shadow-lg); text-align: center; border: 2px solid var(--line); transition: transform 0.15s; }
 .instant-card .instant-name { font-size: var(--fs-lg); font-weight: 800; letter-spacing: -0.01em; }
 .instant-card.shuffling { animation: shake 0.08s infinite; border-color: var(--accent); }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px) rotate(-1deg); } 75% { transform: translateX(3px) rotate(1deg); } }
 
-.slot-stage { width: 100%; background: linear-gradient(160deg, #2A1D52, #16181D); border-radius: 20px; padding: 22px 20px 28px; margin-bottom: 8px; position: relative; box-shadow: 0 10px 30px rgba(91,91,246,0.25), inset 0 0 0 2px #3A2D6E; }
-.slot-lights { display: flex; justify-content: space-between; padding: 0 4px 16px; }
-.slot-lights .bulb { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px 1px var(--gold); }
+.slot-stage { width: 100%; max-width: 640px; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; gap: 0; position: relative; }
+.slot-cabinet { flex: 1 1 auto; min-width: 0; background: linear-gradient(165deg, #3A2A78 0%, #241A4D 55%, #16122E 100%); border-radius: 22px; padding: 16px 16px 20px; box-shadow: 0 18px 40px rgba(91,91,246,0.28), inset 0 0 0 2px #4A3A92, inset 0 2px 0 rgba(255,255,255,0.14); }
+.slot-lights { display: flex; justify-content: space-between; padding: 0 6px 14px; }
+.slot-lights .bulb { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 7px 1px var(--gold); }
 .slot-lights .bulb.dim { opacity: 0.25; box-shadow: none; }
 .slot-lights.spinning .bulb { animation: bulbBlink 0.5s infinite; }
 .slot-lights.spinning .bulb.dim { animation-delay: 0.25s; }
-@keyframes bulbBlink { 0%, 100% { opacity: 1; box-shadow: 0 0 6px 1px var(--gold); } 50% { opacity: 0.2; box-shadow: none; } }
-.slot-reels { display: flex; gap: 12px; }
-.slot-window { flex: 1; background: #fff; border-radius: var(--radius-sm); height: 112px; overflow: hidden; position: relative; box-shadow: inset 0 0 0 3px var(--gold), 0 2px 6px rgba(0,0,0,0.3); }
-.slot-strip { position: absolute; width: 100%; left: 0; top: 0; }
-.slot-item { height: 112px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-base); font-weight: 800; padding: 0 6px; text-align: center; line-height: 1.2; color: #1E1E28; }
-.slot-shade-top, .slot-shade-bottom { position: absolute; left: 0; width: 100%; height: 22px; z-index: 2; pointer-events: none; }
-.slot-shade-top { top: 0; background: linear-gradient(180deg, #fff, rgba(255,255,255,0)); }
-.slot-shade-bottom { bottom: 0; background: linear-gradient(0deg, #fff, rgba(255,255,255,0)); }
+@keyframes bulbBlink { 0%, 100% { opacity: 1; box-shadow: 0 0 7px 1px var(--gold); } 50% { opacity: 0.2; box-shadow: none; } }
+.slot-board { background: #0E0B22; border-radius: 14px; padding: 10px; box-shadow: inset 0 3px 10px rgba(0,0,0,0.6); }
+.slot-reels { display: flex; gap: 8px; position: relative; }
+.slot-window { --slot-row: 60px; flex: 1 1 0; min-width: 0; background: #fff; border-radius: 10px; height: calc(var(--slot-row) * 3); overflow: hidden; position: relative; box-shadow: inset 0 0 0 2px #D8D4F0; }
+.slot-window::before, .slot-window::after { content: ''; position: absolute; left: 0; width: 100%; height: 34%; z-index: 2; pointer-events: none; }
+.slot-window::before { top: 0; background: linear-gradient(180deg, rgba(14,11,34,0.55), rgba(14,11,34,0)); }
+.slot-window::after { bottom: 0; background: linear-gradient(0deg, rgba(14,11,34,0.55), rgba(14,11,34,0)); }
+.slot-strip { position: absolute; width: 100%; left: 0; top: 0; will-change: top; }
+.slot-item { height: var(--slot-row); display: flex; align-items: center; justify-content: center; font-size: var(--fs-sm); font-weight: 800; padding: 0 8px; text-align: center; line-height: 1.15; color: #1E1E28; overflow: hidden; overflow-wrap: anywhere; }
+.slot-item.is-ghost { color: #8B87A8; font-weight: 700; }
+/* the line the winner stops on */
+.slot-payline { position: absolute; left: -4px; right: -4px; top: 50%; height: calc(60px); margin-top: -30px; border-top: 2px solid var(--gold); border-bottom: 2px solid var(--gold); pointer-events: none; z-index: 3; border-radius: 4px; box-shadow: 0 0 14px rgba(245,165,36,0.35); }
+.slot-payline::before, .slot-payline::after { content: ''; position: absolute; top: 50%; margin-top: -7px; border: 7px solid transparent; }
+.slot-payline::before { left: -10px; border-left-color: var(--gold); border-right: 0; }
+.slot-payline::after { right: -10px; border-right-color: var(--gold); border-left: 0; }
 .slot-window.flash { animation: slotFlash 0.4s ease-in-out 3; }
-@keyframes slotFlash { 0%, 100% { box-shadow: inset 0 0 0 3px var(--gold), 0 2px 6px rgba(0,0,0,0.3); } 50% { box-shadow: inset 0 0 0 4px #FFF066, 0 0 16px 4px rgba(245,165,36,0.7); } }
-.slot-lever { position: absolute; right: -14px; top: 36px; width: 12px; height: 100px; background: linear-gradient(90deg, #C7282B, #E8472A); border-radius: 6px; transform-origin: top center; transition: transform 0.15s ease-out; }
-.slot-lever::after { content: ''; position: absolute; bottom: -12px; left: -9px; width: 30px; height: 30px; background: radial-gradient(circle at 35% 35%, #FF6B5C, #C7282B); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
-.slot-lever.pulled { transform: rotate(28deg); }
+@keyframes slotFlash { 0%, 100% { box-shadow: inset 0 0 0 2px #D8D4F0; } 50% { box-shadow: inset 0 0 0 3px #FFF066, 0 0 18px 4px rgba(245,165,36,0.7); } }
+.slot-lever-wrap { flex: 0 0 34px; height: 120px; position: relative; align-self: center; }
+.slot-lever { position: absolute; left: 12px; top: 0; width: 10px; height: 88px; background: linear-gradient(90deg, #B9B6D6, #E9E7F7 50%, #A4A1C4); border-radius: 5px; transform-origin: 50% 100%; transition: transform 0.18s ease-out; }
+.slot-lever::after { content: ''; position: absolute; top: -14px; left: -9px; width: 28px; height: 28px; background: radial-gradient(circle at 35% 35%, #FF7A6B, #C7282B); border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
+.slot-lever { top: 20px; }
+.slot-lever.pulled { transform: scaleY(0.55); }
+@media (min-width: 900px) {
+  .slot-stage { max-width: 760px; }
+  .slot-cabinet { padding: 22px 24px 26px; }
+  .slot-window { --slot-row: 76px; }
+  .slot-payline { height: 76px; margin-top: -38px; }
+  .slot-item { font-size: var(--fs-base); }
+  .slot-board { padding: 14px; }
+  .slot-reels { gap: 12px; }
+  .slot-lever-wrap { flex-basis: 44px; height: 150px; }
+  .slot-lever { height: 110px; left: 17px; top: 24px; }
+}
 
 /* ============================================================
    WINNER TICKET (premium reveal)
@@ -2192,14 +2213,14 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .lp-compare-table .is-featured { color: #6355E0; }
 .lp-compare-table .cmp-yes { width: 18px; height: 18px; color: var(--green); display: inline-block; vertical-align: middle; }
 
-/* ---- Games that leave empty room beside them (wheel, slot, instant, Plinko):
-        the stats sit in that room, as a side panel, on wide screens ---- */
+/* ---- Games that leave empty room beside them (wheel, slot, Plinko):
+        the stats sit in that room, as a side panel, on wide screens.
+        Only applies while the stage is actually shown (never overrides display:none). ---- */
 .draw-stage.has-side-stats > .draw-live-stats { margin: 14px 0 0; }
 @media (min-width: 900px) {
-  .draw-stage.has-side-stats { display: flex !important; flex-direction: row !important; align-items: center; justify-content: center; gap: 32px; }
+  .draw-stage.has-side-stats:not([style*="display: none"]):not([style*="display:none"]) { display: flex !important; flex-direction: row !important; align-items: center; justify-content: center; gap: 32px; }
   .draw-stage.has-side-stats > .wheel-wrap { flex: 0 1 auto; width: 100%; max-width: min(56vw, 72vh, 520px); margin-bottom: 0; }
-  .draw-stage.has-side-stats > .instant-stage { flex: 0 1 320px; margin-bottom: 0; }
-  .draw-stage.has-side-stats > .slot-stage { flex: 1 1 auto; max-width: 620px; margin-bottom: 0; }
+  .draw-stage.has-side-stats > .slot-stage { flex: 1 1 auto; max-width: 620px; margin: 0; }
   .draw-stage.has-side-stats > canvas { flex: 0 0 auto; max-width: 100%; }
   .draw-stage.has-side-stats > .draw-live-stats { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 0; width: 200px; flex: 0 0 200px; margin: 0; padding: 6px 18px; }
   .draw-stage.has-side-stats > .draw-live-stats .stat { align-items: flex-start; padding: 14px 0; }
@@ -3903,16 +3924,22 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         <!-- SLOT MACHINE MODE -->
         <div id="drawStageSlot" class="draw-stage" style="display:none;">
           <div class="slot-stage" id="slotMachine">
-            <div class="slot-lights" id="slotLights">
-              <span class="bulb"></span><span class="bulb dim"></span><span class="bulb"></span><span class="bulb dim"></span>
-              <span class="bulb"></span><span class="bulb dim"></span><span class="bulb"></span><span class="bulb dim"></span>
+            <div class="slot-cabinet">
+              <div class="slot-lights" id="slotLights">
+                <span class="bulb"></span><span class="bulb dim"></span><span class="bulb"></span><span class="bulb dim"></span>
+                <span class="bulb"></span><span class="bulb dim"></span><span class="bulb"></span><span class="bulb dim"></span>
+                <span class="bulb"></span><span class="bulb dim"></span><span class="bulb"></span><span class="bulb dim"></span>
+              </div>
+              <div class="slot-board">
+                <div class="slot-reels">
+                  <div class="slot-window"><div class="slot-strip" id="slotStrip0"></div></div>
+                  <div class="slot-window"><div class="slot-strip" id="slotStrip1"></div></div>
+                  <div class="slot-window"><div class="slot-strip" id="slotStrip2"></div></div>
+                  <div class="slot-payline" aria-hidden="true"></div>
+                </div>
+              </div>
             </div>
-            <div class="slot-reels">
-              <div class="slot-window"><div class="slot-shade-top"></div><div class="slot-strip" id="slotStrip0"></div><div class="slot-shade-bottom"></div></div>
-              <div class="slot-window"><div class="slot-shade-top"></div><div class="slot-strip" id="slotStrip1"></div><div class="slot-shade-bottom"></div></div>
-              <div class="slot-window"><div class="slot-shade-top"></div><div class="slot-strip" id="slotStrip2"></div><div class="slot-shade-bottom"></div></div>
-            </div>
-            <div class="slot-lever" id="slotLever"></div>
+            <div class="slot-lever-wrap" aria-hidden="true"><div class="slot-lever" id="slotLever"></div></div>
           </div>
         </div>
 
@@ -9062,9 +9089,17 @@ async function openGiveawayInner(giveawayId, prefetched) {
   spinBtn.style.background = currentDrawAccentColor;
   spinBtn.style.boxShadow = '0 4px 16px ' + currentDrawAccentColor + '52';
 
+  // Back to a clean lobby: no stage left over from a previous game, and the
+  // live stats bar back in its home spot (it may have moved beside a game).
   ['Wheel', 'Instant', 'Slot', 'Duck', 'Plinko', 'Marble'].forEach(function(m) {
-    document.getElementById('drawStage' + m).style.display = m.toLowerCase() === drawMode ? 'block' : 'none';
+    var st = document.getElementById('drawStage' + m);
+    st.classList.remove('has-side-stats');
+    st.style.display = 'none';
   });
+  (function() {
+    var bar = document.getElementById('drawLiveStats'), home = document.getElementById('drawContinueBtn');
+    if (bar) { bar.style.display = 'none'; if (home && home.parentNode && bar.parentNode !== home.parentNode) home.parentNode.insertBefore(bar, home); }
+  })();
 
   var modeIconEl = document.getElementById('drawModeIcon');
   var modeNameEl = document.getElementById('drawModeName');
@@ -9340,7 +9375,7 @@ function revealLiveStatsBar(poolSize) {
 // (wheel, slot machine, instant, Plinko), below it when the game already
 // uses the full width (duck race, marble race).
 function placeLiveStats(barEl) {
-  var sideModes = { wheel: 'drawStageWheel', slot: 'drawStageSlot', instant: 'drawStageInstant', plinko: 'drawStagePlinko' };
+  var sideModes = { wheel: 'drawStageWheel', slot: 'drawStageSlot', plinko: 'drawStagePlinko' };
   ['Wheel', 'Slot', 'Instant', 'Plinko'].forEach(function(m) {
     var st = document.getElementById('drawStage' + m);
     if (st) st.classList.remove('has-side-stats');
@@ -10113,8 +10148,21 @@ function spinInstantMode(pool, winnerIndex, durationSeconds, onDone) {
 // ============================================================
 // SLOT MACHINE MODE — 3 independent reels, staggered stops
 // ============================================================
-var SLOT_ITEM_HEIGHT = 112;
 var SLOT_REEL_IDS = ['slotStrip0', 'slotStrip1', 'slotStrip2'];
+
+// Each window shows 3 rows; the middle row sits on the gold line and is where
+// the winner stops. Row height comes from the CSS (it differs phone / PC).
+function slotRowHeight(strip) {
+  var w = strip && strip.parentElement;
+  return w ? Math.max(20, w.clientHeight / 3) : 60;
+}
+
+function slotItemEl(name, ghost) {
+  var item = document.createElement('div');
+  item.className = 'slot-item' + (ghost ? ' is-ghost' : '');
+  item.textContent = '@' + name;
+  return item;
+}
 
 function setupSlotStage(list) {
   var segments = (list && list.length > 0) ? list : [{ name: '—' }];
@@ -10124,10 +10172,9 @@ function setupSlotStage(list) {
     strip.style.transition = 'none';
     strip.style.top = '0px';
     strip.innerHTML = '';
-    var item = document.createElement('div');
-    item.className = 'slot-item';
-    item.textContent = '@' + segments[Math.floor(Math.random() * segments.length)].name;
-    strip.appendChild(item);
+    for (var i = 0; i < 3; i++) {
+      strip.appendChild(slotItemEl(segments[Math.floor(Math.random() * segments.length)].name, i !== 1));
+    }
   });
   setLightsSpinning(false);
 }
@@ -10138,19 +10185,18 @@ function setLightsSpinning(active) {
   lights.classList.toggle('spinning', active);
 }
 
+// Strip layout: [start rows ...random... WINNER, one more row below]. The
+// reel stops with WINNER on the middle row.
 function buildReelItems(strip, pool, winnerEntry, loops) {
   strip.style.transition = 'none';
   strip.style.top = '0px';
   strip.innerHTML = '';
-  var totalItems = loops + 1;
-  for (var i = 0; i < totalItems; i++) {
-    var entry = (i === totalItems - 1) ? winnerEntry : pool[Math.floor(Math.random() * pool.length)];
-    var item = document.createElement('div');
-    item.className = 'slot-item';
-    item.textContent = '@' + entry.name;
-    strip.appendChild(item);
+  var winnerIdx = loops + 1;
+  for (var i = 0; i <= winnerIdx + 1; i++) {
+    var entry = (i === winnerIdx) ? winnerEntry : pool[Math.floor(Math.random() * pool.length)];
+    strip.appendChild(slotItemEl(entry.name, i !== winnerIdx));
   }
-  return totalItems;
+  return winnerIdx;
 }
 
 function spinSlotMode(pool, winnerIndex, durationSeconds, onDone) {
@@ -10161,28 +10207,31 @@ function spinSlotMode(pool, winnerIndex, durationSeconds, onDone) {
 
   if (lever) {
     lever.classList.add('pulled');
-    setTimeout(function() { lever.classList.remove('pulled'); }, 300);
+    setTimeout(function() { lever.classList.remove('pulled'); }, 350);
   }
 
-  // Reels stop one after another for suspense — ratios preserved from the
-  // original fixed timings (2.2s / 2.75s / 3.3s out of a 3.3s baseline).
+  // Reels stop one after another for suspense (about 2/3, 5/6 and all of the
+  // chosen duration).
   var totalMs = (durationSeconds || 3.3) * 1000;
   var reelDurations = [totalMs * 0.667, totalMs * 0.833, totalMs];
 
   SLOT_REEL_IDS.forEach(function(stripId, reelIdx) {
     var strip = document.getElementById(stripId);
     var windowEl = strip.parentElement;
+    var row = slotRowHeight(strip);
     var loops = 10 + reelIdx * 3;
-    var totalItems = buildReelItems(strip, pool, winnerEntry, loops);
+    var winnerIdx = buildReelItems(strip, pool, winnerEntry, loops);
     var duration = reelDurations[reelIdx];
 
     requestAnimationFrame(function() {
       strip.style.transition = 'top ' + (duration / 1000) + 's cubic-bezier(0.15, 0.8, 0.25, 1)';
-      strip.style.top = (-(totalItems - 1) * SLOT_ITEM_HEIGHT) + 'px';
+      strip.style.top = (-(winnerIdx - 1) * row) + 'px';   // winner lands on the middle row
     });
 
     setTimeout(function() {
       windowEl.classList.add('flash');
+      var items = strip.children;
+      if (items[winnerIdx]) items[winnerIdx].classList.remove('is-ghost');
       setTimeout(function() { windowEl.classList.remove('flash'); }, 1300);
       reelsDone++;
       if (reelsDone === SLOT_REEL_IDS.length) {
