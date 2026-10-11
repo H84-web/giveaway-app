@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261011234248" />
+<meta name="app-build" content="20261011235718" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -1412,34 +1412,9 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 .instant-card.shuffling { animation: shake 0.08s infinite; border-color: var(--accent); }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px) rotate(-1deg); } 75% { transform: translateX(3px) rotate(1deg); } }
 
-.slot-stage { width: 100%; max-width: 620px; margin: 0 auto 8px; }
-.slot-cabinet { background: linear-gradient(180deg, #1B1740, #110E29); border-radius: 18px; padding: 14px 14px 16px; border: 1px solid #2E2763; box-shadow: 0 18px 44px rgba(40,30,110,0.35), inset 0 1px 0 rgba(255,255,255,0.08); }
-.slot-lights { display: flex; justify-content: center; gap: 10px; padding: 2px 0 12px; }
-.slot-lights .bulb { width: 18px; height: 3px; border-radius: 2px; background: #3B3480; transition: background 0.2s, box-shadow 0.2s; }
-.slot-lights.spinning .bulb { background: #8B7CFF; box-shadow: 0 0 8px rgba(139,124,255,0.8); animation: bulbBlink 0.9s infinite; }
-.slot-lights.spinning .bulb:nth-child(odd) { animation-delay: 0.45s; }
-@keyframes bulbBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
-.slot-reels { --slot-row-h: 56px; display: flex; gap: 6px; position: relative; background: #0A0820; border-radius: 12px; padding: 6px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.6); }
-.slot-window { --slot-row: 56px; flex: 1 1 0; min-width: 0; background: linear-gradient(180deg, #17133A, #1F1A4D 50%, #17133A); border-radius: 8px; height: calc(var(--slot-row) * 3); overflow: hidden; position: relative; }
-.slot-window::before, .slot-window::after { content: ''; position: absolute; left: 0; width: 100%; height: 36%; z-index: 2; pointer-events: none; }
-.slot-window::before { top: 0; background: linear-gradient(180deg, rgba(10,8,32,0.92), rgba(10,8,32,0)); }
-.slot-window::after { bottom: 0; background: linear-gradient(0deg, rgba(10,8,32,0.92), rgba(10,8,32,0)); }
-.slot-strip { position: absolute; width: 100%; left: 0; top: 0; will-change: top; }
-.slot-strip.moving { filter: blur(1.6px); }
-.slot-item { height: var(--slot-row); display: flex; align-items: center; justify-content: center; font-size: var(--fs-sm); font-weight: 700; padding: 0 8px; text-align: center; line-height: 1.15; color: #fff; overflow: hidden; overflow-wrap: anywhere; letter-spacing: -0.005em; }
-.slot-item.is-ghost { color: rgba(255,255,255,0.45); }
-.slot-item.is-win { color: #fff; font-weight: 800; }
-/* the line the winner stops on */
-.slot-payline { position: absolute; left: 6px; right: 6px; top: 50%; height: var(--slot-row-h, 56px); margin-top: calc(var(--slot-row-h, 56px) / -2); border-top: 1px solid rgba(167,155,255,0.9); border-bottom: 1px solid rgba(167,155,255,0.9); background: rgba(139,124,255,0.10); pointer-events: none; z-index: 3; border-radius: 4px; }
-.slot-window.flash { animation: slotFlash 0.5s ease-in-out 3; }
-@keyframes slotFlash { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(167,155,255,0.3); } 50% { box-shadow: inset 0 0 0 2px #A79BFF, 0 0 18px rgba(139,124,255,0.55); } }
-@media (min-width: 900px) {
-  .slot-stage { max-width: 720px; }
-  .slot-cabinet { padding: 20px 22px 24px; border-radius: 22px; }
-  .slot-reels { gap: 8px; padding: 8px; --slot-row-h: 72px; }
-  .slot-window { --slot-row: 72px; }
-  .slot-item { font-size: var(--fs-base); }
-}
+.slot-stage { width: 100%; max-width: 900px; margin: 0 auto 8px; }
+.slot-canvas { display: block; width: 100%; height: auto; border-radius: 22px; box-shadow: 0 22px 50px rgba(30,22,90,0.38); background: #0C0A1F; }
+@media (min-width: 900px) { .draw-stage.has-side-stats > .slot-stage { flex: 1 1 auto; max-width: 760px; margin: 0; } }
 
 /* ============================================================
    WINNER TICKET (premium reveal)
@@ -2208,7 +2183,6 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 @media (min-width: 900px) {
   .draw-stage.has-side-stats:not([style*="display: none"]):not([style*="display:none"]) { display: flex !important; flex-direction: row !important; align-items: center; justify-content: center; gap: 32px; }
   .draw-stage.has-side-stats > .wheel-wrap { flex: 0 1 auto; width: 100%; max-width: min(56vw, 72vh, 520px); margin-bottom: 0; }
-  .draw-stage.has-side-stats > .slot-stage { flex: 1 1 auto; max-width: 620px; margin: 0; }
   .draw-stage.has-side-stats > canvas { flex: 0 0 auto; max-width: 100%; }
   .draw-stage.has-side-stats > .draw-live-stats { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 0; width: 200px; flex: 0 0 200px; margin: 0; padding: 6px 18px; }
   .draw-stage.has-side-stats > .draw-live-stats .stat { align-items: flex-start; padding: 14px 0; }
@@ -3915,17 +3889,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         <!-- SLOT MACHINE MODE -->
         <div id="drawStageSlot" class="draw-stage" style="display:none;">
           <div class="slot-stage" id="slotMachine">
-            <div class="slot-cabinet">
-              <div class="slot-lights" id="slotLights">
-                <span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span>
-              </div>
-              <div class="slot-reels">
-                <div class="slot-window"><div class="slot-strip" id="slotStrip0"></div></div>
-                <div class="slot-window"><div class="slot-strip" id="slotStrip1"></div></div>
-                <div class="slot-window"><div class="slot-strip" id="slotStrip2"></div></div>
-                <div class="slot-payline" aria-hidden="true"></div>
-              </div>
-            </div>
+            <canvas id="slotCanvas" class="slot-canvas" aria-label="Machine à sous"></canvas>
           </div>
         </div>
 
@@ -4408,6 +4372,7 @@ function stopAllDrawAnimations() {
   if (duckAnimId) { cancelAnimationFrame(duckAnimId); duckAnimId = null; }
   if (marbleAnimId) { cancelAnimationFrame(marbleAnimId); marbleAnimId = null; }
   if (plinkoAnimId) { cancelAnimationFrame(plinkoAnimId); plinkoAnimId = null; }
+  if (typeof slotM !== 'undefined') { if (slotM.raf) { cancelAnimationFrame(slotM.raf); slotM.raf = null; } slotM.spinning = false; }
   if (drawButtonCountdownId) { clearInterval(drawButtonCountdownId); drawButtonCountdownId = null; }
   // silence anything still playing
   try { if (duckQuackAudioEl) { duckQuackAudioEl.pause(); duckQuackAudioEl.currentTime = 0; } } catch (e) { /* ignore */ }
@@ -10135,100 +10100,310 @@ function spinInstantMode(pool, winnerIndex, durationSeconds, onDone) {
 // ============================================================
 // SLOT MACHINE MODE — 3 independent reels, staggered stops
 // ============================================================
-var SLOT_REEL_IDS = ['slotStrip0', 'slotStrip1', 'slotStrip2'];
+// Canvas-drawn machine: a cabinet in a lit room, three real drums (each name
+// sits on a facet of a rotating cylinder, so rows compress and darken toward
+// the top and bottom exactly like a physical reel), chasing marquee lights,
+// a lever, and a gold line the winner stops on. Everything is time-based, so
+// any chosen duration plays smoothly and the winner lands exactly on the line.
+var slotM = { cv: null, ctx: null, reels: [], pool: [], raf: null, spinning: false, lever: 0, leverT0: 0, glow: 0, glowT0: 0, sparks: [], cssW: 0, dpr: 1, lights: 0 };
+var SLOT_LW = 1000;
+var SLOT_STEP = 0.6; // radians per facet
 
-// Each window shows 3 rows; the middle row sits on the gold line and is where
-// the winner stops. Row height comes from the CSS (it differs phone / PC).
-function slotRowHeight(strip) {
-  var w = strip && strip.parentElement;
-  return w ? Math.max(20, w.clientHeight / 3) : 60;
-}
-
-function slotItemEl(name, ghost) {
-  var item = document.createElement('div');
-  item.className = 'slot-item' + (ghost ? ' is-ghost' : '');
-  item.textContent = '@' + name;
-  return item;
+function slotRandName() {
+  var p = slotM.pool;
+  return p.length ? p[Math.floor(Math.random() * p.length)].name : '—';
 }
 
 function setupSlotStage(list) {
-  var segments = (list && list.length > 0) ? list : [{ name: '—' }];
-  SLOT_REEL_IDS.forEach(function(stripId) {
-    var strip = document.getElementById(stripId);
-    if (!strip) return;
-    strip.style.transition = 'none';
-    strip.style.top = '0px';
-    strip.innerHTML = '';
-    for (var i = 0; i < 3; i++) {
-      strip.appendChild(slotItemEl(segments[Math.floor(Math.random() * segments.length)].name, i !== 1));
+  slotM.cv = document.getElementById('slotCanvas');
+  if (!slotM.cv) return;
+  slotM.ctx = slotM.cv.getContext('2d');
+  slotM.pool = (list && list.length) ? list : [{ name: '—' }];
+  slotM.spinning = false; slotM.lever = 0; slotM.glow = 0; slotM.sparks = [];
+  slotM.reels = [0, 1, 2].map(function() {
+    var names = [];
+    for (var i = 0; i < 6; i++) names.push(slotRandName());
+    return { names: names, p: 1, from: 1, to: 1, t0: 0, dur: 0, done: true, won: false };
+  });
+  slotM.cssW = 0;
+  slotStartLoop();
+}
+
+function setLightsSpinning(active) { slotM.spinning = !!active; }
+
+function slotStartLoop() {
+  if (slotM.raf) return;
+  var step = function(now) {
+    var cv = slotM.cv;
+    if (!cv || !cv.isConnected || cv.offsetParent === null) { slotM.raf = null; return; } // hidden: stop; setup restarts it
+    slotDraw(now);
+    slotM.raf = requestAnimationFrame(step);
+  };
+  slotM.raf = requestAnimationFrame(step);
+}
+
+function slotEnsureSize() {
+  var cv = slotM.cv, w = cv.clientWidth || 600;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (Math.abs(w - slotM.cssW) < 1 && dpr === slotM.dpr) return;
+  slotM.cssW = w; slotM.dpr = dpr;
+  var narrow = w < 560;
+  slotM.LH = narrow ? 1040 : 640;
+  cv.width = Math.round(w * dpr);
+  cv.height = Math.round(w * (slotM.LH / SLOT_LW) * dpr);
+  cv.style.aspectRatio = SLOT_LW + ' / ' + slotM.LH;
+}
+
+function slotRR(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+function slotFitText(ctx, text, maxW, size) {
+  var s = size;
+  ctx.font = '700 ' + s + 'px Inter, system-ui, sans-serif';
+  while (ctx.measureText(text).width > maxW && s > 20) { s -= 2; ctx.font = '700 ' + s + 'px Inter, system-ui, sans-serif'; }
+  if (ctx.measureText(text).width > maxW) {
+    while (text.length > 2 && ctx.measureText(text + '…').width > maxW) text = text.slice(0, -1);
+    text += '…';
+  }
+  return text;
+}
+
+function slotDraw(now) {
+  slotEnsureSize();
+  var cv = slotM.cv, ctx = slotM.ctx, LW = SLOT_LW, LH = slotM.LH;
+  var narrow = slotM.cssW < 560;
+  var k = cv.width / LW;
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  ctx.clearRect(0, 0, LW, LH);
+
+  // advance reels
+  var allDone = true;
+  slotM.reels.forEach(function(r) {
+    if (!r.done) {
+      var t = Math.min(1, (now - r.t0) / r.dur);
+      var e = 1 - Math.pow(1 - t, 2.6);
+      r.p = r.from + (r.to - r.from) * e;
+      if (t >= 1) { r.p = r.to; r.done = true; r.won = true; if (r.onStop) { var f = r.onStop; r.onStop = null; f(); } }
+      else allDone = false;
     }
   });
-  setLightsSpinning(false);
-}
 
-function setLightsSpinning(active) {
-  var lights = document.getElementById('slotLights');
-  if (!lights) return;
-  lights.classList.toggle('spinning', active);
-}
+  // ---- room ----
+  var bg = ctx.createLinearGradient(0, 0, 0, LH);
+  bg.addColorStop(0, '#120E33'); bg.addColorStop(0.6, '#0B0924'); bg.addColorStop(1, '#07061A');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, LW, LH);
+  // spotlight cone from the ceiling
+  var cone = ctx.createRadialGradient(LW / 2, -40, 20, LW / 2, LH * 0.45, LW * 0.62);
+  cone.addColorStop(0, 'rgba(139,124,255,0.30)'); cone.addColorStop(1, 'rgba(139,124,255,0)');
+  ctx.fillStyle = cone; ctx.fillRect(0, 0, LW, LH);
+  // side pillars with light strips
+  [0, 1].forEach(function(s) {
+    var px = s ? LW - 62 : 0;
+    var pg = ctx.createLinearGradient(px, 0, px + 62, 0);
+    pg.addColorStop(s ? 1 : 0, '#0A0822'); pg.addColorStop(s ? 0 : 1, '#1D1650');
+    ctx.fillStyle = pg; ctx.fillRect(px, 0, 62, LH);
+    var lx = s ? LW - 30 : 28;
+    var n = 9;
+    for (var i = 0; i < n; i++) {
+      var on = (Math.floor(now / (slotM.spinning ? 90 : 420)) + i) % 3 === 0;
+      ctx.fillStyle = on ? '#A79BFF' : 'rgba(120,105,230,0.22)';
+      slotRR(ctx, lx, 34 + i * ((LH - 90) / n), 3, 26, 1.5); ctx.fill();
+    }
+  });
+  // floor + soft reflection glow
+  var fy = LH - 54;
+  var fl = ctx.createLinearGradient(0, fy, 0, LH);
+  fl.addColorStop(0, '#1A1448'); fl.addColorStop(1, '#0A0822');
+  ctx.fillStyle = fl; ctx.fillRect(0, fy, LW, LH - fy);
+  var rg = ctx.createRadialGradient(LW / 2, fy, 10, LW / 2, fy, LW * 0.42);
+  rg.addColorStop(0, 'rgba(139,124,255,0.35)'); rg.addColorStop(1, 'rgba(139,124,255,0)');
+  ctx.save(); ctx.translate(0, 0); ctx.scale(1, 0.25); ctx.translate(0, fy * 3); ctx.fillStyle = rg;
+  ctx.beginPath(); ctx.arc(LW / 2, fy, LW * 0.42, 0, 7); ctx.fill(); ctx.restore();
 
-// Strip layout: [start rows ...random... WINNER, one more row below]. The
-// reel stops with WINNER on the middle row.
-function buildReelItems(strip, pool, winnerEntry, loops) {
-  strip.style.transition = 'none';
-  strip.style.top = '0px';
-  strip.innerHTML = '';
-  var winnerIdx = loops + 1;
-  for (var i = 0; i <= winnerIdx + 1; i++) {
-    var entry = (i === winnerIdx) ? winnerEntry : pool[Math.floor(Math.random() * pool.length)];
-    strip.appendChild(slotItemEl(entry.name, i !== winnerIdx));
+  // ---- cabinet ----
+  var cx0 = 96, cx1 = LW - 96, cy0 = 34, cy1 = fy + 6;
+  var cw = cx1 - cx0, ch = cy1 - cy0;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 14;
+  var cg = ctx.createLinearGradient(0, cy0, 0, cy1);
+  cg.addColorStop(0, '#5446C4'); cg.addColorStop(0.18, '#3A2F96'); cg.addColorStop(1, '#1C1650');
+  ctx.fillStyle = cg; slotRR(ctx, cx0, cy0, cw, ch, 34); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 2; slotRR(ctx, cx0 + 1, cy0 + 1, cw - 2, ch - 2, 33); ctx.stroke();
+
+  // marquee bulbs around the frame
+  var inset = 15, bx = cx0 + inset, by = cy0 + inset, bw = cw - inset * 2, bh = ch - inset * 2;
+  var per = 2 * (bw + bh), nb = 38;
+  var speed = slotM.spinning ? 0.012 : 0.0018;
+  slotM.lights += speed * 16.7;
+  for (var i = 0; i < nb; i++) {
+    var d = (i / nb) * per, x, y;
+    if (d < bw) { x = bx + d; y = by; }
+    else if (d < bw + bh) { x = bx + bw; y = by + (d - bw); }
+    else if (d < 2 * bw + bh) { x = bx + bw - (d - bw - bh); y = by + bh; }
+    else { x = bx; y = by + bh - (d - 2 * bw - bh); }
+    var ph = ((i / nb) * 6 - slotM.lights * 6) % 3; if (ph < 0) ph += 3;
+    var lit = slotM.spinning ? ph < 1.2 : (Math.sin(now / 700 + i) > 0.1);
+    if (slotM.glow > 0 && !slotM.spinning) lit = true;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, 7);
+    ctx.fillStyle = lit ? '#FFD479' : '#5C4F9E';
+    if (lit) { ctx.shadowColor = 'rgba(255,196,80,0.9)'; ctx.shadowBlur = 12; }
+    ctx.fill(); ctx.shadowBlur = 0;
   }
-  return winnerIdx;
+
+  // title plate (the giveaway's own title)
+  var pw = 380, ph2 = 44, px2 = LW / 2 - pw / 2, py2 = cy0 + 34;
+  var plg = ctx.createLinearGradient(0, py2, 0, py2 + ph2);
+  plg.addColorStop(0, '#0F0B30'); plg.addColorStop(1, '#1B1548');
+  ctx.fillStyle = plg; slotRR(ctx, px2, py2, pw, ph2, 12); ctx.fill();
+  ctx.strokeStyle = 'rgba(167,155,255,0.55)'; ctx.lineWidth = 1.5; slotRR(ctx, px2, py2, pw, ph2, 12); ctx.stroke();
+  var ttl = (activeGiveaway && activeGiveaway.title) ? String(activeGiveaway.title).toUpperCase() : '';
+  if (ttl) {
+    ctx.fillStyle = '#E6E2FF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '700 20px Inter, system-ui, sans-serif';
+    var tt = ttl; while (ctx.measureText(tt).width > pw - 40 && tt.length > 3) tt = tt.slice(0, -1);
+    if (tt !== ttl) tt += '…';
+    ctx.fillText(tt, LW / 2, py2 + ph2 / 2 + 1);
+  }
+
+  // ---- reel window ----
+  var wx = cx0 + 48, wy = py2 + ph2 + 24, ww = cw - 96, wh = (cy1 - 40) - wy - 6;
+  if (narrow) { wx = cx0 + 34; ww = cw - 68; }
+  var rowH = wh / 3;
+  ctx.fillStyle = '#05041A'; slotRR(ctx, wx - 10, wy - 10, ww + 20, wh + 20, 18); ctx.fill();
+  ctx.strokeStyle = 'rgba(167,155,255,0.35)'; ctx.lineWidth = 2; slotRR(ctx, wx - 10, wy - 10, ww + 20, wh + 20, 18); ctx.stroke();
+  var gap = 12, rw = (ww - gap * 2) / 3;
+  var ccy = wy + wh / 2;
+  var R = (wh / 2) / Math.sin(1.5 * SLOT_STEP);
+  var delta = SLOT_STEP / 2;
+  var fsz = narrow ? 60 : 40;
+
+  slotM.reels.forEach(function(r, ri) {
+    var rx = wx + ri * (rw + gap);
+    ctx.save();
+    slotRR(ctx, rx, wy, rw, wh, 10); ctx.clip();
+    ctx.fillStyle = '#0A0826'; ctx.fillRect(rx, wy, rw, wh);
+    var base = Math.floor(r.p);
+    for (var i = base - 3; i <= base + 4; i++) {
+      var dd = i - r.p, a = dd * SLOT_STEP;
+      if (Math.abs(a) > 1.5 * SLOT_STEP + delta + 0.01) continue;
+      var y1 = ccy + R * Math.sin(a - delta), y2 = ccy + R * Math.sin(a + delta);
+      var cs = Math.cos(a), nm = r.names[i];
+      if (nm === undefined) { nm = slotRandName(); if (i >= 0 && i < r.names.length + 40) r.names[i] = nm; }
+      var isWin = r.won && Math.abs(i - r.p) < 0.01;
+      // facet face, lit by its angle
+      var lt = Math.max(0, cs);
+      var fg = ctx.createLinearGradient(0, y1, 0, y2);
+      if (isWin) { fg.addColorStop(0, '#7C6BFF'); fg.addColorStop(1, '#5B4BE6'); }
+      else {
+        var c1 = Math.round(236 - (1 - lt) * 150), c2 = Math.round(232 - (1 - lt) * 150), c3 = Math.round(255 - (1 - lt) * 110);
+        fg.addColorStop(0, 'rgb(' + c1 + ',' + c2 + ',' + c3 + ')');
+        fg.addColorStop(1, 'rgb(' + Math.round(c1 * 0.94) + ',' + Math.round(c2 * 0.94) + ',' + Math.round(c3 * 0.95) + ')');
+      }
+      ctx.fillStyle = fg; ctx.fillRect(rx, y1 + 0.5, rw, Math.max(0, y2 - y1 - 1));
+      // text, squashed by the curvature
+      ctx.save();
+      ctx.translate(rx + rw / 2, (y1 + y2) / 2); ctx.scale(1, Math.max(0.2, cs));
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var label = slotFitText(ctx, '@' + nm, rw - 26, fsz);
+      ctx.fillStyle = isWin ? '#FFFFFF' : 'rgba(26,20,70,' + (0.45 + 0.55 * lt * lt) + ')';
+      ctx.fillText(label, 0, 1);
+      ctx.restore();
+    }
+    // cylinder shading on top and bottom
+    var sh = ctx.createLinearGradient(0, wy, 0, wy + wh);
+    sh.addColorStop(0, 'rgba(5,4,26,0.78)'); sh.addColorStop(0.28, 'rgba(5,4,26,0)');
+    sh.addColorStop(0.72, 'rgba(5,4,26,0)'); sh.addColorStop(1, 'rgba(5,4,26,0.78)');
+    ctx.fillStyle = sh; ctx.fillRect(rx, wy, rw, wh);
+    // glass gloss
+    var gl = ctx.createLinearGradient(rx, 0, rx + rw, 0);
+    gl.addColorStop(0, 'rgba(255,255,255,0.10)'); gl.addColorStop(0.3, 'rgba(255,255,255,0)'); gl.addColorStop(1, 'rgba(255,255,255,0.05)');
+    ctx.fillStyle = gl; ctx.fillRect(rx, wy, rw, wh);
+    ctx.restore();
+    if (r.won && slotM.glow > 0) {
+      var ga = Math.max(0, 1 - (now - slotM.glowT0) / 1800);
+      ctx.save(); ctx.shadowColor = 'rgba(167,155,255,' + ga + ')'; ctx.shadowBlur = 26 * ga;
+      ctx.strokeStyle = 'rgba(190,180,255,' + (0.35 + 0.65 * ga) + ')'; ctx.lineWidth = 3;
+      slotRR(ctx, rx, wy, rw, wh, 10); ctx.stroke(); ctx.restore();
+    }
+  });
+  // payline band + arrows
+  var ly = ccy - rowH / 2;
+  ctx.fillStyle = 'rgba(255,196,80,0.10)'; ctx.fillRect(wx, ly, ww, rowH);
+  ctx.strokeStyle = '#FFC450'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(wx - 4, ly); ctx.lineTo(wx + ww + 4, ly); ctx.moveTo(wx - 4, ly + rowH); ctx.lineTo(wx + ww + 4, ly + rowH); ctx.stroke();
+  ctx.fillStyle = '#FFC450';
+  ctx.beginPath(); ctx.moveTo(wx - 34, ccy - 14); ctx.lineTo(wx - 12, ccy); ctx.lineTo(wx - 34, ccy + 14); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(wx + ww + 34, ccy - 14); ctx.lineTo(wx + ww + 12, ccy); ctx.lineTo(wx + ww + 34, ccy + 14); ctx.closePath(); ctx.fill();
+
+  // tray under the window
+  var ty = wy + wh + 22;
+  var tg = ctx.createLinearGradient(0, ty, 0, ty + 18);
+  tg.addColorStop(0, '#0B0828'); tg.addColorStop(1, '#17114A');
+  ctx.fillStyle = tg; slotRR(ctx, wx + ww * 0.18, ty, ww * 0.64, 14, 7); ctx.fill();
+
+  // lever (right side)
+  var lvx = cx1 + 4, lvy = cy0 + ch * 0.46;
+  var lv = slotM.lever;
+  if (lv > 0 || true) {
+    var pullT = slotM.leverT0 ? Math.min(1, (now - slotM.leverT0) / 700) : 1;
+    lv = slotM.leverT0 ? Math.sin(Math.PI * pullT) : 0;
+    var ang = lv * 1.0; // rad: swings down
+    var len = 150;
+    ctx.save(); ctx.translate(lvx, lvy); ctx.lineCap = 'round';
+    ctx.fillStyle = '#2B2370'; ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7); ctx.fill();
+    var kx = 0 + Math.sin(ang) * 18, ky = -Math.cos(ang) * len * (1 - lv * 0.75) + 0;
+    var bx2 = Math.sin(ang) * 40 * 0 + 24 * Math.sin(ang), by2 = -len * Math.cos(ang) * 0.9 + lv * len * 1.6;
+    var tipx = 26 * Math.sin(ang + 0.3) + 6, tipy = -len * (1 - 1.55 * lv);
+    ctx.strokeStyle = '#CFCBF2'; ctx.lineWidth = 11;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(tipx, tipy); ctx.stroke();
+    ctx.strokeStyle = '#F4F2FF'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-2, -2); ctx.lineTo(tipx - 2, tipy - 2); ctx.stroke();
+    var bg2 = ctx.createRadialGradient(tipx - 6, tipy - 7, 3, tipx, tipy, 26);
+    bg2.addColorStop(0, '#FF8A7A'); bg2.addColorStop(1, '#C4263A');
+    ctx.fillStyle = bg2; ctx.beginPath(); ctx.arc(tipx, tipy, 25, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+
+  // sparkles on the win
+  for (var s = slotM.sparks.length - 1; s >= 0; s--) {
+    var sp = slotM.sparks[s]; sp.x += sp.vx; sp.y += sp.vy; sp.vy += 0.12; sp.life -= 0.016;
+    if (sp.life <= 0) { slotM.sparks.splice(s, 1); continue; }
+    ctx.globalAlpha = Math.min(1, sp.life * 1.4); ctx.fillStyle = sp.c;
+    ctx.fillRect(sp.x, sp.y, sp.s, sp.s); ctx.globalAlpha = 1;
+  }
 }
 
 function spinSlotMode(pool, winnerIndex, durationSeconds, onDone) {
+  if (!slotM.cv || !slotM.reels.length) setupSlotStage(pool);
+  slotM.pool = pool;
   var winnerEntry = pool[winnerIndex];
-  var lever = document.getElementById('slotLever');
-  var reelsDone = 0;
-  setLightsSpinning(true);
-
-  if (lever) {
-    lever.classList.add('pulled');
-    setTimeout(function() { lever.classList.remove('pulled'); }, 350);
-  }
-
-  // Reels stop one after another for suspense (about 2/3, 5/6 and all of the
-  // chosen duration).
+  var myRun = drawRunId;
   var totalMs = (durationSeconds || 3.3) * 1000;
-  var reelDurations = [totalMs * 0.667, totalMs * 0.833, totalMs];
-
-  SLOT_REEL_IDS.forEach(function(stripId, reelIdx) {
-    var strip = document.getElementById(stripId);
-    var windowEl = strip.parentElement;
-    var row = slotRowHeight(strip);
-    var loops = 10 + reelIdx * 3;
-    var winnerIdx = buildReelItems(strip, pool, winnerEntry, loops);
-    var duration = reelDurations[reelIdx];
-
-    strip.classList.add('moving');
-    requestAnimationFrame(function() {
-      strip.style.transition = 'top ' + (duration / 1000) + 's cubic-bezier(0.15, 0.8, 0.25, 1)';
-      strip.style.top = (-(winnerIdx - 1) * row) + 'px';   // winner lands on the middle row
-    });
-
-    setTimeout(function() {
-      windowEl.classList.add('flash');
-      var items = strip.children;
-      strip.classList.remove('moving');
-      if (items[winnerIdx]) { items[winnerIdx].classList.remove('is-ghost'); items[winnerIdx].classList.add('is-win'); }
-      setTimeout(function() { windowEl.classList.remove('flash'); }, 1300);
-      reelsDone++;
-      if (reelsDone === SLOT_REEL_IDS.length) {
-        setLightsSpinning(false);
-        onDone();
+  var now = performance.now();
+  var fracs = [0.667, 0.833, 1];
+  var stopped = 0;
+  slotM.spinning = true; slotM.glow = 0; slotM.leverT0 = now;
+  slotM.reels.forEach(function(r, ri) {
+    var p0 = Math.round(r.p);
+    // keep a few rows of what is on screen, then random names, winner last
+    var dist = Math.max(10, Math.min(260, Math.round(totalMs / 1000 * 3.2 * fracs[ri])) + ri * 3);
+    var target = p0 + dist;
+    for (var i = r.names.length; i <= target + 3; i++) r.names[i] = slotRandName();
+    r.names[target] = winnerEntry.name;
+    r.p = p0; r.from = p0; r.to = target; r.t0 = now + 250; r.dur = Math.max(600, totalMs * fracs[ri] - 250);
+    r.done = false; r.won = false;
+    r.onStop = function() {
+      stopped++;
+      if (stopped === 3) {
+        slotM.spinning = false; slotM.glow = 1; slotM.glowT0 = performance.now();
+        var W = slotM.LH ? SLOT_LW : 1000;
+        for (var n = 0; n < 40; n++) slotM.sparks.push({ x: W / 2 + (Math.random() - 0.5) * 420, y: slotM.LH * 0.45, vx: (Math.random() - 0.5) * 6, vy: -Math.random() * 6 - 1, s: 4 + Math.random() * 4, life: 0.8 + Math.random() * 0.8, c: ['#FFC450', '#A79BFF', '#FFFFFF'][n % 3] });
+        if (myRun === drawRunId) onDone();
       }
-    }, duration + 60);
+    };
   });
+  slotStartLoop();
 }
 
 // ============================================================
