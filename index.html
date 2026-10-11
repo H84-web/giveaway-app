@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261011-231405" />
+<meta name="app-build" content="20261011-232254" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2191,6 +2191,20 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .lp-compare-table tbody tr:last-child th, .lp-compare-table tbody tr:last-child td { border-bottom: none; }
 .lp-compare-table .is-featured { color: #6355E0; }
 .lp-compare-table .cmp-yes { width: 18px; height: 18px; color: var(--green); display: inline-block; vertical-align: middle; }
+
+/* ---- Games that leave empty room beside them (wheel, slot, instant, Plinko):
+        the stats sit in that room, as a side panel, on wide screens ---- */
+.draw-stage.has-side-stats > .draw-live-stats { margin: 14px 0 0; }
+@media (min-width: 900px) {
+  .draw-stage.has-side-stats { display: flex !important; flex-direction: row !important; align-items: center; justify-content: center; gap: 32px; }
+  .draw-stage.has-side-stats > .wheel-wrap { flex: 0 1 auto; width: 100%; max-width: min(56vw, 72vh, 520px); margin-bottom: 0; }
+  .draw-stage.has-side-stats > .instant-stage { flex: 0 1 320px; margin-bottom: 0; }
+  .draw-stage.has-side-stats > .slot-stage { flex: 1 1 auto; max-width: 620px; margin-bottom: 0; }
+  .draw-stage.has-side-stats > canvas { flex: 0 0 auto; max-width: 100%; }
+  .draw-stage.has-side-stats > .draw-live-stats { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 0; width: 200px; flex: 0 0 200px; margin: 0; padding: 6px 18px; }
+  .draw-stage.has-side-stats > .draw-live-stats .stat { align-items: flex-start; padding: 14px 0; }
+  .draw-stage.has-side-stats > .draw-live-stats .stat + .stat { border-top: 1px solid var(--line); }
+}
 
 </style>
 </head>
@@ -9314,11 +9328,31 @@ function revealLiveStatsBar(poolSize) {
   // Every game shows the same two facts (participants, winners drawn).
   // The countdown only exists where the chosen duration is real: Plinko
   // and the instant mode are too quick for a clock to mean anything.
+  placeLiveStats(barEl);
   var timeCell = document.getElementById('liveCellTime');
   var hasClock = drawMode === 'duck' || drawMode === 'marble' || drawMode === 'wheel' || drawMode === 'slot';
   if (timeCell) timeCell.style.display = hasClock ? '' : 'none';
   liveClock = { ms: liveRoundMs(), acc: 0, since: null };
   renderLiveClock();
+}
+
+// Where the stats go: beside the game when it leaves empty room next to it
+// (wheel, slot machine, instant, Plinko), below it when the game already
+// uses the full width (duck race, marble race).
+function placeLiveStats(barEl) {
+  var sideModes = { wheel: 'drawStageWheel', slot: 'drawStageSlot', instant: 'drawStageInstant', plinko: 'drawStagePlinko' };
+  ['Wheel', 'Slot', 'Instant', 'Plinko'].forEach(function(m) {
+    var st = document.getElementById('drawStage' + m);
+    if (st) st.classList.remove('has-side-stats');
+  });
+  var target = sideModes[drawMode] && document.getElementById(sideModes[drawMode]);
+  if (target) {
+    target.appendChild(barEl);
+    target.classList.add('has-side-stats');
+  } else {
+    var home = document.getElementById('drawContinueBtn');
+    if (home && home.parentNode && barEl.parentNode !== home.parentNode) home.parentNode.insertBefore(barEl, home);
+  }
 }
 
 // Length of one round of the current game, in ms (what the person chose).
