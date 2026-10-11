@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261011233654" />
+<meta name="app-build" content="20261011234248" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -1412,45 +1412,33 @@ body.draw-fullscreen .draw-stage { width: 100%; max-width: min(96vw, 1000px); }
 .instant-card.shuffling { animation: shake 0.08s infinite; border-color: var(--accent); }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px) rotate(-1deg); } 75% { transform: translateX(3px) rotate(1deg); } }
 
-.slot-stage { width: 100%; max-width: 640px; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; gap: 0; position: relative; }
-.slot-cabinet { flex: 1 1 auto; min-width: 0; background: linear-gradient(165deg, #3A2A78 0%, #241A4D 55%, #16122E 100%); border-radius: 22px; padding: 16px 16px 20px; box-shadow: 0 18px 40px rgba(91,91,246,0.28), inset 0 0 0 2px #4A3A92, inset 0 2px 0 rgba(255,255,255,0.14); }
-.slot-lights { display: flex; justify-content: space-between; padding: 0 6px 14px; }
-.slot-lights .bulb { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 7px 1px var(--gold); }
-.slot-lights .bulb.dim { opacity: 0.25; box-shadow: none; }
-.slot-lights.spinning .bulb { animation: bulbBlink 0.5s infinite; }
-.slot-lights.spinning .bulb.dim { animation-delay: 0.25s; }
-@keyframes bulbBlink { 0%, 100% { opacity: 1; box-shadow: 0 0 7px 1px var(--gold); } 50% { opacity: 0.2; box-shadow: none; } }
-.slot-board { background: #0E0B22; border-radius: 14px; padding: 10px; box-shadow: inset 0 3px 10px rgba(0,0,0,0.6); }
-.slot-reels { display: flex; gap: 8px; position: relative; }
-.slot-window { --slot-row: 60px; flex: 1 1 0; min-width: 0; background: #fff; border-radius: 10px; height: calc(var(--slot-row) * 3); overflow: hidden; position: relative; box-shadow: inset 0 0 0 2px #D8D4F0; }
-.slot-window::before, .slot-window::after { content: ''; position: absolute; left: 0; width: 100%; height: 34%; z-index: 2; pointer-events: none; }
-.slot-window::before { top: 0; background: linear-gradient(180deg, rgba(14,11,34,0.55), rgba(14,11,34,0)); }
-.slot-window::after { bottom: 0; background: linear-gradient(0deg, rgba(14,11,34,0.55), rgba(14,11,34,0)); }
+.slot-stage { width: 100%; max-width: 620px; margin: 0 auto 8px; }
+.slot-cabinet { background: linear-gradient(180deg, #1B1740, #110E29); border-radius: 18px; padding: 14px 14px 16px; border: 1px solid #2E2763; box-shadow: 0 18px 44px rgba(40,30,110,0.35), inset 0 1px 0 rgba(255,255,255,0.08); }
+.slot-lights { display: flex; justify-content: center; gap: 10px; padding: 2px 0 12px; }
+.slot-lights .bulb { width: 18px; height: 3px; border-radius: 2px; background: #3B3480; transition: background 0.2s, box-shadow 0.2s; }
+.slot-lights.spinning .bulb { background: #8B7CFF; box-shadow: 0 0 8px rgba(139,124,255,0.8); animation: bulbBlink 0.9s infinite; }
+.slot-lights.spinning .bulb:nth-child(odd) { animation-delay: 0.45s; }
+@keyframes bulbBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.slot-reels { --slot-row-h: 56px; display: flex; gap: 6px; position: relative; background: #0A0820; border-radius: 12px; padding: 6px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.6); }
+.slot-window { --slot-row: 56px; flex: 1 1 0; min-width: 0; background: linear-gradient(180deg, #17133A, #1F1A4D 50%, #17133A); border-radius: 8px; height: calc(var(--slot-row) * 3); overflow: hidden; position: relative; }
+.slot-window::before, .slot-window::after { content: ''; position: absolute; left: 0; width: 100%; height: 36%; z-index: 2; pointer-events: none; }
+.slot-window::before { top: 0; background: linear-gradient(180deg, rgba(10,8,32,0.92), rgba(10,8,32,0)); }
+.slot-window::after { bottom: 0; background: linear-gradient(0deg, rgba(10,8,32,0.92), rgba(10,8,32,0)); }
 .slot-strip { position: absolute; width: 100%; left: 0; top: 0; will-change: top; }
-.slot-item { height: var(--slot-row); display: flex; align-items: center; justify-content: center; font-size: var(--fs-sm); font-weight: 800; padding: 0 8px; text-align: center; line-height: 1.15; color: #1E1E28; overflow: hidden; overflow-wrap: anywhere; }
-.slot-item.is-ghost { color: #8B87A8; font-weight: 700; }
+.slot-strip.moving { filter: blur(1.6px); }
+.slot-item { height: var(--slot-row); display: flex; align-items: center; justify-content: center; font-size: var(--fs-sm); font-weight: 700; padding: 0 8px; text-align: center; line-height: 1.15; color: #fff; overflow: hidden; overflow-wrap: anywhere; letter-spacing: -0.005em; }
+.slot-item.is-ghost { color: rgba(255,255,255,0.45); }
+.slot-item.is-win { color: #fff; font-weight: 800; }
 /* the line the winner stops on */
-.slot-payline { position: absolute; left: -4px; right: -4px; top: 50%; height: calc(60px); margin-top: -30px; border-top: 2px solid var(--gold); border-bottom: 2px solid var(--gold); pointer-events: none; z-index: 3; border-radius: 4px; box-shadow: 0 0 14px rgba(245,165,36,0.35); }
-.slot-payline::before, .slot-payline::after { content: ''; position: absolute; top: 50%; margin-top: -7px; border: 7px solid transparent; }
-.slot-payline::before { left: -10px; border-left-color: var(--gold); border-right: 0; }
-.slot-payline::after { right: -10px; border-right-color: var(--gold); border-left: 0; }
-.slot-window.flash { animation: slotFlash 0.4s ease-in-out 3; }
-@keyframes slotFlash { 0%, 100% { box-shadow: inset 0 0 0 2px #D8D4F0; } 50% { box-shadow: inset 0 0 0 3px #FFF066, 0 0 18px 4px rgba(245,165,36,0.7); } }
-.slot-lever-wrap { flex: 0 0 34px; height: 120px; position: relative; align-self: center; }
-.slot-lever { position: absolute; left: 12px; top: 0; width: 10px; height: 88px; background: linear-gradient(90deg, #B9B6D6, #E9E7F7 50%, #A4A1C4); border-radius: 5px; transform-origin: 50% 100%; transition: transform 0.18s ease-out; }
-.slot-lever::after { content: ''; position: absolute; top: -14px; left: -9px; width: 28px; height: 28px; background: radial-gradient(circle at 35% 35%, #FF7A6B, #C7282B); border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
-.slot-lever { top: 20px; }
-.slot-lever.pulled { transform: scaleY(0.55); }
+.slot-payline { position: absolute; left: 6px; right: 6px; top: 50%; height: var(--slot-row-h, 56px); margin-top: calc(var(--slot-row-h, 56px) / -2); border-top: 1px solid rgba(167,155,255,0.9); border-bottom: 1px solid rgba(167,155,255,0.9); background: rgba(139,124,255,0.10); pointer-events: none; z-index: 3; border-radius: 4px; }
+.slot-window.flash { animation: slotFlash 0.5s ease-in-out 3; }
+@keyframes slotFlash { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(167,155,255,0.3); } 50% { box-shadow: inset 0 0 0 2px #A79BFF, 0 0 18px rgba(139,124,255,0.55); } }
 @media (min-width: 900px) {
-  .slot-stage { max-width: 760px; }
-  .slot-cabinet { padding: 22px 24px 26px; }
-  .slot-window { --slot-row: 76px; }
-  .slot-payline { height: 76px; margin-top: -38px; }
+  .slot-stage { max-width: 720px; }
+  .slot-cabinet { padding: 20px 22px 24px; border-radius: 22px; }
+  .slot-reels { gap: 8px; padding: 8px; --slot-row-h: 72px; }
+  .slot-window { --slot-row: 72px; }
   .slot-item { font-size: var(--fs-base); }
-  .slot-board { padding: 14px; }
-  .slot-reels { gap: 12px; }
-  .slot-lever-wrap { flex-basis: 44px; height: 150px; }
-  .slot-lever { height: 110px; left: 17px; top: 24px; }
 }
 
 /* ============================================================
@@ -2226,6 +2214,9 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
   .draw-stage.has-side-stats > .draw-live-stats .stat { align-items: flex-start; padding: 14px 0; }
   .draw-stage.has-side-stats > .draw-live-stats .stat + .stat { border-top: 1px solid var(--line); }
 }
+
+/* Safety net: while the lobby is showing, no game stage can be visible. */
+#drawScreen.is-lobby .draw-stage { display: none !important; }
 
 </style>
 </head>
@@ -3926,20 +3917,15 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
           <div class="slot-stage" id="slotMachine">
             <div class="slot-cabinet">
               <div class="slot-lights" id="slotLights">
-                <span class="bulb"></span><span class="bulb dim"></span><span class="bulb"></span><span class="bulb dim"></span>
-                <span class="bulb"></span><span class="bulb dim"></span><span class="bulb"></span><span class="bulb dim"></span>
-                <span class="bulb"></span><span class="bulb dim"></span><span class="bulb"></span><span class="bulb dim"></span>
+                <span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span><span class="bulb"></span>
               </div>
-              <div class="slot-board">
-                <div class="slot-reels">
-                  <div class="slot-window"><div class="slot-strip" id="slotStrip0"></div></div>
-                  <div class="slot-window"><div class="slot-strip" id="slotStrip1"></div></div>
-                  <div class="slot-window"><div class="slot-strip" id="slotStrip2"></div></div>
-                  <div class="slot-payline" aria-hidden="true"></div>
-                </div>
+              <div class="slot-reels">
+                <div class="slot-window"><div class="slot-strip" id="slotStrip0"></div></div>
+                <div class="slot-window"><div class="slot-strip" id="slotStrip1"></div></div>
+                <div class="slot-window"><div class="slot-strip" id="slotStrip2"></div></div>
+                <div class="slot-payline" aria-hidden="true"></div>
               </div>
             </div>
-            <div class="slot-lever-wrap" aria-hidden="true"><div class="slot-lever" id="slotLever"></div></div>
           </div>
         </div>
 
@@ -9118,6 +9104,7 @@ async function openGiveawayInner(giveawayId, prefetched) {
   // and the full list, browsable at their own pace. The actual draw
   // (runDraw()) needs its own separate confirmation after that, so
   // reading through the lobby never accidentally starts it.
+  document.getElementById('drawScreen').classList.add('is-lobby');
   document.getElementById('drawLobby').style.display = 'block';
   document.getElementById('drawLiveStats').style.display = 'none';
   document.getElementById('drawContinueBtn').style.display = 'inline-flex';
@@ -10223,6 +10210,7 @@ function spinSlotMode(pool, winnerIndex, durationSeconds, onDone) {
     var winnerIdx = buildReelItems(strip, pool, winnerEntry, loops);
     var duration = reelDurations[reelIdx];
 
+    strip.classList.add('moving');
     requestAnimationFrame(function() {
       strip.style.transition = 'top ' + (duration / 1000) + 's cubic-bezier(0.15, 0.8, 0.25, 1)';
       strip.style.top = (-(winnerIdx - 1) * row) + 'px';   // winner lands on the middle row
@@ -10231,7 +10219,8 @@ function spinSlotMode(pool, winnerIndex, durationSeconds, onDone) {
     setTimeout(function() {
       windowEl.classList.add('flash');
       var items = strip.children;
-      if (items[winnerIdx]) items[winnerIdx].classList.remove('is-ghost');
+      strip.classList.remove('moving');
+      if (items[winnerIdx]) { items[winnerIdx].classList.remove('is-ghost'); items[winnerIdx].classList.add('is-win'); }
       setTimeout(function() { windowEl.classList.remove('flash'); }, 1300);
       reelsDone++;
       if (reelsDone === SLOT_REEL_IDS.length) {
@@ -10424,6 +10413,7 @@ function proceedToGameStage() {
   // still hidden behind the lobby — because measuring a display:none
   // canvas's container reports 0 width/height (the exact bug that once
   // made the duck race render blank).
+  document.getElementById('drawScreen').classList.remove('is-lobby');
   document.getElementById('drawStage' + drawMode.charAt(0).toUpperCase() + drawMode.slice(1)).style.display = 'block';
   if (drawMode === 'wheel') drawWheel(0, null, pool.slice(0, MAX_WHEEL_SEGMENTS));
   if (drawMode === 'slot') setupSlotStage(pool);
