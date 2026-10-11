@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261010-224711" />
+<meta name="app-build" content="20261011-230434" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -4259,6 +4259,8 @@ var NAV_LINK_MAP = {
 // should never become the page someone lands on after a refresh.
 var PERSISTABLE_SCREENS = ['dashboardScreen', 'giveawaysScreen', 'participantsScreen', 'winnersScreen'];
 
+var visibleScreenId = null;   // the screen actually on display (currentActiveScreen only remembers the 4 main ones)
+
 function showScreen(screenId) {
   // Leaving the draw screen mid-animation (any of the 6 modes) used to
   // leave its requestAnimationFrame loop running invisibly forever —
@@ -4266,18 +4268,19 @@ function showScreen(screenId) {
   // person had already navigated away. Stopping everything here means
   // it's caught no matter how someone leaves: a nav click, the wizard,
   // the hardware back button — all of it funnels through showScreen().
-  if (currentActiveScreen === 'drawScreen' && screenId !== 'drawScreen') {
+  if (visibleScreenId === 'drawScreen' && screenId !== 'drawScreen') {
     stopAllDrawAnimations();
   }
   // Same idea for a YouTube collection left running in the background —
   // leaving the wizard mid-collection shouldn't leave it silently
   // polling the API forever with nothing to show it's happening.
-  if (currentActiveScreen === 'wizardScreen' && screenId !== 'wizardScreen' && youtubeCollecting) {
+  if (visibleScreenId === 'wizardScreen' && screenId !== 'wizardScreen' && youtubeCollecting) {
     youtubeCollecting = false;
     if (youtubePollTimeoutId) { clearTimeout(youtubePollTimeoutId); youtubePollTimeoutId = null; }
     if (youtubeRevealTimerId) { clearInterval(youtubeRevealTimerId); youtubeRevealTimerId = null; }
   }
 
+  visibleScreenId = screenId;
   ALL_SCREENS.forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -4339,6 +4342,20 @@ function showScreen(screenId) {
 var isHandlingPopState = false;
 
 window.addEventListener('popstate', function(event) {
+  // The hardware/gesture back button while a draw is running: undo the
+  // navigation, then ask whether to stop the draw or keep watching it.
+  if (visibleScreenId === 'drawScreen' && isSpinning) {
+    try { history.pushState({ screenId: 'drawScreen' }, '', location.href); } catch (e) { /* ignore */ }
+    var target = (event.state && event.state.screenId) || currentActiveScreen || 'dashboardScreen';
+    if (target === 'wizardScreen' || target === 'drawScreen') target = currentActiveScreen || 'dashboardScreen';
+    requestLeaveDraw(function() {
+      stopAllDrawAnimations();
+      isHandlingPopState = true;
+      showScreen(target);
+      isHandlingPopState = false;
+    });
+    return;
+  }
   isHandlingPopState = true;
   var screenId = (event.state && event.state.screenId) || currentActiveScreen || 'dashboardScreen';
   // Don't navigate INTO the wizard or draw screen via back/forward —
@@ -4358,13 +4375,63 @@ window.addEventListener('popstate', function(event) {
 // don't stop themselves just because their canvas is hidden; without
 // this they keep ticking (and, for duck/marble/plinko, keep triggering
 // sound effects) in the background indefinitely.
+var drawRunId = 0;   // bumped every time a draw is stopped: late callbacks from the old run check it and do nothing
 function stopAllDrawAnimations() {
+  drawRunId++;
   if (spinFrame) { cancelAnimationFrame(spinFrame); spinFrame = null; }
   if (duckAnimId) { cancelAnimationFrame(duckAnimId); duckAnimId = null; }
   if (marbleAnimId) { cancelAnimationFrame(marbleAnimId); marbleAnimId = null; }
   if (plinkoAnimId) { cancelAnimationFrame(plinkoAnimId); plinkoAnimId = null; }
+  if (drawButtonCountdownId) { clearInterval(drawButtonCountdownId); drawButtonCountdownId = null; }
+  // silence anything still playing
+  try { if (duckQuackAudioEl) { duckQuackAudioEl.pause(); duckQuackAudioEl.currentTime = 0; } } catch (e) { /* ignore */ }
   stopLiveStatsTimer();
+  var wasRunning = isSpinning || !!pendingNextRound;
   isSpinning = false;
+  pendingNextRound = null;
+  if (wasRunning) {
+    var btn = document.getElementById('drawSpinBtn');
+    var lbl = btn && btn.querySelector('.btn-label');
+    if (btn) btn.disabled = false;
+    if (lbl) lbl.textContent = t('draw_launch');
+  }
+}
+
+var drawButtonCountdownId = null;
+
+// ---- Leaving a draw that is running: ask first ---------------------------
+function requestLeaveDraw(onStop) {
+  if (visibleScreenId !== 'drawScreen' || !isSpinning) { onStop(); return; }
+  if (document.getElementById('leaveDrawModal')) return;
+  var ov = document.createElement('div');
+  ov.id = 'leaveDrawModal';
+  ov.setAttribute('role', 'dialog');
+  ov.setAttribute('aria-modal', 'true');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,17,23,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--card,#fff);color:var(--ink,#0F1117);border-radius:16px;max-width:380px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit';
+  box.innerHTML =
+    '<div style="font-weight:800;font-size:17px;margin-bottom:6px"></div>' +
+    '<div style="font-size:14px;line-height:1.5;color:var(--ink-soft,#4B5063);margin-bottom:18px"></div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end"></div>';
+  box.children[0].textContent = t('draw_leave_title');
+  box.children[1].textContent = t('draw_leave_text');
+  function close() { document.removeEventListener('keydown', onKey); if (ov.parentNode) ov.parentNode.removeChild(ov); }
+  function onKey(e) { if (e.key === 'Escape') close(); }
+  var keep = document.createElement('button');
+  keep.className = 'btn btn-primary';
+  keep.textContent = t('draw_leave_continue');
+  keep.onclick = close;
+  var stop = document.createElement('button');
+  stop.className = 'btn btn-secondary';
+  stop.textContent = t('draw_leave_stop');
+  stop.onclick = function() { close(); onStop(); };
+  box.children[2].appendChild(stop);
+  box.children[2].appendChild(keep);
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  document.addEventListener('keydown', onKey);
+  keep.focus();
 }
 
 function goBackToMainScreen() {
@@ -4372,13 +4439,17 @@ function goBackToMainScreen() {
   // own history rather than jumping straight to currentActiveScreen, so
   // in-app "back" buttons and the hardware back button behave the same
   // way and never get out of sync with each other.
-  history.back();
+  requestLeaveDraw(function() { stopAllDrawAnimations(); history.back(); });
 }
 
 // navigateTo is for the 4 main nav sections: it updates the active nav
 // link styling in addition to switching screens, and loads fresh data
 // for the screen being entered.
 function navigateTo(screenId) {
+  if (visibleScreenId === 'drawScreen' && isSpinning && screenId !== 'drawScreen') {
+    requestLeaveDraw(function() { stopAllDrawAnimations(); navigateTo(screenId); });
+    return;
+  }
   scrubAutofilledSearch();
   showScreen(screenId); // now also syncs the 4 nav links and pushes history — see showScreen()
 
@@ -5972,6 +6043,11 @@ var TRANSLATIONS = {
     "pricing_at_year": "à l'année",
     "wiz_plinko_fast_note": "Plinko n'a pas de durée : la bille tombe rapidement, idéal pour les gros tirages.",
     "draw_next_winner": "Gagnant suivant ({n}/{total})",
+    "lobby_duration_fast": "Rapide",
+    "draw_leave_stop": "Arrêter et quitter",
+    "draw_leave_continue": "Continuer le tirage",
+    "draw_leave_text": "Un tirage est en cours. Si tu quittes maintenant, il sera arrêté et le son sera coupé.",
+    "draw_leave_title": "Arrêter le tirage ?",
     "cmp_title": "Comparer les formules",
     "cmp_col_feature": "Fonctionnalités",
     "cmp_row_giveaways": "Tirages actifs",
@@ -6549,6 +6625,11 @@ var TRANSLATIONS = {
     "pricing_at_year": "billed yearly",
     "wiz_plinko_fast_note": "Plinko has no duration: the ball drops quickly, ideal for big draws.",
     "draw_next_winner": "Next winner ({n}/{total})",
+    "lobby_duration_fast": "Fast",
+    "draw_leave_stop": "Stop and leave",
+    "draw_leave_continue": "Keep watching",
+    "draw_leave_text": "A draw is in progress. If you leave now, it will be stopped and the sound turned off.",
+    "draw_leave_title": "Stop the draw?",
     "cmp_title": "Compare plans",
     "cmp_col_feature": "Features",
     "cmp_row_giveaways": "Active giveaways",
@@ -7126,6 +7207,11 @@ var TRANSLATIONS = {
     "pricing_at_year": "jährlich abgerechnet",
     "wiz_plinko_fast_note": "Plinko hat keine Dauer: Die Kugel fällt schnell, ideal für große Ziehungen.",
     "draw_next_winner": "Nächster Gewinner ({n}/{total})",
+    "lobby_duration_fast": "Schnell",
+    "draw_leave_stop": "Stoppen und verlassen",
+    "draw_leave_continue": "Weiter ansehen",
+    "draw_leave_text": "Eine Ziehung läuft. Wenn du jetzt gehst, wird sie gestoppt und der Ton ausgeschaltet.",
+    "draw_leave_title": "Ziehung abbrechen?",
     "cmp_title": "Tarife vergleichen",
     "cmp_col_feature": "Funktionen",
     "cmp_row_giveaways": "Aktive Verlosungen",
@@ -9193,7 +9279,7 @@ function renderLobbyStats(totalCount) {
   el.innerHTML =
     '<div class="lobby-stat-row"><span>' + t('lobby_stat_total') + '</span><strong>' + totalCount + '</strong></div>' +
     '<div class="lobby-stat-row"><span>' + t('lobby_stat_mode') + '</span><strong>' + escapeHtml(MODE_LABELS[drawMode] || '') + '</strong></div>' +
-    '<div class="lobby-stat-row"><span>' + t('lobby_stat_duration') + '</span><strong>' + formatDuration(duration) + '</strong></div>';
+    '<div class="lobby-stat-row"><span>' + t('lobby_stat_duration') + '</span><strong>' + (drawMode === 'plinko' ? t('lobby_duration_fast') : formatDuration(duration)) + '</strong></div>';
 }
 
 // ============================================================
@@ -9222,16 +9308,28 @@ function revealLiveStatsBar(poolSize) {
   document.getElementById('liveStatElapsed').textContent = '00:00';
 }
 
+// One clock for the whole draw, and it only runs while a race/animation is
+// actually playing: it starts when the round's action starts (not during
+// the 3-2-1 countdown), stops the moment the time is up (before the winner
+// close-up), stays frozen while waiting for "next winner", and never
+// counts once everything is over.
+var liveClock = { acc: 0, since: null };
+function liveClockStart() { if (liveClock.since === null) liveClock.since = performance.now(); renderLiveClock(); }
+function liveClockStop() {
+  if (liveClock.since !== null) { liveClock.acc += performance.now() - liveClock.since; liveClock.since = null; }
+  renderLiveClock();
+}
+function renderLiveClock() {
+  var ms = liveClock.acc + (liveClock.since !== null ? performance.now() - liveClock.since : 0);
+  var elapsed = Math.floor(ms / 1000);
+  var el = document.getElementById('liveStatElapsed');
+  if (el) el.textContent = String(Math.floor(elapsed / 60)).padStart(2, '0') + ':' + String(elapsed % 60).padStart(2, '0');
+}
 function startLiveStatsTimer() {
-  liveStatsStartTime = performance.now();
+  liveClock = { acc: 0, since: null };
   if (liveStatsTimerId) clearInterval(liveStatsTimerId);
-  liveStatsTimerId = setInterval(function() {
-    var elapsed = Math.floor((performance.now() - liveStatsStartTime) / 1000);
-    var mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
-    var ss = String(elapsed % 60).padStart(2, '0');
-    var elapsedEl = document.getElementById('liveStatElapsed');
-    if (elapsedEl) elapsedEl.textContent = mm + ':' + ss;
-  }, 500);
+  liveStatsTimerId = setInterval(renderLiveClock, 250);
+  renderLiveClock();
 }
 
 function updateLiveStatsWinner(finishedCount) {
@@ -9246,6 +9344,7 @@ function updateLiveStatsWinner(finishedCount) {
 }
 
 function stopLiveStatsTimer() {
+  liveClockStop();
   if (liveStatsTimerId) { clearInterval(liveStatsTimerId); liveStatsTimerId = null; }
 }
 
@@ -10275,17 +10374,25 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
 
   // For longer animations, show a live countdown so the button doesn't
   // look frozen — purely cosmetic, doesn't affect the actual timing.
+  // (only for the modes whose time really is the chosen duration: the race
+  // modes and Plinko show their own clock / have no duration)
+  var myRun = drawRunId;
   var countdownIntervalId = null;
-  if (durationSeconds >= 8) {
+  var timedMode = drawMode === 'wheel' || drawMode === 'slot';
+  if (timedMode && durationSeconds >= 8) {
     var spinStart = performance.now();
     countdownIntervalId = setInterval(function() {
       var remaining = Math.max(0, durationSeconds - (performance.now() - spinStart) / 1000);
       btn.querySelector('.btn-label').textContent = baseLabel + ' — ' + formatDuration(Math.ceil(remaining));
     }, 500);
+    drawButtonCountdownId = countdownIntervalId;
   }
+  if (drawMode !== 'duck' && drawMode !== 'marble') liveClockStart();   // the race modes start it when the race itself starts
 
   async function onDone() {
+    if (myRun !== drawRunId) return;          // the draw was stopped meanwhile: ignore the late callback
     if (countdownIntervalId) clearInterval(countdownIntervalId);
+    liveClockStop();
     winner = remainingPool[winnerIndex];
 
     sessionWinners.unshift({ name: winner.name, time: new Date().toLocaleTimeString('fr-FR') });
@@ -10317,7 +10424,7 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
     })();
 
     if (hasNext) {
-      var nextRun = function() { runDrawRound(nextPool, roundNumber + 1, totalWinnersWanted); };
+      var nextRun = function() { if (myRun !== drawRunId) return; runDrawRound(nextPool, roundNumber + 1, totalWinnersWanted); };
       if (drawMode === 'plinko' || drawMode === 'instant') {
         // quick modes (made for many winners in one go) chain by themselves
         setTimeout(nextRun, drawMode === 'plinko' ? 900 : 1400);
@@ -10733,7 +10840,9 @@ function spinDuckMode(pool, winnerIndex, durationSeconds, onDone) {
 
   drawDuckScene(0, null); // static line-up while the countdown plays
 
+  var runAtStart = drawRunId;
   runDuckCountdown(function() {
+    if (runAtStart !== drawRunId) return;
     startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, onDone);
   });
 }
@@ -10858,6 +10967,7 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
   function posAt(i, tau) { return pack.posAt(i, Math.min(tau, 1) * duration); }
   duckCam = { left: -pack.win * 0.3, win: pack.win };
 
+  if (typeof liveClockStart === 'function') liveClockStart();
   var startTime = performance.now();
   var lastNow = startTime;
   var finished = false;
@@ -10887,6 +10997,7 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
 
     if (!finished && tau >= 1) {
       finished = true;
+      if (typeof liveClockStop === 'function') liveClockStop();
       playDuckQuack();
     }
 
@@ -13002,6 +13113,7 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
   var positions = marblePool.map(function() { return 0; });
   marbleRaceInfo = { duration: duration, elapsed: 0 };
 
+  if (typeof liveClockStart === 'function') liveClockStart();
   playMarbleClink();
   var startTime = performance.now();
   var finished = false;
@@ -13021,7 +13133,7 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
     var x = Math.max(0, Math.min(1, tau * duration / ramp));
     marbleCam.left = 100 * tau - marbleCam.win * (0.28 + 0.44 * (x * x * (3 - 2 * x)));
 
-    if (!finished && elapsed >= duration) { finished = true; playMarbleWinChime(); }
+    if (!finished && elapsed >= duration) { finished = true; if (typeof liveClockStop === 'function') liveClockStop(); playMarbleWinChime(); }
     if (!finished && elapsed >= nextClink) { playMarbleClink(); nextClink = elapsed + 600 + Math.random() * 800; }
 
     var cineT = elapsed - CINE_START;
