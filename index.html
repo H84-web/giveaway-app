@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261011-230434" />
+<meta name="app-build" content="20261011-231405" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -3923,9 +3923,8 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         <!-- Live stats bar, shown once the game stage is revealed (both before and during the actual draw) -->
         <div class="draw-live-stats" id="drawLiveStats" style="display:none;">
           <div class="stat"><span class="stat-value" id="liveStatTotal">0</span><span class="stat-label" data-i18n="lobby_stat_total">Participants totaux</span></div>
-          <div class="stat"><span class="stat-value" id="liveStatRacing">0</span><span class="stat-label" data-i18n="lobby_stat_racing">En course</span></div>
-          <div class="stat"><span class="stat-value" id="liveStatFinished">0</span><span class="stat-label" data-i18n="lobby_stat_finished">Déjà arrivés</span></div>
-          <div class="stat"><span class="stat-value" id="liveStatElapsed">00:00</span><span class="stat-label" data-i18n="lobby_stat_elapsed">Temps écoulé</span></div>
+          <div class="stat"><span class="stat-value" id="liveStatFinished">0</span><span class="stat-label" data-i18n="live_stat_drawn">Gagnants tirés</span></div>
+          <div class="stat" id="liveCellTime"><span class="stat-value" id="liveStatElapsed">0:00</span><span class="stat-label" data-i18n="live_stat_remaining">Temps restant</span></div>
         </div>
 
         <!-- Step 1: leaves the lobby, sets up and reveals the chosen game — does NOT start the draw yet. -->
@@ -6043,6 +6042,8 @@ var TRANSLATIONS = {
     "pricing_at_year": "à l'année",
     "wiz_plinko_fast_note": "Plinko n'a pas de durée : la bille tombe rapidement, idéal pour les gros tirages.",
     "draw_next_winner": "Gagnant suivant ({n}/{total})",
+    "live_stat_remaining": "Temps restant",
+    "live_stat_drawn": "Gagnants tirés",
     "lobby_duration_fast": "Rapide",
     "draw_leave_stop": "Arrêter et quitter",
     "draw_leave_continue": "Continuer le tirage",
@@ -6625,6 +6626,8 @@ var TRANSLATIONS = {
     "pricing_at_year": "billed yearly",
     "wiz_plinko_fast_note": "Plinko has no duration: the ball drops quickly, ideal for big draws.",
     "draw_next_winner": "Next winner ({n}/{total})",
+    "live_stat_remaining": "Time left",
+    "live_stat_drawn": "Winners drawn",
     "lobby_duration_fast": "Fast",
     "draw_leave_stop": "Stop and leave",
     "draw_leave_continue": "Keep watching",
@@ -7207,6 +7210,8 @@ var TRANSLATIONS = {
     "pricing_at_year": "jährlich abgerechnet",
     "wiz_plinko_fast_note": "Plinko hat keine Dauer: Die Kugel fällt schnell, ideal für große Ziehungen.",
     "draw_next_winner": "Nächster Gewinner ({n}/{total})",
+    "live_stat_remaining": "Verbleibende Zeit",
+    "live_stat_drawn": "Gezogene Gewinner",
     "lobby_duration_fast": "Schnell",
     "draw_leave_stop": "Stoppen und verlassen",
     "draw_leave_continue": "Weiter ansehen",
@@ -9297,15 +9302,30 @@ var liveStatsStartTime = null;
 // begins (see startLiveStatsTimer, called from runDraw), so someone
 // who reads the lobby stats for a while before continuing doesn't see
 // the clock already running.
+var liveWinnersTotal = 1;
 function revealLiveStatsBar(poolSize) {
   document.getElementById('drawLobby').style.display = 'none';
   var barEl = document.getElementById('drawLiveStats');
   if (!barEl) return;
   barEl.style.display = 'flex';
+  liveWinnersTotal = Math.max(1, Math.min((activeGiveaway && activeGiveaway.winner_count) || 1, poolSize));
   document.getElementById('liveStatTotal').textContent = poolSize;
-  document.getElementById('liveStatRacing').textContent = poolSize;
-  document.getElementById('liveStatFinished').textContent = '0';
-  document.getElementById('liveStatElapsed').textContent = '00:00';
+  document.getElementById('liveStatFinished').textContent = '0/' + liveWinnersTotal;
+  // Every game shows the same two facts (participants, winners drawn).
+  // The countdown only exists where the chosen duration is real: Plinko
+  // and the instant mode are too quick for a clock to mean anything.
+  var timeCell = document.getElementById('liveCellTime');
+  var hasClock = drawMode === 'duck' || drawMode === 'marble' || drawMode === 'wheel' || drawMode === 'slot';
+  if (timeCell) timeCell.style.display = hasClock ? '' : 'none';
+  liveClock = { ms: liveRoundMs(), acc: 0, since: null };
+  renderLiveClock();
+}
+
+// Length of one round of the current game, in ms (what the person chose).
+function liveRoundMs() {
+  var d = (activeGiveaway && activeGiveaway.duration_seconds) || 4;
+  if (drawMode === 'duck' || drawMode === 'marble') d = Math.max(3, d);
+  return d * 1000;
 }
 
 // One clock for the whole draw, and it only runs while a race/animation is
@@ -9313,34 +9333,35 @@ function revealLiveStatsBar(poolSize) {
 // the 3-2-1 countdown), stops the moment the time is up (before the winner
 // close-up), stays frozen while waiting for "next winner", and never
 // counts once everything is over.
-var liveClock = { acc: 0, since: null };
+var liveClock = { ms: 0, acc: 0, since: null };
 function liveClockStart() { if (liveClock.since === null) liveClock.since = performance.now(); renderLiveClock(); }
 function liveClockStop() {
   if (liveClock.since !== null) { liveClock.acc += performance.now() - liveClock.since; liveClock.since = null; }
   renderLiveClock();
 }
+// "Time left" for the round in progress: starts at the chosen duration,
+// counts down while the race/animation plays, ends at 0:00 at the same
+// moment as the clock drawn on the track.
 function renderLiveClock() {
-  var ms = liveClock.acc + (liveClock.since !== null ? performance.now() - liveClock.since : 0);
-  var elapsed = Math.floor(ms / 1000);
+  var run = liveClock.acc + (liveClock.since !== null ? performance.now() - liveClock.since : 0);
+  var left = Math.max(0, Math.ceil((liveClock.ms - run) / 1000));
   var el = document.getElementById('liveStatElapsed');
-  if (el) el.textContent = String(Math.floor(elapsed / 60)).padStart(2, '0') + ':' + String(elapsed % 60).padStart(2, '0');
+  if (el) el.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
 }
 function startLiveStatsTimer() {
-  liveClock = { acc: 0, since: null };
   if (liveStatsTimerId) clearInterval(liveStatsTimerId);
   liveStatsTimerId = setInterval(renderLiveClock, 250);
   renderLiveClock();
 }
+// A new round: the countdown goes back to the full duration.
+function resetLiveRound() {
+  liveClock = { ms: liveRoundMs(), acc: 0, since: null };
+  renderLiveClock();
+}
 
 function updateLiveStatsWinner(finishedCount) {
-  var totalEl = document.getElementById('liveStatTotal');
-  var racingEl = document.getElementById('liveStatRacing');
   var finishedEl = document.getElementById('liveStatFinished');
-  if (finishedEl) finishedEl.textContent = finishedCount;
-  if (racingEl && totalEl) {
-    var total = parseInt(totalEl.textContent, 10) || 0;
-    racingEl.textContent = Math.max(0, total - finishedCount);
-  }
+  if (finishedEl) finishedEl.textContent = finishedCount + '/' + liveWinnersTotal;
 }
 
 function stopLiveStatsTimer() {
@@ -10352,8 +10373,6 @@ function runDraw() {
   if (drawMode === 'plinko') unlockPlinkoAudio();
   if (drawMode === 'marble') unlockMarbleAudio();
 
-  startLiveStatsTimer();
-
   var totalWinnersWanted = Math.min((activeGiveaway && activeGiveaway.winner_count) || 1, pool.length);
   runDrawRound(pool, 1, totalWinnersWanted);
 }
@@ -10387,6 +10406,8 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
     }, 500);
     drawButtonCountdownId = countdownIntervalId;
   }
+  resetLiveRound();
+  startLiveStatsTimer();
   if (drawMode !== 'duck' && drawMode !== 'marble') liveClockStart();   // the race modes start it when the race itself starts
 
   async function onDone() {
