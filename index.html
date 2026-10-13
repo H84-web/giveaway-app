@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261012001054" />
+<meta name="app-build" content="20261012102406" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2192,6 +2192,12 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 /* Safety net: while the lobby is showing, no game stage can be visible. */
 #drawScreen.is-lobby .draw-stage { display: none !important; }
 
+/* ---- Email verification code ---- */
+.otp-badge { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; background: var(--accent-soft, rgba(91,91,246,0.12)); color: var(--accent); }
+#verifyView .auth-title, #verifyView .auth-subtitle { text-align: center; }
+.otp-input { text-align: center; font-size: 28px; font-weight: 800; letter-spacing: 0.5em; padding-left: calc(0.5em + 14px); font-variant-numeric: tabular-nums; height: 60px; }
+.otp-input::placeholder { letter-spacing: 0.3em; color: var(--ink-faint, #B5B8C4); }
+
 </style>
 </head>
 <body>
@@ -2990,6 +2996,26 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
     </div>
 
     <!-- FORGOT PASSWORD VIEW -->
+    <div id="verifyView" class="auth-view" style="display:none;">
+      <div class="otp-badge" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5C2.5 4.4 3.4 3.5 4.5 3.5h11c1.1 0 2 .9 2 2v9c0 1.1-.9 2-2 2h-11c-1.1 0-2-.9-2-2v-9z"/><path d="M3 5l7 5.5L17 5"/></svg></div>
+      <h1 class="auth-title" data-i18n="verify_title">Vérifie ton email</h1>
+      <p class="auth-subtitle" id="verifySubtitle"></p>
+
+      <form id="verifyForm" class="auth-form" novalidate>
+        <div class="form-field">
+          <label class="form-label" for="verifyCode" data-i18n="verify_code_label">Code de vérification</label>
+          <input type="text" id="verifyCode" class="form-input otp-input" inputmode="numeric" pattern="[0-9]*" maxlength="10" autocomplete="one-time-code" placeholder="••••••" />
+          <span class="field-error" id="verifyCodeError"></span>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="verifySubmitBtn">
+          <span class="btn-label" data-i18n="verify_submit">Vérifier</span>
+        </button>
+      </form>
+
+      <p class="auth-switch"><span data-i18n="verify_no_code">Pas reçu ?</span> <button class="link-btn" type="button" id="verifyResendBtn" onclick="resendVerifyCode()" data-i18n="verify_resend">Renvoyer le code</button></p>
+      <p class="auth-switch"><button class="link-btn" type="button" onclick="showView('signupView')" data-i18n="verify_back">← Modifier mon email</button></p>
+    </div>
+
     <div id="forgotView" class="auth-view" style="display:none;">
       <h1 class="auth-title" data-i18n="forgot_title">Mot de passe oublié</h1>
       <p class="auth-subtitle" data-i18n="forgot_subtitle">On t'envoie un lien de réinitialisation par email.</p>
@@ -4161,7 +4187,36 @@ var SUPABASE_ANON_KEY = 'sb_publishable_gh0VQ7QG23J0Zx67b528iQ_UjRtUWWY';
 var INSTAGRAM_APP_ID = '27253784150966344';
 var INSTAGRAM_REDIRECT_URI = 'https://h84-web.github.io/giveaway-app/';
 
-var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Every request to the backend goes through this wrapper: a short timeout so
+// nothing hangs for a minute, and an automatic retry when the connection
+// itself drops ("Failed to fetch" on an unstable network) — the person never
+// has to press twice for a hiccup that lasts a second.
+function resilientFetch(input, init) {
+  init = init || {};
+  var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+  var delays = [350, 1100, 2500];
+  var attempt = 0;
+  function once() {
+    var ctrl = null, timer = null, opts = init;
+    if (!init.signal && typeof AbortController !== 'undefined') {
+      ctrl = new AbortController();
+      opts = Object.assign({}, init, { signal: ctrl.signal });
+      timer = setTimeout(function() { ctrl.abort(); }, 20000);
+    }
+    return fetch(input, opts).then(function(r) { if (timer) clearTimeout(timer); return r; }, function(err) {
+      if (timer) clearTimeout(timer);
+      var userAborted = init.signal && init.signal.aborted;
+      if (!userAborted && attempt < delays.length && (typeof navigator === 'undefined' || navigator.onLine !== false || attempt < 1)) {
+        var wait = delays[attempt++];
+        return new Promise(function(res) { setTimeout(res, wait); }).then(once);
+      }
+      throw err;
+    });
+  }
+  return once();
+}
+
+var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { fetch: resilientFetch } });
 
 // Cached in memory once loaded, so the wizard doesn't need to re-query
 // Supabase every time the Instagram tab is opened.
@@ -4205,6 +4260,12 @@ var drawMode = 'wheel';
 // TOASTS
 // ============================================================
 function showToast(message, type) {
+  // A raw browser network error ("Failed to fetch") means nothing to the
+  // person: say what it is and what to do.
+  if (/failed to fetch|networkerror|load failed|network request failed|aborted/i.test(String(message))) {
+    message = (typeof t === 'function' && t('err_network')) || 'Connexion instable. Réessaie dans un instant.';
+    if (message === 'err_network') message = 'Connexion instable. Réessaie dans un instant.';
+  }
   var container = document.getElementById('toastContainer');
   var toast = document.createElement('div');
   toast.className = 'toast' + (type ? ' ' + type : '');
@@ -4220,7 +4281,7 @@ function showToast(message, type) {
 // VIEW / SCREEN HELPERS
 // ============================================================
 function showView(viewId) {
-  ['loginView', 'signupView', 'forgotView'].forEach(function(id) {
+  ['loginView', 'signupView', 'verifyView', 'forgotView'].forEach(function(id) {
     document.getElementById(id).style.display = id === viewId ? 'block' : 'none';
   });
   // Clear any leftover validation errors when switching views
@@ -4389,6 +4450,46 @@ function stopAllDrawAnimations() {
 }
 
 var drawButtonCountdownId = null;
+
+// Saving a result never interrupts the draw and never shows a scary error:
+// if the connection is down, the result waits in this browser and is sent
+// again as soon as the network is back.
+var PENDING_RESULTS_KEY = 'repickwinn-pending-results';
+function readPendingResults() {
+  try { return JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY) || '[]'); } catch (e) { return []; }
+}
+function writePendingResults(list) {
+  try { localStorage.setItem(PENDING_RESULTS_KEY, JSON.stringify(list.slice(-50))); } catch (e) { /* ignore */ }
+}
+async function saveDrawResult(row) {
+  try {
+    var res = await supabaseClient.from('draw_results').insert(row);
+    if (res && res.error) {
+      // a real server-side refusal (not a network problem): keep it quiet, log it
+      console.error('save draw result refused:', res.error);
+    }
+  } catch (e) {
+    var q = readPendingResults(); q.push(row); writePendingResults(q);
+  }
+}
+var flushingResults = false;
+async function flushPendingResults() {
+  if (flushingResults || !currentUser) return;
+  var q = readPendingResults();
+  if (!q.length) return;
+  flushingResults = true;
+  var left = [];
+  for (var i = 0; i < q.length; i++) {
+    try {
+      var res = await supabaseClient.from('draw_results').insert(q[i]);
+      if (res && res.error && /fetch|network/i.test(res.error.message || '')) left.push(q[i]);
+    } catch (e) { left.push(q[i]); }
+  }
+  writePendingResults(left);
+  flushingResults = false;
+}
+window.addEventListener('online', function() { flushPendingResults(); });
+setInterval(flushPendingResults, 60000);
 
 // ---- Leaving a draw that is running: ask first ---------------------------
 function requestLeaveDraw(onStop) {
@@ -4946,10 +5047,89 @@ async function handleLoginSubmit(e) {
   setBtnLoading(btn, false);
   if (error) {
     try { sessionStorage.removeItem('repickwinn-fresh-login'); } catch (e) { /* ignore */ }
-    showToast(translateAuthError(error.message), 'error');
+    if (/email not confirmed/i.test(error.message || '')) {
+      // account exists but was never verified: send a fresh code and ask for it
+      openVerifyView(email, false);
+      resendVerifyCode(true);
+    } else {
+      showToast(translateAuthError(error.message), 'error');
+    }
   } else {
     showToast(t('toast_login_success'), 'success');
   }
+}
+
+// ----------------------------------------------------------------
+// Email verification by code: the person types the code from the email
+// directly in the app (no link to click).
+// ----------------------------------------------------------------
+var verifyEmail = '';
+var verifyCooldownId = null;
+
+function openVerifyView(email, justSent) {
+  verifyEmail = email;
+  try { sessionStorage.setItem('repickwinn-verify-email', email); } catch (e) { /* ignore */ }
+  var sub = document.getElementById('verifySubtitle');
+  if (sub) sub.textContent = t('verify_subtitle', { email: email });
+  var code = document.getElementById('verifyCode');
+  if (code) code.value = '';
+  clearFieldError('verifyCode', 'verifyCodeError');
+  showView('verifyView');
+  if (justSent) startVerifyCooldown(60);
+  setTimeout(function() { if (code) code.focus(); }, 80);
+}
+
+function startVerifyCooldown(seconds) {
+  var btn = document.getElementById('verifyResendBtn');
+  if (!btn) return;
+  if (verifyCooldownId) clearInterval(verifyCooldownId);
+  var left = seconds;
+  btn.disabled = true;
+  btn.textContent = t('verify_resend_in', { s: left });
+  verifyCooldownId = setInterval(function() {
+    left--;
+    if (left <= 0) {
+      clearInterval(verifyCooldownId); verifyCooldownId = null;
+      btn.disabled = false;
+      btn.textContent = t('verify_resend');
+    } else {
+      btn.textContent = t('verify_resend_in', { s: left });
+    }
+  }, 1000);
+}
+
+async function resendVerifyCode(silent) {
+  if (!verifyEmail) return;
+  var btn = document.getElementById('verifyResendBtn');
+  if (btn && btn.disabled) return;
+  startVerifyCooldown(60);
+  var { error } = await supabaseClient.auth.resend({ type: 'signup', email: verifyEmail, options: { emailRedirectTo: authRedirectUrl() } });
+  if (error) {
+    showToast(translateAuthError(error.message), 'error');
+  } else if (!silent) {
+    showToast(t('verify_sent'), 'success');
+  }
+}
+
+async function handleVerifySubmit(e) {
+  e.preventDefault();
+  var input = document.getElementById('verifyCode');
+  var token = (input.value || '').replace(/\D/g, '');
+  clearFieldError('verifyCode', 'verifyCodeError');
+  if (token.length < 6) { setFieldError('verifyCode', 'verifyCodeError', t('val_code_required')); return; }
+  var btn = document.getElementById('verifySubmitBtn');
+  setBtnLoading(btn, true);
+  try { sessionStorage.setItem('repickwinn-fresh-login', '1'); } catch (err) { /* ignore */ }
+  var { error } = await supabaseClient.auth.verifyOtp({ email: verifyEmail, token: token, type: 'signup' });
+  setBtnLoading(btn, false);
+  if (error) {
+    try { sessionStorage.removeItem('repickwinn-fresh-login'); } catch (err) { /* ignore */ }
+    var net = /fetch|network/i.test(error.message || '');
+    setFieldError('verifyCode', 'verifyCodeError', net ? t('err_network') : t('verify_wrong'));
+    return;
+  }
+  try { sessionStorage.removeItem('repickwinn-verify-email'); } catch (err) { /* ignore */ }
+  showToast(t('verify_ok'), 'success');   // the SIGNED_IN event opens the app
 }
 
 async function handleSignupSubmit(e) {
@@ -4981,8 +5161,7 @@ async function handleSignupSubmit(e) {
   if (error) {
     showToast(translateAuthError(error.message), 'error');
   } else if (data && data.user && !data.session) {
-    showToast(t('toast_check_email'), 'success');
-    showView('loginView');
+    openVerifyView(email, true);
   } else {
     showToast(t('toast_account_created'), 'success');
   }
@@ -6107,6 +6286,19 @@ var TRANSLATIONS = {
     "join_success_title": "Tu participes !",
     "join_success_text": "Ta participation est enregistrée. Bonne chance !",
     "join_err_already": "Cet email participe déjà à ce giveaway.",
+    "verify_title": "Vérifie ton email",
+    "verify_subtitle": "Nous avons envoyé un code de vérification à {email}. Saisis-le ci-dessous pour activer ton compte.",
+    "verify_code_label": "Code de vérification",
+    "verify_submit": "Vérifier",
+    "verify_no_code": "Pas reçu ?",
+    "verify_resend": "Renvoyer le code",
+    "verify_resend_in": "Renvoyer dans {s} s",
+    "verify_back": "← Modifier mon email",
+    "verify_wrong": "Code incorrect ou expiré. Vérifie-le ou demande un nouveau code.",
+    "verify_sent": "Nouveau code envoyé. Pense à vérifier tes spams.",
+    "verify_ok": "Email vérifié, bienvenue !",
+    "val_code_required": "Saisis le code reçu par email.",
+    "err_network": "Connexion instable. Vérifie ton internet puis réessaie.",
     "join_err_generic": "Impossible d'enregistrer ta participation. Réessaie dans un instant.",
     "public_entry_title": "Lien de participation public",
     "public_entry_sub": "Partage ce lien : les gens s'inscrivent directement, sans compte.",
@@ -6691,6 +6883,19 @@ var TRANSLATIONS = {
     "join_success_title": "You're in!",
     "join_success_text": "Your entry has been recorded. Good luck!",
     "join_err_already": "This email has already entered this giveaway.",
+    "verify_title": "Verify your email",
+    "verify_subtitle": "We sent a verification code to {email}. Enter it below to activate your account.",
+    "verify_code_label": "Verification code",
+    "verify_submit": "Verify",
+    "verify_no_code": "Didn't get it?",
+    "verify_resend": "Resend code",
+    "verify_resend_in": "Resend in {s}s",
+    "verify_back": "← Change my email",
+    "verify_wrong": "Wrong or expired code. Check it or request a new one.",
+    "verify_sent": "New code sent. Check your spam folder too.",
+    "verify_ok": "Email verified, welcome!",
+    "val_code_required": "Enter the code from your email.",
+    "err_network": "Unstable connection. Check your internet and try again.",
     "join_err_generic": "Couldn't record your entry. Please try again shortly.",
     "public_entry_title": "Public entry link",
     "public_entry_sub": "Share this link: people enter directly, no account needed.",
@@ -7275,6 +7480,19 @@ var TRANSLATIONS = {
     "join_success_title": "Du bist dabei!",
     "join_success_text": "Deine Teilnahme wurde gespeichert. Viel Glück!",
     "join_err_already": "Diese E-Mail nimmt bereits an diesem Giveaway teil.",
+    "verify_title": "E-Mail bestätigen",
+    "verify_subtitle": "Wir haben einen Bestätigungscode an {email} gesendet. Gib ihn unten ein, um dein Konto zu aktivieren.",
+    "verify_code_label": "Bestätigungscode",
+    "verify_submit": "Bestätigen",
+    "verify_no_code": "Nichts erhalten?",
+    "verify_resend": "Code erneut senden",
+    "verify_resend_in": "Erneut senden in {s} s",
+    "verify_back": "← E-Mail ändern",
+    "verify_wrong": "Code falsch oder abgelaufen. Prüfe ihn oder fordere einen neuen an.",
+    "verify_sent": "Neuer Code gesendet. Schau auch im Spam-Ordner nach.",
+    "verify_ok": "E-Mail bestätigt, willkommen!",
+    "val_code_required": "Gib den Code aus der E-Mail ein.",
+    "err_network": "Instabile Verbindung. Prüfe dein Internet und versuche es erneut.",
     "join_err_generic": "Deine Teilnahme konnte nicht gespeichert werden. Versuche es gleich noch einmal.",
     "public_entry_title": "Öffentlicher Teilnahme-Link",
     "public_entry_sub": "Teile diesen Link: Leute nehmen direkt teil, ohne Konto.",
@@ -10676,21 +10894,14 @@ function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
     // The next step must never depend on the network: saving the result is
     // done in the background, and a failure there only shows a message —
     // it can no longer freeze the draw halfway.
-    (async function saveResult() {
-      try {
-        var res = await supabaseClient.from('draw_results').insert({
-          giveaway_id: activeGiveaway.id,
-          user_id: currentUser.id,
-          winner_name: winner.name,
-          pool_size: remainingPool.length,
-          draw_mode: drawMode
-        });
-        if (res && res.error) showToast(t('toast_error_prefix', { msg: res.error.message }), 'error');
-        notifyWinnerByEmail(winner.name, activeGiveaway.title, drawMode, remainingPool.length);
-      } catch (e) {
-        console.error('save draw result failed:', e);
-      }
-    })();
+    saveDrawResult({
+      giveaway_id: activeGiveaway.id,
+      user_id: currentUser.id,
+      winner_name: winner.name,
+      pool_size: remainingPool.length,
+      draw_mode: drawMode
+    });
+    notifyWinnerByEmail(winner.name, activeGiveaway.title, drawMode, remainingPool.length);
 
     if (hasNext) {
       var nextRun = function() { if (myRun !== drawRunId) return; runDrawRound(nextPool, roundNumber + 1, totalWinnersWanted); };
@@ -12675,6 +12886,12 @@ function initApp() {
   initTheme(); // same reasoning — the landing page now also has a light/dark toggle
   document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
   document.getElementById('signupForm').addEventListener('submit', handleSignupSubmit);
+  document.getElementById('verifyForm').addEventListener('submit', handleVerifySubmit);
+  document.getElementById('verifyCode').addEventListener('input', function() {
+    var d = this.value.replace(/\D/g, '').slice(0, 10);
+    if (d !== this.value) this.value = d;
+    if (d.length === 6) { clearFieldError('verifyCode', 'verifyCodeError'); }
+  });
   document.getElementById('forgotForm').addEventListener('submit', handleForgotSubmit);
   document.getElementById('updateNameForm').addEventListener('submit', handleUpdateNameSubmit);
   document.getElementById('wizardCsvInput').addEventListener('change', handleWizardCsvChange);
