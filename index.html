@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261012102406" />
+<meta name="app-build" content="20261014180455" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -11097,6 +11097,10 @@ function duckShadeColor(hex, amount) {
 // Layout shared by the canvas sizing and the scene drawing so they can
 // never disagree. Up to MAX_DUCKS_SMALL ducks each get their own lane;
 // beyond that the field shares a handful of rows (a "swarm").
+// Ducks use more rows in a big race so each lane stays less crowded (names stay readable).
+function duckRowCountDuck(duckCount) {
+  return duckCount > MAX_DUCKS_SMALL ? Math.max(6, Math.min(14, Math.ceil(duckCount / 3))) : Math.max(1, duckCount);
+}
 function duckRowCount(duckCount) {
   return duckCount > MAX_DUCKS_SMALL ? Math.max(6, Math.min(10, Math.ceil(duckCount / 3))) : Math.max(1, duckCount);
 }
@@ -11106,7 +11110,7 @@ function duckRowCount(duckCount) {
 // road with cars), the river with one lane per duck, the near bank.
 function duckLayout(duckCount, w, h) {
   var swarm = duckCount > MAX_DUCKS_SMALL;
-  var rows = duckRowCount(duckCount);
+  var rows = duckRowCountDuck(duckCount);
   var hudH = 34;
   var envH = Math.round(Math.min(150, Math.max(96, h * 0.3)));
   var nearH = 18;
@@ -11259,10 +11263,10 @@ function initDuckCanvas(pool) {
   var duckCount = Math.max(1, Math.min(pool.length, MAX_DUCKS));
   var swarm = duckCount > MAX_DUCKS_SMALL;
   var displayWidth = Math.min(available, swarm ? 880 : duckCount <= 6 ? 980 : 940);
-  var rows = duckRowCount(duckCount);
-  var rowTarget = swarm ? 24 : Math.max(34, Math.min(64, 84 - duckCount * 5));
+  var rows = duckRowCountDuck(duckCount);
+  var rowTarget = swarm ? 26 : Math.max(34, Math.min(64, 84 - duckCount * 5));
   var maxHeight = document.body.classList.contains('draw-fullscreen') ? Math.max(360, Math.min(620, window.innerHeight - 220)) : 560;
-  var minHeight = swarm ? 330 : 360;
+  var minHeight = swarm ? 380 : 360;
   var displayHeight = Math.round(Math.min(maxHeight, Math.max(minHeight, 34 + 130 + 12 + rows * rowTarget + 22)));
 
   var dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -11514,7 +11518,7 @@ function startDuckRaceAnimation(duckCount, actualWinnerIndex, durationSeconds, o
 
     drawDuckScene(elapsed, finished ? actualWinnerIndex : null);
     if (!duckCine) {
-      drawRaceLeaderboard(duckCtx, duckCanvasW, duckPositions, duckPool, actualWinnerIndex, finished, duckLayout(duckCount, duckCanvasW, duckCanvasH).riverTop + 8);
+      drawRaceLeaderboard(duckCtx, duckCanvasW, duckPositions, duckPool, actualWinnerIndex, finished, duckLayout(duckCount, duckCanvasW, duckCanvasH).sceneTop + 8, null, true);   // over the far bank, never on top of the race
     }
 
     if (elapsed < CINE_START + ORBIT_MS + SPOT_MS + HOLD_MS) {
@@ -11612,7 +11616,7 @@ function updateDuckSplashes(dt) {
 // rigged). Deliberately top-3 only: a full ranking would cover the
 // race it's describing.
 // ============================================================
-function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished, topY, colorOf) {
+function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished, topY, colorOf, alignLeft) {
   if (!positions || positions.length < 3) return;
 
   var ranked = [];
@@ -11628,7 +11632,7 @@ function drawRaceLeaderboard(ctx, w, positions, pool, winnerIndex, finished, top
   var padX = 10, rowH = 19, headH = 16;
   var panelW = 146;
   var panelH = headH + rowH * ranked.length + 8;
-  var x = w - panelW - 16, y = (topY == null ? 12 : topY);
+  var x = alignLeft ? 14 : (w - panelW - 16), y = (topY == null ? 12 : topY);
 
   ctx.save();
   ctx.globalAlpha = 0.92;
@@ -11961,6 +11965,29 @@ function drawDuckScene(elapsed, winnerIndex) {
     drawOneDuck(di, dpos, false);
   }
   if (winnerIdx >= 0) drawOneDuck(winnerIdx, duckXY(winnerIdx), true);
+
+  // Big race: every duck still carries its (tiny) name, just behind its head,
+  // drawn in a second pass so no duck ever hides a name.
+  if (L.swarm && !lite && !cine) {
+    var sf = Math.max(6, Math.min(9.5, L.size * 0.6));
+    ctx.font = '700 ' + sf + 'px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2.2;
+    for (var ni = 0; ni < duckCache.order.length; ni++) {
+      var nd = duckCache.order[ni];
+      var np = duckXY(nd);
+      if (np.x < 8 || np.x > w + 20) continue;
+      var nname = (duckPool[nd] && duckPool[nd].name) || '';
+      if (nname.length > 10) nname = nname.slice(0, 9) + '…';
+      var nby = np.y + Math.sin(elapsed / 240 + nd * 1.7) * (L.size * 0.1);
+      var nyy = nby - L.size * 0.7;
+      ctx.strokeStyle = 'rgba(12,26,42,0.72)';
+      ctx.strokeText('@' + nname, np.x + L.size * 0.25, nyy);
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      ctx.fillText('@' + nname, np.x + L.size * 0.25, nyy);
+    }
+  }
 
   function drawOneDuck(i, pos, isWinner) {
     var participant = duckPool[i] || {};
