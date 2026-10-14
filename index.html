@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261014180455" />
+<meta name="app-build" content="20261014181809" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2198,6 +2198,21 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .otp-input { text-align: center; font-size: 28px; font-weight: 800; letter-spacing: 0.5em; padding-left: calc(0.5em + 14px); font-variant-numeric: tabular-nums; height: 60px; }
 .otp-input::placeholder { letter-spacing: 0.3em; color: var(--ink-faint, #B5B8C4); }
 
+/* Wizard: optional blocks folded away so the main path stays short */
+.wiz-more { border: 1px solid var(--border, #E5E7EB); border-radius: 12px; margin: 0 0 14px; background: var(--surface, #fff); }
+.wiz-more > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; font-weight: 600; font-size: 14.5px; }
+.wiz-more > summary::-webkit-details-marker { display: none; }
+.wiz-more > summary em { font-style: normal; font-weight: 500; font-size: 12px; color: var(--text-muted, #6B7280); margin-left: auto; }
+.wiz-more > summary::after { content: ''; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); opacity: .55; transition: transform .2s; margin-bottom: 3px; }
+.wiz-more[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px; }
+.wiz-more[open] > summary { border-bottom: 1px solid var(--border, #E5E7EB); }
+.wiz-more > :not(summary) { margin-left: 16px; margin-right: 16px; }
+.wiz-more > .hint { margin-top: 12px; }
+.wiz-more > :last-child { margin-bottom: 16px; }
+.wiz-more-body { padding-top: 12px; }
+.wiz-more-body > .form-field:last-child { margin-bottom: 0; }
+.mode-selector-wizard + .form-field, .wizard-step .mode-selector-wizard { margin-bottom: 18px; }
+
 </style>
 </head>
 <body>
@@ -3530,8 +3545,6 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         <div class="wizard-step-dot" data-step="2">2</div>
         <div class="wizard-step-line"></div>
         <div class="wizard-step-dot" data-step="3">3</div>
-        <div class="wizard-step-line"></div>
-        <div class="wizard-step-dot" data-step="4">4</div>
       </div>
 
       <!-- STEP 1: Basics -->
@@ -3545,27 +3558,10 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
           <span class="field-error" id="wizardTitleError"></span>
         </div>
 
-        <div class="form-field">
-          <label class="form-label" data-i18n="wiz_enddate_label">Date de fin (optionnel)</label>
-          <input type="datetime-local" id="wizardEndDate" class="form-input" />
-          <p class="hint">Purement informatif — affiché sur la carte du tirage, le tirage reste à lancer manuellement quand tu es prêt.</p>
-        </div>
-
-        <div class="form-field">
-          <label class="form-label" data-i18n="wiz_followers_label">Ton nombre d'abonnés aujourd'hui (optionnel)</label>
-          <input type="number" id="wizardFollowersBefore" class="form-input" placeholder="ex : 1250" min="0" />
-          <p class="hint" data-i18n="wiz_followers_hint">Note-le maintenant pour mesurer précisément ce que cette campagne t'aura rapporté. Tu saisiras le nouveau chiffre après le tirage.</p>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-head">
-            <span class="form-section-marker">★</span>
-            <div>
-              <strong data-i18n="wiz_req_title">Conditions de participation</strong>
-              <p data-i18n="wiz_req_sub">C'est ce qui fait qu'un giveaway te rapporte des abonnés. Chaque condition est affichée comme une étape sur ta page publique, avec un bouton qui y mène directement.</p>
-            </div>
-          </div>
-
+        <details class="wiz-more">
+          <summary><span data-i18n="wiz_req_title">Conditions de participation</span><em data-i18n="wiz_opt_tag">optionnel</em></summary>
+          <p class="hint" data-i18n="wiz_req_sub_short">Chaque condition devient une étape sur ta page publique — c'est ce qui te rapporte des abonnés.</p>
+          <div class="wiz-more-body">
           <div class="form-field">
             <label class="form-label" data-i18n="wiz_req_handle_label">Ton compte à suivre</label>
             <input type="text" id="wizardRequireFollow" class="form-input" placeholder="@moncompte" />
@@ -3589,8 +3585,12 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 
           <p class="hint-box" data-i18n="wiz_req_verify_note">À savoir : aucun outil ne peut vérifier automatiquement qu'une personne s'est abonnée — Instagram ne le permet à personne. La bonne méthode : une fois le gagnant tiré, ouvre son profil et vérifie en quelques secondes. S'il n'a pas respecté les conditions, relance le tirage.</p>
         </div>
+        </details>
 
-        <div class="form-field">
+        <details class="wiz-more">
+          <summary><span data-i18n="wiz_more_title">Image, couleur, date de fin</span><em data-i18n="wiz_opt_tag">optionnel</em></summary>
+          <div class="wiz-more-body">
+          <div class="form-field">
           <label class="form-label" data-i18n="wiz_image_label">Image / logo du tirage (optionnel)</label>
           <div class="image-upload-zone" id="imageUploadZone" onclick="document.getElementById('wizardImageInput').click()">
             <img id="imagePreview" style="display:none;" />
@@ -3609,6 +3609,18 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
           <label class="form-label" data-i18n="wiz_color_label">Couleur du tirage</label>
           <div class="avatar-picker" id="wizardColorPicker"></div>
         </div>
+          <div class="form-field">
+          <label class="form-label" data-i18n="wiz_enddate_label">Date de fin (optionnel)</label>
+          <input type="datetime-local" id="wizardEndDate" class="form-input" />
+          <p class="hint">Purement informatif — affiché sur la carte du tirage, le tirage reste à lancer manuellement quand tu es prêt.</p>
+        </div>
+          <div class="form-field">
+          <label class="form-label" data-i18n="wiz_followers_label">Ton nombre d'abonnés aujourd'hui (optionnel)</label>
+          <input type="number" id="wizardFollowersBefore" class="form-input" placeholder="ex : 1250" min="0" />
+          <p class="hint" data-i18n="wiz_followers_hint">Note-le maintenant pour mesurer précisément ce que cette campagne t'aura rapporté. Tu saisiras le nouveau chiffre après le tirage.</p>
+        </div>
+          </div>
+        </details>
 
         <button class="btn btn-primary btn-block" onclick="wizardNext(1)" data-i18n="btn_continue">Continuer</button>
       </div>
@@ -3746,38 +3758,6 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         <p class="wizard-step-subtitle" data-i18n="wiz3_sub">Filtre les participants avant de lancer le tirage.</p>
 
         <div class="form-field">
-          <div class="field-row" style="margin-bottom: 8px;">
-            <label class="form-label" style="margin:0;" data-i18n="wiz_winner_count">Nombre de gagnants</label>
-          </div>
-          <input type="number" id="wizardWinnerCount" class="form-input" value="1" min="1" max="50" />
-          <p class="hint">Si tu mets plus de 1, le tirage désignera plusieurs gagnants distincts d'un coup.</p>
-        </div>
-
-        <div class="form-field">
-          <label class="form-label" data-i18n="wiz_required_keyword">Mot-clé requis pour participer</label>
-          <input type="text" id="wizardRequiredKeyword" class="form-input" placeholder="ex : GIVEAWAY" />
-          <p class="hint-box">
-            <svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 18h5M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6V16h5.4v-.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z"/></svg> Demande à tes participants d'écrire ce mot dans leur commentaire pour valider leur participation
-            (ex : <em>"Commente GIVEAWAY pour participer !"</em>). Seuls les commentaires contenant ce mot seront
-            gardés dans le tirage — pratique pour filtrer rapidement sans coller uniquement les bons commentaires.
-          </p>
-        </div>
-
-        <label class="checkbox-row">
-          <input type="checkbox" id="wizardRemoveDup" checked />
-          <span data-i18n="wiz_remove_dup">Retirer les doublons</span>
-        </label>
-        <div class="field-row">
-          <label class="form-label" style="margin:0;" data-i18n="wiz_min_mentions">Mentions minimum</label>
-          <input type="number" id="wizardMinMentions" class="form-input form-input-narrow" value="0" min="0" />
-        </div>
-        <div class="form-field">
-          <label class="form-label" data-i18n="wiz_exclude_keyword">Exclure un mot-clé (optionnel)</label>
-          <input type="text" id="wizardExcludeKeyword" class="form-input" placeholder="ex : giveaway-bot" />
-          <p class="hint">À l'inverse, écarte les commentaires contenant ce mot (utile contre les comptes spam).</p>
-        </div>
-
-        <div class="form-field">
           <label class="form-label" data-i18n="wiz_mode_label">Mode de tirage</label>
           <div class="mode-selector mode-selector-wizard">
             <button class="mode-card active" id="wizModeWheel" onclick="wizardSetMode('wheel')">
@@ -3823,24 +3803,48 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         </div>
         <p id="wizardPlinkoNote" style="display:none;margin:-6px 0 14px;font-size:13px;color:var(--text-muted,#6B7280)" data-i18n="wiz_plinko_fast_note">Plinko n'a pas de durée : la bille tombe rapidement, idéal pour les gros tirages.</p>
 
+        <div class="form-field">
+          <div class="field-row" style="margin-bottom: 8px;">
+            <label class="form-label" style="margin:0;" data-i18n="wiz_winner_count">Nombre de gagnants</label>
+          </div>
+          <input type="number" id="wizardWinnerCount" class="form-input" value="1" min="1" max="50" />
+          <p class="hint">Si tu mets plus de 1, le tirage désignera plusieurs gagnants distincts d'un coup.</p>
+        </div>
+
+                <details class="wiz-more">
+          <summary><span data-i18n="wiz_filters_title">Filtres des participants</span><em data-i18n="wiz_opt_tag">optionnel</em></summary>
+          <div class="wiz-more-body">
+<div class="form-field">
+          <label class="form-label" data-i18n="wiz_required_keyword">Mot-clé requis pour participer</label>
+          <input type="text" id="wizardRequiredKeyword" class="form-input" placeholder="ex : GIVEAWAY" />
+          <p class="hint" data-i18n="wiz_kw_hint_short">Seuls les commentaires contenant ce mot sont gardés.</p>
+        </div>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="wizardRemoveDup" checked />
+          <span data-i18n="wiz_remove_dup">Retirer les doublons</span>
+        </label>
+        <div class="field-row">
+          <label class="form-label" style="margin:0;" data-i18n="wiz_min_mentions">Mentions minimum</label>
+          <input type="number" id="wizardMinMentions" class="form-input form-input-narrow" value="0" min="0" />
+        </div>
+        <div class="form-field">
+          <label class="form-label" data-i18n="wiz_exclude_keyword">Exclure un mot-clé (optionnel)</label>
+          <input type="text" id="wizardExcludeKeyword" class="form-input" placeholder="ex : giveaway-bot" />
+          <p class="hint">À l'inverse, écarte les commentaires contenant ce mot (utile contre les comptes spam).</p>
+        </div>
+
+                  </div>
+        </details>
+
+        <div class="wizard-participant-count" id="wizardQuickSummary"></div>
+
         <div class="wizard-actions">
           <button class="btn btn-secondary" onclick="wizardBack(3)" data-i18n="btn_back">Retour</button>
-          <button class="btn btn-primary" onclick="wizardNext(3)" data-i18n="btn_continue">Continuer</button>
+          <button class="btn btn-primary" id="wizardCreateBtn" onclick="wizardNext(3)" data-i18n="btn_create_draw">Créer le tirage</button>
         </div>
       </div>
 
-      <!-- STEP 4: Review -->
-      <div class="wizard-step" id="wizardStep4" style="display:none;">
-        <h2 class="wizard-step-title" data-i18n="wiz4_title">Tout est prêt</h2>
-        <p class="wizard-step-subtitle" data-i18n="wiz4_sub">Vérifie les détails avant de créer ton tirage.</p>
-
-        <div class="review-card" id="wizardReview"></div>
-
-        <div class="wizard-actions">
-          <button class="btn btn-secondary" onclick="wizardBack(4)" data-i18n="btn_back">Retour</button>
-          <button class="btn btn-primary" id="wizardCreateBtn" onclick="wizardCreate()" data-i18n="btn_create_draw">Créer le tirage</button>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -6443,8 +6447,14 @@ var TRANSLATIONS = {
     "sheets_share_hint": "La feuille doit être partagée en \"Toute personne disposant du lien peut afficher\" (bouton Partager, en haut à droite de Google Sheets).",
     "sheets_import_btn": "Importer la feuille",
     "btn_back": "Retour",
-    "wiz3_title": "Règles du tirage",
-    "wiz3_sub": "Filtre les participants avant de lancer le tirage.",
+    "wiz3_title": "Comment tirer au sort ?",
+    "wiz3_sub": "Choisis l'animation, c'est presque fini.",
+    "wiz_opt_tag": "optionnel",
+    "wiz_req_sub_short": "Chaque condition devient une étape sur ta page publique — c'est ce qui te rapporte des abonnés.",
+    "wiz_more_title": "Image, couleur, date de fin",
+    "wiz_filters_title": "Filtres des participants",
+    "wiz_kw_hint_short": "Seuls les commentaires contenant ce mot sont gardés.",
+    "wiz_quick_summary": "« {title} » — {count} participant(s)",
     "wiz_winner_count": "Nombre de gagnants",
     "wiz_required_keyword": "Mot-clé requis pour participer",
     "wiz_remove_dup": "Retirer les doublons",
@@ -6462,7 +6472,7 @@ var TRANSLATIONS = {
     "mode_plinko_name": "Plinko",
     "mode_plinko_desc": "Chute rapide, idéal pour les gros tirages",
     "mode_marble_name": "Course de billes",
-    "mode_marble_desc": "Trajet sinueux, coudes et lignes droites",
+    "mode_marble_desc": "Pistes, checkpoints, sprint final",
     "wiz_duration_label": "Durée de l'animation",
     "wiz4_title": "Tout est prêt",
     "wiz4_sub": "Vérifie les détails avant de créer ton tirage.",
@@ -7040,8 +7050,14 @@ var TRANSLATIONS = {
     "sheets_share_hint": "The sheet must be shared as \"Anyone with the link can view\" (Share button, top right of Google Sheets).",
     "sheets_import_btn": "Import the sheet",
     "btn_back": "Back",
-    "wiz3_title": "Draw rules",
-    "wiz3_sub": "Filter participants before running the draw.",
+    "wiz3_title": "How should we draw?",
+    "wiz3_sub": "Pick the animation, you are almost done.",
+    "wiz_opt_tag": "optional",
+    "wiz_req_sub_short": "Each condition becomes a step on your public page — this is what brings you followers.",
+    "wiz_more_title": "Image, color, end date",
+    "wiz_filters_title": "Participant filters",
+    "wiz_kw_hint_short": "Only comments containing this word are kept.",
+    "wiz_quick_summary": "\"{title}\" — {count} participant(s)",
     "wiz_winner_count": "Number of winners",
     "wiz_required_keyword": "Required keyword to enter",
     "wiz_remove_dup": "Remove duplicates",
@@ -7059,7 +7075,7 @@ var TRANSLATIONS = {
     "mode_plinko_name": "Plinko",
     "mode_plinko_desc": "Fast drop, ideal for big draws",
     "mode_marble_name": "Marble race",
-    "mode_marble_desc": "Winding track, curves and straights",
+    "mode_marble_desc": "Lanes, checkpoints, final sprint",
     "wiz_duration_label": "Animation duration",
     "wiz4_title": "All set",
     "wiz4_sub": "Check the details before creating your giveaway.",
@@ -7637,8 +7653,14 @@ var TRANSLATIONS = {
     "sheets_share_hint": "Das Tabellenblatt muss mit \"Jeder mit dem Link kann ansehen\" freigegeben sein (Schaltfläche \"Freigeben\" oben rechts in Google Sheets).",
     "sheets_import_btn": "Tabelle importieren",
     "btn_back": "Zurück",
-    "wiz3_title": "Regeln der Verlosung",
-    "wiz3_sub": "Filtere die Teilnehmer, bevor du die Verlosung startest.",
+    "wiz3_title": "Wie soll gelost werden?",
+    "wiz3_sub": "Wähle die Animation, du bist fast fertig.",
+    "wiz_opt_tag": "optional",
+    "wiz_req_sub_short": "Jede Bedingung wird zu einem Schritt auf deiner öffentlichen Seite – so gewinnst du Follower.",
+    "wiz_more_title": "Bild, Farbe, Enddatum",
+    "wiz_filters_title": "Teilnehmerfilter",
+    "wiz_kw_hint_short": "Nur Kommentare mit diesem Wort werden behalten.",
+    "wiz_quick_summary": "„{title}“ — {count} Teilnehmer",
     "wiz_winner_count": "Anzahl der Gewinner",
     "wiz_required_keyword": "Erforderliches Stichwort zur Teilnahme",
     "wiz_remove_dup": "Duplikate entfernen",
@@ -7656,7 +7678,7 @@ var TRANSLATIONS = {
     "mode_plinko_name": "Plinko",
     "mode_plinko_desc": "Schneller Fall, ideal für große Ziehungen",
     "mode_marble_name": "Murmelrennen",
-    "mode_marble_desc": "Kurvenreiche Strecke mit Geraden",
+    "mode_marble_desc": "Bahnen, Checkpoints, Schlusssprint",
     "wiz_duration_label": "Dauer der Animation",
     "wiz4_title": "Alles bereit",
     "wiz4_sub": "Überprüfe die Details, bevor du deine Verlosung erstellst.",
@@ -8058,13 +8080,14 @@ function exitWizard() {
 
 function goToWizardStep(step) {
   wizardStepIndex = step;
-  for (var i = 1; i <= 4; i++) {
+  for (var i = 1; i <= 3; i++) {
     document.getElementById('wizardStep' + i).style.display = i === step ? 'block' : 'none';
     var dot = document.querySelector('.wizard-step-dot[data-step="' + i + '"]');
     dot.classList.toggle('active', i === step);
     dot.classList.toggle('done', i < step);
   }
-  if (step === 4) renderWizardReview();
+  if (step === 3) renderWizardQuickSummary();
+  window.scrollTo(0, 0);
 }
 
 function wizardNext(fromStep) {
@@ -8105,6 +8128,8 @@ function wizardNext(fromStep) {
     wizardData.excludeKeyword = document.getElementById('wizardExcludeKeyword').value.trim();
     wizardData.duration = parseFloat(document.getElementById('wizardDuration').value) || 4;
     wizardData.winnerCount = Math.max(1, parseInt(document.getElementById('wizardWinnerCount').value, 10) || 1);
+    wizardCreate();   // last step: create right away, no separate review screen
+    return;
   }
   goToWizardStep(fromStep + 1);
 }
@@ -9069,6 +9094,13 @@ function formatDuration(seconds) {
 function updateDurationLabel() {
   var val = parseFloat(document.getElementById('wizardDuration').value);
   document.getElementById('wizardDurationValue').textContent = formatDuration(val);
+}
+
+function renderWizardQuickSummary() {
+  var el = document.getElementById('wizardQuickSummary');
+  if (!el) return;
+  var n = wizardData.participants.length;
+  el.textContent = t('wiz_quick_summary', { title: wizardData.title, count: n });
 }
 
 function renderWizardReview() {
@@ -11391,13 +11423,14 @@ function runDuckCountdown(onComplete) {
 // moving up or dropping back from one group to the other — all as a pure
 // function of time, whatever the duration. The winner's lag is 0 at the
 // end and everybody else finishes at least a few units behind.
-function makePackRace(count, winnerIndex, durationMs) {
+function makePackRace(count, winnerIndex, durationMs, opts) {
+  opts = opts || {};
   var D = durationMs;
   var vSec = 100 / (D / 1000);                       // pace line speed, track units / second
-  var win = Math.max(4, Math.min(40, 24 * vSec));    // visible track units: scenery always moves at a readable speed
+  var win = Math.max(4, Math.min(40, (opts.paceK || 24) * vSec));    // visible track units: scenery always moves at a readable speed
   var u = win / 40;                                  // lag unit, in track units
   var levels = count > 12 ? [-3, 0.5, 5, 10, 16, 23] : [-3, 0.5, 5, 10, 16];
-  var stepMs = Math.max(3500, Math.min(16000, D / 10));
+  var stepMs = Math.max(opts.stepMin || 3500, Math.min(opts.stepMax || 16000, D / 10));
   var transMs = stepMs * 0.7;
   var lastStart = D * 0.9 - transMs;
   var finalAt = D * 0.94;
@@ -13572,7 +13605,10 @@ function selectMarbleRacers(pool, winnerIndex) {
 // makePackRace), the camera follows the pace, every marble carries its
 // name, and the winner touches the line exactly when the time is up —
 // then the close-up on the winner plays.
-var MARBLE_COLORS = ['#E5484D', '#F5A524', '#2DB67D', '#3E8FEA', '#8E5CF0', '#E8579D', '#1FB5C9', '#F27C38', '#5B6EE8', '#9AA4B2'];
+var MARBLE_COLORS = ['#FF5C7A', '#FFB020', '#2BD4A0', '#4DA3FF', '#A78BFA', '#F472B6', '#22D3EE', '#FB923C', '#818CF8', '#D9E2F2'];
+var marbleVel = [];
+var marbleGates = [25, 50, 75];
+var marbleGateHit = {};
 var marbleCam = { left: 0, win: 40 };
 var marbleRaceInfo = { duration: 0, elapsed: 0 };
 var marbleCine = null;
@@ -13580,8 +13616,8 @@ var marbleDpr = 1;
 
 function marbleLayout(count, w, h) {
   var swarm = count > MAX_DUCKS_SMALL;
-  var rows = duckRowCount(count);
-  var hudH = 34, railH = 16, botH = 24;
+  var rows = duckRowCountDuck(count);
+  var hudH = 34, railH = 22, botH = 24;
   var trackTop = hudH + railH, trackBottom = h - botH;
   var rowH = (trackBottom - trackTop) / rows;
   var size = swarm ? Math.max(8, Math.min(18, rowH * 0.62)) : Math.max(18, Math.min(46, rowH * 0.7));
@@ -13595,12 +13631,12 @@ function initMarbleCanvas(marbleCount) {
   var available = (container && container.clientWidth) || Math.max(280, window.innerWidth - 40);
   var n = Math.max(1, marbleCount);
   var swarm = n > MAX_DUCKS_SMALL;
-  var rows = duckRowCount(n);
+  var rows = duckRowCountDuck(n);
   var displayWidth = Math.min(available, swarm ? 880 : n <= 6 ? 980 : 940);
   var rowTarget = swarm ? 24 : Math.max(46, Math.min(72, 92 - 5 * n));
   var fullscreen = document.body.classList.contains('draw-fullscreen');
   var maxHeight = fullscreen ? Math.max(360, Math.min(620, window.innerHeight - 220)) : 560;
-  var wanted = 34 + 16 + rows * rowTarget + 24;
+  var wanted = 34 + 22 + rows * rowTarget + 24;
   var displayHeight = Math.round(Math.min(maxHeight, Math.max(340, wanted)));
 
   var dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -13633,6 +13669,8 @@ function setupMarbleStage(pool) {
   drawMarbleScene(marblePool.map(function() { return 0; }), null, 0);
 }
 
+function marble0(n) { var a = []; for (var i = 0; i < n; i++) a.push(0); return a; }
+
 function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
   var selection = selectMarbleRacers(pool, winnerIndex);
   marblePool = selection.racePool;
@@ -13645,7 +13683,8 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
   var duration = Math.max(3, durationSeconds || 6) * 1000;
   var ORBIT_MS = 1300, SPOT_MS = 1000, HOLD_MS = 2400;
   var CINE_START = duration + 450;
-  var pack = makePackRace(count, actualWinnerIndex, duration);
+  var pack = makePackRace(count, actualWinnerIndex, duration, { paceK: 8, stepMax: 5000, stepMin: 2500 });
+  marbleVel = marble0(count); marbleGateHit = {};
   marbleCam = { left: -pack.win * 0.3, win: pack.win };
   var positions = marblePool.map(function() { return 0; });
   marbleRaceInfo = { duration: duration, elapsed: 0 };
@@ -13657,13 +13696,23 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
   var nextClink = 500 + Math.random() * 500;
   if (marbleAnimId) cancelAnimationFrame(marbleAnimId);
 
+  var lastNowM = startTime;
   function tick(now) {
     var elapsed = Math.max(0, now - startTime);
+    var dtM = Math.max(1, Math.min(80, now - lastNowM)); lastNowM = now;
     var tau = Math.min(1, elapsed / duration);
     marbleRaceInfo.elapsed = Math.min(elapsed, duration);
+    var leadP = 0;
     for (var i = 0; i < count; i++) {
       var np = pack.posAt(i, tau * duration);
+      var dP = Math.max(0, np - positions[i]);
+      marbleVel[i] = marbleVel[i] * 0.85 + (dP / dtM) * 0.15;
       if (np > positions[i]) positions[i] = np;
+      if (positions[i] > leadP) leadP = positions[i];
+    }
+    for (var gi = 0; gi < marbleGates.length; gi++) {
+      var gp = marbleGates[gi];
+      if (!marbleGateHit[gp] && leadP >= gp) { marbleGateHit[gp] = elapsed; playMarbleClink(); }
     }
     // the camera glides at the race's own pace; the zoom never changes
     var ramp = Math.min(0.25 * duration, 12000);
@@ -13676,13 +13725,38 @@ function spinMarbleMode(pool, winnerIndex, durationSeconds, onDone) {
     var cineT = elapsed - CINE_START;
     marbleCine = cineT > 0 ? marbleCineState(cineT, actualWinnerIndex, count, ORBIT_MS, SPOT_MS) : null;
     drawMarbleScene(positions, finished ? actualWinnerIndex : null, elapsed);
-    if (!marbleCine) {
-      drawRaceLeaderboard(marbleCtx, marbleCanvasW, positions, marblePool, actualWinnerIndex, finished, marbleLayout(count, marbleCanvasW, marbleCanvasH).trackTop + 8, function(i) { return MARBLE_COLORS[i % MARBLE_COLORS.length]; });
-    }
     if (elapsed < CINE_START + ORBIT_MS + SPOT_MS + HOLD_MS) marbleAnimId = requestAnimationFrame(tick);
     else onDone();
   }
   marbleAnimId = requestAnimationFrame(tick);
+}
+
+// Slim top-3 strip on the rail above the lanes: it never covers the race.
+function drawMarbleTicker(ctx, w, L, positions, winnerIndex) {
+  var top = [];
+  for (var i = 0; i < positions.length; i++) {
+    if (top.length < 3 || positions[i] > top[top.length - 1].p) {
+      top.push({ i: i, p: positions[i] || 0 });
+      top.sort(function(a, b) { return b.p - a.p; });
+      if (top.length > 3) top.pop();
+    }
+  }
+  if (!top.length) return;
+  var y = L.hudH + L.railH / 2 + 0.5, slot = (w - 20) / 3;
+  ctx.save();
+  ctx.font = '700 10px system-ui, -apple-system, sans-serif';
+  ctx.textBaseline = 'middle';
+  for (var k = 0; k < top.length; k++) {
+    var x = 10 + k * slot, e = top[k];
+    ctx.beginPath(); ctx.arc(x + 6, y, 5.2, 0, Math.PI * 2); ctx.fillStyle = MARBLE_COLORS[e.i % MARBLE_COLORS.length]; ctx.fill();
+    ctx.fillStyle = 'rgba(15,10,35,0.85)'; ctx.font = '800 8px system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(String(k + 1), x + 6, y + 0.5);
+    var nm = (marblePool[e.i] || {}).name || '';
+    ctx.font = (k === 0 ? '800 ' : '600 ') + '10px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'left';
+    ctx.fillStyle = k === 0 ? '#FFE8A3' : 'rgba(255,255,255,0.88)';
+    ctx.fillText('@' + nm, x + 16, y + 0.5, slot - 22);
+  }
+  ctx.restore();
 }
 
 function marbleCineState(c, winnerIndex, count, orbitMs, spotMs) {
@@ -13767,7 +13841,7 @@ function drawMarbleScene(positions, winnerIndex, elapsed) {
 
   ctx.clearRect(0, 0, w, h);
   var bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, '#0F1420'); bg.addColorStop(1, '#171E2D');
+  bg.addColorStop(0, '#120E26'); bg.addColorStop(1, '#1C1638');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
 
   // ---- HUD: timer + progress strip ----------------------------------------
@@ -13825,19 +13899,19 @@ function drawMarbleScene(positions, winnerIndex, elapsed) {
   // top rail with chasing lights
   var railY = L.hudH, ry0 = railY + L.railH;
   var rg = ctx.createLinearGradient(0, railY, 0, ry0);
-  rg.addColorStop(0, '#2A3347'); rg.addColorStop(1, '#1B2231');
+  rg.addColorStop(0, '#2C2452'); rg.addColorStop(1, '#1D1740');
   ctx.fillStyle = rg; ctx.fillRect(X0, railY, X1 - X0, L.railH);
   var lsp = 26, loff = ((P % lsp) + lsp) % lsp;
   ctx.fillStyle = accent;
   for (var lx2 = -loff - lsp; lx2 < w + lsp; lx2 += lsp) {
-    ctx.globalAlpha = 0.85; ctx.fillRect(lx2, railY + L.railH / 2 - 1.5, 10, 3);
+    ctx.globalAlpha = 0.85; ctx.fillRect(lx2, ry0 - 3, 10, 2);
   }
   ctx.globalAlpha = 1;
 
   // lanes
   for (var r2 = 0; r2 < L.rows; r2++) {
     var ly = L.trackTop + r2 * L.rowH;
-    ctx.fillStyle = r2 % 2 ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.055)';
+    ctx.fillStyle = r2 % 2 ? 'rgba(167,139,250,0.035)' : 'rgba(167,139,250,0.08)';
     ctx.fillRect(X0, ly, X1 - X0, L.rowH);
   }
   ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
@@ -13870,6 +13944,27 @@ function drawMarbleScene(positions, winnerIndex, elapsed) {
     ctx.fillStyle = fg; ctx.fillRect(finishX - 60, L.trackTop, 60, L.trackBottom - L.trackTop);
   }
 
+  // checkpoint gates: anchored to the track, they flash when the leader passes
+  for (var gk = 0; gk < marbleGates.length; gk++) {
+    var gpos = marbleGates[gk], gx = sx(gpos);
+    if (gx < -40 || gx > w + 40) continue;
+    var hitAt = marbleGateHit[gpos];
+    var ft = hitAt != null ? Math.max(0, 1 - (elapsed - hitAt) / 900) : 0;
+    var gg = ctx.createLinearGradient(gx - 16, 0, gx + 16, 0);
+    gg.addColorStop(0, 'rgba(167,139,250,0)'); gg.addColorStop(0.5, 'rgba(167,139,250,' + (0.14 + 0.4 * ft) + ')'); gg.addColorStop(1, 'rgba(167,139,250,0)');
+    ctx.fillStyle = gg; ctx.fillRect(gx - 16, L.trackTop, 32, L.trackBottom - L.trackTop);
+    ctx.strokeStyle = 'rgba(196,181,253,' + (0.5 + 0.5 * ft) + ')'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 5]);
+    ctx.beginPath(); ctx.moveTo(gx, L.trackTop); ctx.lineTo(gx, L.trackBottom); ctx.stroke(); ctx.setLineDash([]);
+    if (ft > 0) {
+      for (var sp2 = 0; sp2 < 14; sp2++) {
+        var sr = duckSeeded(gpos * 131 + sp2 * 17), ang = sr() * Math.PI * 2, dist = (1 - ft) * (30 + sr() * 60);
+        ctx.globalAlpha = ft; ctx.fillStyle = sp2 % 2 ? '#FFE8A3' : '#C4B5FD';
+        ctx.beginPath(); ctx.arc(gx + Math.cos(ang) * dist, (L.trackTop + L.trackBottom) / 2 + Math.sin(ang) * dist * 1.6, 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // ---- Marbles (lane by lane so the nearer ones overlap the farther) -----
   var lite = count > 160;
   var winnerIdx = (winnerIndex === null || winnerIndex === undefined) ? -1 : winnerIndex;
@@ -13880,6 +13975,17 @@ function drawMarbleScene(positions, winnerIndex, elapsed) {
     if (!cine && (px < -60 || px > w + 60)) return;
     var color = MARBLE_COLORS[i % MARBLE_COLORS.length];
     var rr = isWinner && cine ? r * (1 + 0.04 * Math.sin(cine.hold / 160)) : r;
+    if (!L.swarm && !cine) {
+      // speed streak behind the marble: the faster it rolls, the longer the comet
+      var tl = Math.min(r * 6, (marbleVel[i] || 0) * 1000 * pxU * 0.16);
+      if (tl > r * 0.8) {
+        var tg = ctx.createLinearGradient(px - tl, 0, px, 0);
+        tg.addColorStop(0, 'rgba(255,255,255,0)'); tg.addColorStop(1, color);
+        ctx.globalAlpha = 0.5; ctx.fillStyle = tg;
+        ctx.beginPath(); ctx.moveTo(px - tl, py); ctx.lineTo(px, py - r * 0.7); ctx.lineTo(px, py + r * 0.7); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
     drawMarbleBall(ctx, px, py, rr, color, (positions[i] || 0) * rotK, isWinner, !lite || isWinner);
     if (!L.swarm) {
       var nf = Math.round(Math.max(9, Math.min(13, L.size * 0.34)));
@@ -13902,10 +14008,36 @@ function drawMarbleScene(positions, winnerIndex, elapsed) {
   }
   if (winnerIdx >= 0) drawOne(winnerIdx, true);
 
+  // big race: every marble still carries its (tiny) name, just behind it, in a second pass
+  if (L.swarm && !lite && !cine) {
+    var sfn = Math.max(6, Math.min(9, L.rowH * 0.36));
+    ctx.font = '700 ' + sfn + 'px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'right'; ctx.lineJoin = 'round'; ctx.lineWidth = 2.2;
+    var order = [];
+    for (var oj = 0; oj < count; oj++) order.push(oj);
+    order.sort(function(p1, p2) { return (positions[p2] || 0) - (positions[p1] || 0); });   // front marbles claim their name first
+    var taken = {};
+    for (var oi2 = 0; oi2 < order.length; oi2++) {
+      var nj = order[oi2];
+      var npx = sx(positions[nj] || 0);
+      if (npx < 10 || npx > w + 20) continue;
+      var nn = (marblePool[nj] || {}).name || '';
+      if (nn.length > 10) nn = nn.slice(0, 9) + '…';
+      var txt = '@' + nn, tw = ctx.measureText(txt).width;
+      var x1 = npx - r - 2, x0 = x1 - tw, rowK = nj % L.rows, list = taken[rowK] || (taken[rowK] = []), clash = false;
+      for (var tk = 0; tk < list.length; tk++) if (x0 < list[tk][1] + 1 && x1 > list[tk][0] - 1) { clash = true; break; }
+      if (clash) continue;
+      list.push([x0 - 2 * r, x1]);
+      var nny = laneYOf(nj) + sfn * 0.34;
+      ctx.strokeStyle = 'rgba(14,10,32,0.8)'; ctx.strokeText(txt, x1, nny);
+      ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fillText(txt, x1, nny);
+    }
+  }
+
   // bottom rail with distance plaques
   var by = L.trackBottom;
   var bg2 = ctx.createLinearGradient(0, by, 0, h);
-  bg2.addColorStop(0, '#1B2231'); bg2.addColorStop(1, '#2A3347');
+  bg2.addColorStop(0, '#1D1740'); bg2.addColorStop(1, '#2C2452');
   ctx.fillStyle = bg2; ctx.fillRect(X0, by, X1 - X0, L.botH);
   ctx.font = '700 9px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center';
   for (var u = 10; u <= 90; u += 10) {
@@ -13915,6 +14047,8 @@ function drawMarbleScene(positions, winnerIndex, elapsed) {
     ctx.fillStyle = '#C9D3E3'; ctx.fillText(String(u), ux, by + 15);
   }
   ctx.restore();
+
+  if (!cine) drawMarbleTicker(ctx, w, L, positions, winnerIndex);
 
   // ---- Winner close-up: spotlight + celebration ------------------------------
   if (cine && cine.irisR != null) {
