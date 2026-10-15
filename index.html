@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261015180258" />
+<meta name="app-build" content="20261015205505" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2213,6 +2213,20 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .wiz-more-body > .form-field:last-child { margin-bottom: 0; }
 .mode-selector-wizard + .form-field, .wizard-step .mode-selector-wizard { margin-bottom: 18px; }
 
+/* Card pay button — icon, two-line label, arrow */
+.pay-card-btn { display:flex; align-items:center; gap:12px; width:100%; padding:13px 16px; border:0; border-radius:14px; cursor:pointer; color:#fff; text-align:left;
+  background:linear-gradient(135deg,#5b5bf0 0%,#8b5cf6 100%); box-shadow:0 8px 22px -8px rgba(110,80,240,.65), inset 0 1px 0 rgba(255,255,255,.22); transition:transform .15s, box-shadow .15s, filter .15s; }
+.pay-card-btn:hover { transform:translateY(-1px); filter:brightness(1.05); box-shadow:0 12px 26px -8px rgba(110,80,240,.75), inset 0 1px 0 rgba(255,255,255,.22); }
+.pay-card-btn:active { transform:translateY(0); }
+.pay-card-ic { flex:none; width:38px; height:38px; border-radius:11px; background:rgba(255,255,255,.18); display:grid; place-items:center; }
+.pay-card-ic svg { width:21px; height:21px; }
+.pay-card-txt { flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.25; }
+.pay-card-txt .btn-label { font-weight:700; font-size:15.5px; }
+.pay-card-sub { font-size:12px; opacity:.85; font-weight:500; }
+.pay-card-arrow svg { width:20px; height:20px; opacity:.9; }
+.pay-card-btn.is-loading .pay-card-arrow { opacity:.4; }
+.pay-card-btn:disabled { opacity:.75; cursor:wait; transform:none; }
+
 </style>
 </head>
 <body>
@@ -3395,8 +3409,10 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
               <li data-i18n="billing_feature_unlimited_giveaways">Tirages illimités</li>
               <li data-i18n="billing_feature_unlimited_participants">Participants illimités</li>
             </ul>
-            <button class="btn btn-primary btn-block" id="billingCardBtn" onclick="payByCardClicked()">
-              <span class="btn-label">Payer par carte</span>
+            <button class="btn btn-block pay-card-btn" id="billingCardBtn" onclick="payByCardClicked()">
+              <span class="pay-card-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/><path d="M6.5 15h4"/></svg></span>
+              <span class="pay-card-txt"><span class="btn-label">Payer par carte</span><span class="pay-card-sub" id="billingCardSub" data-i18n="billing_card_sub">Paiement sécurisé</span></span>
+              <span class="pay-card-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
             </button>
             <button class="btn btn-secondary btn-block" id="billingUpgradeBtn" onclick="upgradeToProClicked()" style="margin-top:10px;">
               <span class="btn-label" data-i18n="billing_upgrade_btn">Passer Pro (paiement crypto)</span> <span class="btn-lock-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7"/></svg></span>
@@ -6183,6 +6199,9 @@ var TRANSLATIONS = {
     "billing_check_email": "Vérifie ton email pour le lien de paiement",
     "billing_refresh_btn": "J'ai payé — vérifier mon statut",
     "billing_still_pending": "Pas encore reçu — un paiement crypto peut prendre quelques minutes à être confirmé. Réessaie dans un instant.",
+    "billing_still_pending_generic": "Pas encore reçu — un paiement peut prendre quelques instants (carte) ou quelques minutes (crypto) à être confirmé. Réessaie dans un instant.",
+    "billing_still_pending_card": "Paiement par carte pas encore confirmé — cela prend en général quelques secondes. Réessaie dans un instant.",
+    "billing_card_sub": "Paiement sécurisé",
     "period_monthly": "Mensuel",
     "period_quarterly": "3 mois",
     "period_semiannual": "6 mois",
@@ -6789,6 +6808,9 @@ var TRANSLATIONS = {
     "billing_check_email": "Check your email for the payment link",
     "billing_refresh_btn": "I've paid — check my status",
     "billing_still_pending": "Not received yet — a crypto payment can take a few minutes to confirm. Try again shortly.",
+    "billing_still_pending_generic": "Not received yet — a payment can take a few seconds (card) or a few minutes (crypto) to confirm. Try again shortly.",
+    "billing_still_pending_card": "Card payment not confirmed yet — this usually takes a few seconds. Try again shortly.",
+    "billing_card_sub": "Secure payment",
     "period_monthly": "Monthly",
     "period_quarterly": "3 months",
     "period_semiannual": "6 months",
@@ -7395,6 +7417,9 @@ var TRANSLATIONS = {
     "billing_check_email": "Überprüfe deine E-Mail für den Zahlungslink",
     "billing_refresh_btn": "Ich habe bezahlt — Status prüfen",
     "billing_still_pending": "Noch nicht eingegangen — eine Krypto-Zahlung kann einige Minuten zur Bestätigung brauchen. Versuche es gleich noch einmal.",
+    "billing_still_pending_generic": "Noch nicht eingegangen — eine Zahlung kann einige Sekunden (Karte) oder Minuten (Krypto) dauern. Versuche es gleich noch einmal.",
+    "billing_still_pending_card": "Kartenzahlung noch nicht bestätigt — das dauert meist nur wenige Sekunden. Versuche es gleich noch einmal.",
+    "billing_card_sub": "Sichere Zahlung",
     "period_monthly": "Monatlich",
     "period_quarterly": "3 Monate",
     "period_semiannual": "6 Monate",
@@ -9816,7 +9841,9 @@ async function refreshBillingStatusClicked() {
     // Still free after refreshing — the webhook probably just hasn't
     // arrived yet (crypto confirmations can take a few minutes), not
     // necessarily a failure. Say so instead of leaving them guessing.
-    showToast(t('billing_still_pending'), 'success');
+    var lastMethod = '';
+    try { lastMethod = localStorage.getItem('rpw_last_pay_method') || ''; } catch (e) {}
+    showToast(t(lastMethod === 'crypto' ? 'billing_still_pending' : lastMethod === 'card' ? 'billing_still_pending_card' : 'billing_still_pending_generic'), 'success');
   }
   btn.textContent = originalText;
 }
@@ -9911,6 +9938,7 @@ async function payByCardClicked() {
     var data = await resp.json();
     if (resp.status === 409 && data.error === 'ALREADY_SUBSCRIBED') { showToast(t('billing_already_subscribed'), 'success'); return; }
     if (!resp.ok || !data.checkout_url) throw new Error((data && data.error) || 'unknown');
+    try { localStorage.setItem('rpw_last_pay_method', 'card'); } catch (e) {}
     window.location.href = data.checkout_url;
   } catch (err) {
     showToast(t('toast_error_prefix', { msg: err.message }), 'error');
@@ -9947,6 +9975,7 @@ async function upgradeToProClicked() {
     if (data.already_pending) {
       showToast(t(data.status === 'active' ? 'billing_already_active' : 'billing_already_subscribed'), 'success');
     } else if (data.payment_url) {
+      try { localStorage.setItem('rpw_last_pay_method', 'crypto'); } catch (e) {}
       window.location.href = data.payment_url;
     } else {
       showToast(t('billing_check_email'), 'success');
