@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261015214753" />
+<meta name="app-build" content="20261015220124" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2224,7 +2224,6 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .pay-card-txt .btn-label { font-weight:700; font-size:15.5px; }
 .pay-card-sub { font-size:12px; opacity:.85; font-weight:500; }
 .pay-card-arrow svg { width:20px; height:20px; opacity:.9; }
-.pay-card-btn.is-loading .pay-card-arrow { opacity:.4; }
 .pay-card-btn:disabled { opacity:.75; cursor:wait; transform:none; }
 
 /* Crypto pay button: same size as card button, light surface with Bitcoin tile */
@@ -2236,6 +2235,96 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .pay-crypto-btn .pay-card-arrow { color:#6b4fe0; }
 [data-theme="dark"] .pay-crypto-btn { background:#1c1a31; color:#ecebfa; border-color:rgba(154,140,255,.35); }
 [data-theme="dark"] .pay-crypto-btn .pay-card-arrow { color:#9a8cff; }
+
+/* Pay buttons: while redirecting, keep the layout and swap the arrow for a clean ring */
+.pay-card-btn.is-loading::after { content:none; display:none; }
+.pay-card-btn.is-loading .btn-label { opacity:1; }
+.pay-card-btn.is-loading .pay-card-arrow svg { display:none; }
+.pay-card-btn .pay-card-arrow { flex:none; width:22px; height:22px; display:grid; place-items:center; }
+.pay-card-btn.is-loading .pay-card-arrow::before { content:''; box-sizing:border-box; display:block; width:20px; height:20px; border-radius:50%;
+  border:2.5px solid rgba(255,255,255,.35); border-top-color:#fff; animation:btnSpin .7s linear infinite; }
+.pay-crypto-btn.is-loading .pay-card-arrow::before { border-color:rgba(110,80,240,.25); border-top-color:#6b4fe0; }
+[data-theme="dark"] .pay-crypto-btn.is-loading .pay-card-arrow::before { border-color:rgba(154,140,255,.3); border-top-color:#9a8cff; }
+.btn.is-loading::after { box-sizing:border-box; }
+
+/* ============================================================
+   Subscription page, plan chip, quota banner, payment history
+   ============================================================ */
+.bill-page { max-width: 760px; }
+.settings-link-card { cursor: pointer; }
+.settings-link-card:hover { border-color: rgba(91,91,246,.4); }
+
+.nav-plan-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:99px; border:1px solid var(--line); background:var(--card);
+  color:var(--ink-soft); font:600 var(--fs-xs)/1 inherit; font-family:inherit; cursor:pointer; transition:border-color .15s, background .15s, color .15s; }
+.nav-plan-chip:hover { border-color:rgba(91,91,246,.45); color:var(--accent); }
+.nav-plan-chip .ic { width:15px; height:15px; }
+.nav-plan-chip.is-paid { background:var(--accent-soft); color:var(--accent); border-color:rgba(91,91,246,.25); }
+@media (max-width: 760px) { .nav-plan-chip { display:none; } }
+
+.quota-banner { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:12px 16px; margin-bottom:18px;
+  border:1px solid var(--line); border-radius:var(--radius); background:var(--card); font-size:var(--fs-sm); color:var(--ink-soft); }
+.quota-banner-main { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1 1 240px; }
+.quota-banner-main strong { color:var(--ink); font-size:var(--fs-base); }
+.quota-banner.is-alert { background:linear-gradient(135deg, rgba(91,91,246,.10), rgba(139,92,246,.14)); border-color:rgba(91,91,246,.35); }
+
+.plan-summary { padding:22px; }
+.plan-summary-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:18px; }
+.plan-summary-kicker { font-size:var(--fs-2xs); font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.plan-summary-name { margin:4px 0 0; font-size:var(--fs-xl); line-height:1.1; }
+.plan-status { font-size:var(--fs-2xs); font-weight:700; padding:5px 11px; border-radius:99px; background:var(--line); color:var(--ink-soft); white-space:nowrap; }
+.plan-status.is-live { background:var(--green-soft); color:var(--green-ink); }
+.plan-usage-row { display:flex; justify-content:space-between; align-items:baseline; font-size:var(--fs-sm); color:var(--ink-soft); margin-bottom:8px; }
+.plan-usage-row em { font-style:normal; color:var(--muted); }
+.plan-usage-row strong { color:var(--ink); font-size:var(--fs-md); font-variant-numeric:tabular-nums; }
+.plan-usage-bar { height:8px; border-radius:99px; background:var(--accent-soft); overflow:hidden; }
+.plan-usage-bar i { display:block; height:100%; border-radius:99px; background:var(--gradient-brand); transition:width .5s var(--ease-out); }
+.plan-usage-bar i.is-full { background:linear-gradient(90deg,#F59E0B,#F43F5E); }
+.plan-meta { list-style:none; margin:16px 0 0; padding:14px 0 0; border-top:1px solid var(--line); display:flex; flex-wrap:wrap; gap:8px 18px; font-size:var(--fs-sm); color:var(--ink-soft); }
+
+.pay-history { display:flex; flex-direction:column; }
+.pay-row { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:13px 0; border-top:1px solid var(--line); }
+.pay-row:first-child { border-top:0; }
+.pay-row-main, .pay-row-side { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.pay-row-side { align-items:flex-end; }
+.pay-row-main span { font-size:var(--fs-xs); color:var(--muted); }
+.pay-row strong { font-size:var(--fs-sm); color:var(--ink); }
+.pay-ok { font-size:var(--fs-2xs); font-weight:700; color:var(--green-ink); background:var(--green-soft); padding:2px 8px; border-radius:99px; }
+
+.quota-modal { text-align:center; }
+.quota-modal-ic { width:52px; height:52px; margin:0 auto 12px; border-radius:16px; display:grid; place-items:center; background:var(--gradient-brand); color:#fff; box-shadow:var(--shadow-accent); }
+.quota-modal-ic .ic { width:26px; height:26px; }
+.quota-modal .modal-actions { justify-content:center; }
+
+[data-theme="dark"] .quota-banner.is-alert { background:linear-gradient(135deg, rgba(91,91,246,.22), rgba(139,92,246,.26)); }
+[data-theme="dark"] .nav-plan-chip.is-paid { background:rgba(91,91,246,.22); color:#b4acff; }
+
+/* ============ Landing: coming soon ============ */
+.lp-soon-sub { margin:10px 0 0; color:var(--lp-ink-soft, var(--ink-soft)); font-size:var(--fs-base); }
+.lp-soon-grid { max-width:980px; margin:28px auto 0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+@media (max-width:860px){ .lp-soon-grid { grid-template-columns:1fr; } }
+.lp-soon-card { position:relative; padding:24px 22px 26px; border-radius:20px; background:var(--card); border:1px solid var(--line); overflow:hidden;
+  transition:transform .25s var(--ease-out), box-shadow .25s var(--ease-out), border-color .25s; }
+.lp-soon-card::before { content:''; position:absolute; inset:-1px; border-radius:inherit; padding:1px; background:linear-gradient(135deg,rgba(91,91,246,.55),rgba(139,92,246,0) 55%,rgba(14,165,233,.4));
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; opacity:.55; pointer-events:none; transition:opacity .25s; }
+.lp-soon-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-md); }
+.lp-soon-card:hover::before { opacity:1; }
+.lp-soon-ic { display:grid; place-items:center; width:54px; height:54px; border-radius:16px; margin-bottom:16px; color:#fff; background:var(--gradient-brand); box-shadow:var(--shadow-accent); }
+.lp-soon-ic svg { width:30px; height:30px; }
+.lp-soon-spin svg { animation:lpSoonSpin 14s linear infinite; }
+.lp-soon-float svg { animation:lpSoonFloat 3.6s ease-in-out infinite; }
+.lp-soon-twinkle svg { animation:lpSoonTwinkle 2.8s ease-in-out infinite; }
+@keyframes lpSoonSpin { to { transform:rotate(360deg); } }
+@keyframes lpSoonFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+@keyframes lpSoonTwinkle { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.12); opacity:.8; } }
+.lp-soon-pill { display:inline-flex; align-items:center; gap:7px; font-size:var(--fs-2xs); font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); background:var(--accent-soft); padding:4px 10px; border-radius:99px; margin-bottom:12px; }
+.lp-soon-pill i { width:7px; height:7px; border-radius:50%; background:var(--accent); animation:lpSoonPulse 1.8s ease-out infinite; }
+@keyframes lpSoonPulse { 0% { box-shadow:0 0 0 0 rgba(91,91,246,.55); } 100% { box-shadow:0 0 0 9px rgba(91,91,246,0); } }
+.lp-soon-card h3 { margin:0 0 6px; font-size:var(--fs-md); color:var(--lp-ink, var(--ink)); }
+.lp-soon-card p { margin:0; font-size:var(--fs-sm); line-height:1.55; color:var(--ink-soft); }
+.lp-soon-cta { max-width:620px; margin:34px auto 0; text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px; }
+.lp-soon-cta p { margin:0; font-size:var(--fs-md); color:var(--lp-ink, var(--ink)); font-weight:600; line-height:1.4; }
+@media (prefers-reduced-motion: reduce) { .lp-soon-spin svg, .lp-soon-float svg, .lp-soon-twinkle svg, .lp-soon-pill i { animation:none; } }
+[data-theme="dark"] .lp-soon-card { background:rgba(255,255,255,.04); }
 
 </style>
 </head>
@@ -2347,7 +2436,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         <a href="#lp-how" class="lp-nav-link" data-i18n="nav_how">Comment ça marche</a>
         <a href="#lp-features" class="lp-nav-link" data-i18n="nav_features">Fonctionnalités</a>
         <a href="#lp-pricing" class="lp-nav-link" data-i18n="nav_pricing">Tarifs</a>
-        <a href="#lp-features" class="lp-nav-link" data-i18n="nav_how">Comment ça marche</a>
+        <a href="#lp-soon" class="lp-nav-link" data-i18n="soon_kicker">À venir</a>
         <a href="#lp-faq" class="lp-nav-link" data-i18n="nav_faq">FAQ</a>
       </div>
       <div class="lp-nav-actions">
@@ -2369,6 +2458,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
       <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_features">Fonctionnalités</a>
       <a href="#lp-pricing" onclick="closeLpMobileMenu()" data-i18n="nav_pricing">Tarifs</a>
       <a href="#lp-how" onclick="closeLpMobileMenu()" data-i18n="nav_how">Comment ça marche</a>
+      <a href="#lp-soon" onclick="closeLpMobileMenu()" data-i18n="soon_kicker">À venir</a>
       <a href="#lp-faq" onclick="closeLpMobileMenu()" data-i18n="nav_faq">FAQ</a>
       <button class="lp-theme-toggle lp-theme-toggle-mobile" id="lpThemeToggleMobile" onclick="toggleLandingTheme()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg> <span data-i18n="theme_toggle_label">Thème clair/sombre</span></button>
       <select id="languageSelectLandingMobile" class="lp-lang-select lp-lang-select-mobile" onchange="setLanguage(this.value)" aria-label="Langue">
@@ -2703,6 +2793,40 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         <div class="lp-trust-item"><span class="lp-trust-check">✓</span> <span data-i18n="trust4">Historique des gagnants</span></div>
         <div class="lp-trust-item"><span class="lp-trust-check">✓</span> <span data-i18n="trust5">Preuve partageable</span></div>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ COMING SOON ============ -->
+  <section class="lp-section lp-soon" id="lp-soon">
+    <div class="lp-section-head lp-reveal">
+      <span class="lp-kicker" data-i18n="soon_kicker">À venir</span>
+      <h2 class="lp-section-title" data-i18n="soon_title">La plateforme grandit avec toi.</h2>
+      <p class="lp-soon-sub" data-i18n="soon_sub">RerePickWinn évolue en continu. Voici ce qui se prépare.</p>
+    </div>
+    <div class="lp-soon-grid">
+      <article class="lp-soon-card lp-reveal">
+        <span class="lp-soon-ic lp-soon-spin"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="24" cy="24" r="17"/><circle cx="24" cy="24" r="3.5"/><path d="M24 7v13M24 28v13M7 24h13M28 24h13M12 12l9.5 9.5M26.5 26.5L36 36M36 12l-9.5 9.5M21.5 26.5L12 36" opacity=".55"/></svg></span>
+        <span class="lp-soon-pill"><i></i><span data-i18n="soon_badge">En préparation</span></span>
+        <h3 data-i18n="soon1_h">De nouveaux jeux de tirage</h3>
+        <p data-i18n="soon1_p">D'autres façons de désigner un gagnant viendront rejoindre les 6 modes actuels.</p>
+      </article>
+      <article class="lp-soon-card lp-reveal lp-reveal-delay">
+        <span class="lp-soon-ic lp-soon-float"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 36c6-12 12-12 17-6s11 6 17-8"/><circle cx="14" cy="15" r="4"/><circle cx="31" cy="12" r="3"/><path d="M40 8v8M36 12h8" opacity=".7"/></svg></span>
+        <span class="lp-soon-pill"><i></i><span data-i18n="soon_badge">En préparation</span></span>
+        <h3 data-i18n="soon2_h">Des jeux encore plus soignés</h3>
+        <p data-i18n="soon2_p">Animations, rythme et réglages améliorés, pour des tirages toujours plus agréables à regarder.</p>
+      </article>
+      <article class="lp-soon-card lp-reveal lp-reveal-delay-2">
+        <span class="lp-soon-ic lp-soon-twinkle"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 6l4.2 11.8L40 22l-11.8 4.2L24 38l-4.2-11.8L8 22l11.8-4.2z"/><path d="M38 6v6M35 9h6" opacity=".7"/></svg></span>
+        <span class="lp-soon-pill"><i></i><span data-i18n="soon_badge">En préparation</span></span>
+        <h3 data-i18n="soon3_h">Et bien d'autres nouveautés</h3>
+        <p data-i18n="soon3_p">De nouvelles fonctionnalités arrivent régulièrement, directement dans ton espace.</p>
+      </article>
+    </div>
+    <div class="lp-soon-cta lp-reveal">
+      <p data-i18n="soon_cta_text">Rejoins RerePickWinn dès maintenant et suis son évolution au fil des nouveautés.</p>
+      <button class="lp-btn-primary" onclick="showAuthFromLanding('signupView')"><span data-i18n="soon_cta">Créer mon compte gratuitement</span> <span aria-hidden="true">→</span></button>
+      <button class="lp-btn-text" onclick="lpScrollTo('lp-pricing')" data-i18n="soon_cta_plans">Voir les formules</button>
     </div>
   </section>
 
@@ -3107,6 +3231,8 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
           <span class="btn-label" data-i18n="btn_new_giveaway">+ Nouveau tirage</span>
         </button>
 
+        <button class="nav-plan-chip" id="navPlanChip" onclick="showScreen('billingScreen')" aria-label="Abonnement" title="Abonnement"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17h16M4.5 8.5l3.2 2.8L12 6l4.3 5.3 3.2-2.8L18 17H6z"/></svg><span id="navPlanChipLabel">Gratuit</span></button>
+
         <div class="nav-icon-group">
           <button class="icon-btn nav-icon-btn" id="navNotifBtn" onclick="toggleNotifMenu()" aria-label="Notifications">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 8a5 5 0 0 1 10 0v3.5l1.5 2.5h-13L5 11.5V8z"/><path d="M8 16.5a2 2 0 0 0 4 0"/></svg>
@@ -3138,6 +3264,10 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
             <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="6.5" r="3.5"/><path d="M3 17c0-3.3 3.1-6 7-6s7 2.7 7 6"/></svg>
             Mon profil
           </button>
+          <button class="user-menu-item" onclick="showScreen('billingScreen')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h16M4.5 8.5l3.2 2.8L12 6l4.3 5.3 3.2-2.8L18 17H6z"/></svg>
+            <span data-i18n="menu_billing">Abonnement</span>
+          </button>
           <button class="user-menu-item" onclick="showScreen('settingsScreen')">
             <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="10" r="2.8"/><path d="M10 2.5v2M10 15.5v2M3.8 5.8l1.4 1.4M14.8 12.8l1.4 1.4M2.5 10h2M15.5 10h2M3.8 14.2l1.4-1.4M14.8 7.2l1.4-1.4"/></svg>
             Paramètres
@@ -3160,6 +3290,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
       <button class="nav-mobile-link" onclick="navigateTo('giveawaysScreen')" data-i18n="nav_giveaways">Mes tirages</button>
       <button class="nav-mobile-link" onclick="navigateTo('participantsScreen')" data-i18n="nav_participants">Participants</button>
       <button class="nav-mobile-link" onclick="navigateTo('winnersScreen')" data-i18n="nav_winners">Gagnants</button>
+      <button class="nav-mobile-link" onclick="showScreen('billingScreen')" data-i18n="menu_billing">Abonnement</button>
     </div>
   </nav>
 
@@ -3177,6 +3308,8 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
           <span class="btn-label" data-i18n="btn_new_giveaway">+ Nouveau tirage</span>
         </button>
       </div>
+
+      <div class="quota-banner" id="quotaBanner" style="display:none;"></div>
 
       <div class="stats-grid stats-grid-4" id="statsGrid">
         <div class="stat-card stat-card-anim" style="--delay:0">
@@ -3355,39 +3488,16 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
   <!-- ============================================================ -->
   <!-- SETTINGS SCREEN -->
   <!-- ============================================================ -->
-  <div id="settingsScreen" class="screen" style="display:none;">
-    <div class="page-container page-container-narrow">
+  <!-- ============================================================ -->
+  <!-- BILLING SCREEN -->
+  <!-- ============================================================ -->
+  <div id="billingScreen" class="screen" style="display:none;">
+    <div class="page-container bill-page">
       <button class="back-btn" onclick="goBackToMainScreen()" data-i18n="back">← Retour</button>
-      <h1 class="page-title" data-i18n="title_settings">Paramètres</h1>
+      <h1 class="page-title" data-i18n="title_billing">Abonnement</h1>
+      <p class="page-subtitle" data-i18n="billing_page_sub">Ta formule, ton utilisation et tes paiements, au même endroit.</p>
 
-      <div class="card">
-        <div class="card-header-icon">
-          <span class="card-icon" id="languageCardIcon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg></span>
-          <div><h3 class="card-section-title" data-i18n="settings_language">Langue</h3><p class="card-section-sub" data-i18n="settings_language_sub">Langue de l'application</p></div>
-        </div>
-        <div class="theme-toggle-row">
-          <span class="form-label" style="margin:0;" data-i18n="settings_language_label">Langue de l'application</span>
-          <select id="languageSelect" class="form-input filter-select" style="max-width:180px;" onchange="setLanguage(this.value)">
-            <option value="fr">🇫🇷 Français</option>
-            <option value="en">🇬🇧 English</option>
-            <option value="de">🇩🇪 Deutsch</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header-icon">
-          <span class="card-icon" id="appearanceCardIcon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.1 0-1 .8-1.8 1.8-1.8H16a5 5 0 0 0 5-5c0-3.9-4-7.1-9-7.1z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="11" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.1" fill="currentColor" stroke="none"/></svg></span>
-          <div><h3 class="card-section-title" data-i18n="settings_appearance">Apparence</h3><p class="card-section-sub" data-i18n="settings_appearance_sub">Personnalisez l'apparence de l'application</p></div>
-        </div>
-        <div class="theme-toggle-row">
-          <span class="form-label" style="margin:0;" data-i18n="settings_theme">Thème</span>
-          <div class="theme-switch" id="themeSwitch">
-            <button class="theme-switch-btn active" data-theme="light" onclick="setTheme('light')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg> <span data-i18n="theme_light">Clair</span></button>
-            <button class="theme-switch-btn" data-theme="dark" onclick="setTheme('dark')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg> <span data-i18n="theme_dark">Sombre</span></button>
-          </div>
-        </div>
-      </div>
+      <div class="card plan-summary" id="planSummary"></div>
 
       <div class="card" id="billingCard">
         <div class="card-header-icon">
@@ -3437,6 +3547,58 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
             <span class="billing-pro-badge" id="billingActiveTierLabel" data-i18n="tier_pro">Pro</span>
             <span data-i18n="billing_active_desc">Ton abonnement est actif — merci !</span>
           </div>
+        </div>
+      </div>
+
+      <div class="card" id="paymentHistoryCard">
+        <div class="card-header-icon">
+          <span class="card-icon" style="background:var(--green-soft);color:var(--green-ink);"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10a1 1 0 0 1 1 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 0 1 1-1z"/><path d="M9.5 8h5M9.5 12h5"/></svg></span>
+          <div><h3 class="card-section-title" data-i18n="history_title">Historique des paiements</h3><p class="card-section-sub" data-i18n="history_sub">Tous tes paiements, au même endroit.</p></div>
+        </div>
+        <div id="paymentHistoryList" class="pay-history"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsScreen" class="screen" style="display:none;">
+    <div class="page-container page-container-narrow">
+      <button class="back-btn" onclick="goBackToMainScreen()" data-i18n="back">← Retour</button>
+      <h1 class="page-title" data-i18n="title_settings">Paramètres</h1>
+
+      <div class="card">
+        <div class="card-header-icon">
+          <span class="card-icon" id="languageCardIcon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg></span>
+          <div><h3 class="card-section-title" data-i18n="settings_language">Langue</h3><p class="card-section-sub" data-i18n="settings_language_sub">Langue de l'application</p></div>
+        </div>
+        <div class="theme-toggle-row">
+          <span class="form-label" style="margin:0;" data-i18n="settings_language_label">Langue de l'application</span>
+          <select id="languageSelect" class="form-input filter-select" style="max-width:180px;" onchange="setLanguage(this.value)">
+            <option value="fr">🇫🇷 Français</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="de">🇩🇪 Deutsch</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header-icon">
+          <span class="card-icon" id="appearanceCardIcon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.1 0-1 .8-1.8 1.8-1.8H16a5 5 0 0 0 5-5c0-3.9-4-7.1-9-7.1z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="11" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.1" fill="currentColor" stroke="none"/></svg></span>
+          <div><h3 class="card-section-title" data-i18n="settings_appearance">Apparence</h3><p class="card-section-sub" data-i18n="settings_appearance_sub">Personnalisez l'apparence de l'application</p></div>
+        </div>
+        <div class="theme-toggle-row">
+          <span class="form-label" style="margin:0;" data-i18n="settings_theme">Thème</span>
+          <div class="theme-switch" id="themeSwitch">
+            <button class="theme-switch-btn active" data-theme="light" onclick="setTheme('light')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg> <span data-i18n="theme_light">Clair</span></button>
+            <button class="theme-switch-btn" data-theme="dark" onclick="setTheme('dark')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg> <span data-i18n="theme_dark">Sombre</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card settings-link-card" onclick="showScreen('billingScreen')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')showScreen('billingScreen')">
+        <div class="card-header-icon" style="margin-bottom:0;">
+          <span class="card-icon" style="background:var(--accent-soft);color:var(--accent);"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17h16M4.5 8.5l3.2 2.8L12 6l4.3 5.3 3.2-2.8L18 17H6z"/></svg></span>
+          <div><h3 class="card-section-title" data-i18n="settings_billing_link_title">Abonnement et paiements</h3><p class="card-section-sub" data-i18n="settings_billing_link_sub">Formule, utilisation et historique des paiements</p></div>
+          <span class="row-chevron" style="margin-left:auto;align-self:center;">→</span>
         </div>
       </div>
 
@@ -3504,6 +3666,18 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
   </div>
 
   <!-- Delete account confirmation -->
+  <div id="quotaModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeQuotaModal()">
+    <div class="modal-card quota-modal">
+      <span class="quota-modal-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17h16M4.5 8.5l3.2 2.8L12 6l4.3 5.3 3.2-2.8L18 17H6z"/></svg></span>
+      <h3 class="modal-title" id="quotaModalTitle" data-i18n="quota_modal_title">Plus de tirage disponible</h3>
+      <p class="modal-text" id="quotaModalText"></p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeQuotaModal()" data-i18n="quota_modal_later">Plus tard</button>
+        <button class="btn btn-primary" onclick="closeQuotaModal(); showScreen('billingScreen')"><span class="btn-label" data-i18n="quota_banner_cta">Voir les formules</span></button>
+      </div>
+    </div>
+  </div>
+
   <div id="deleteAccountModal" class="modal-overlay" style="display:none;">
     <div class="modal-card">
       <h3 class="modal-title" data-i18n="delete_modal_title">Supprimer ton compte ?</h3>
@@ -4331,7 +4505,7 @@ function showView(viewId) {
   }
 }
 
-var ALL_SCREENS = ['dashboardScreen', 'giveawaysScreen', 'participantsScreen', 'winnersScreen', 'settingsScreen', 'profileScreen', 'wizardScreen', 'drawScreen'];
+var ALL_SCREENS = ['dashboardScreen', 'giveawaysScreen', 'participantsScreen', 'winnersScreen', 'billingScreen', 'settingsScreen', 'profileScreen', 'wizardScreen', 'drawScreen'];
 var NAV_LINK_MAP = {
   dashboardScreen: 'navLinkDashboard',
   giveawaysScreen: 'navLinkGiveaways',
@@ -4388,7 +4562,8 @@ function showScreen(screenId) {
   // payment made in the NOWPayments email tab (or on another device)
   // wouldn't otherwise be reflected until the next full login, which
   // could easily look like "it didn't work" right after paying.
-  if (screenId === 'settingsScreen') loadSubscriptionStatus();
+  if (screenId === 'settingsScreen' || screenId === 'billingScreen') loadSubscriptionStatus();
+  if (screenId === 'billingScreen') loadPaymentHistory();
 
   // Only primary destinations are remembered as "the screen to come back
   // to" — transient screens (wizard, draw, profile, settings) must never
@@ -4621,6 +4796,12 @@ function setBtnLoading(btn, loading) {
   if (!btn) return;
   btn.disabled = loading;
   btn.classList.toggle('is-loading', loading);
+  // Pay buttons keep their layout while loading: the sub-line says what is happening.
+  var sub = btn.querySelector && btn.querySelector('.pay-card-sub');
+  if (sub) {
+    if (loading) { sub.setAttribute('data-prev', sub.textContent); sub.textContent = t('billing_redirecting'); }
+    else if (sub.hasAttribute('data-prev')) { sub.textContent = sub.getAttribute('data-prev'); sub.removeAttribute('data-prev'); }
+  }
 }
 
 // ============================================================
@@ -4931,6 +5112,8 @@ function onAuthSuccess(user) {
   // which no app code can prevent. Restoring the screen makes that
   // reload invisible instead of dumping the person back at the start.
   var lastScreen = 'dashboardScreen';
+  var returnedFromPayment = false;
+  try { returnedFromPayment = new URLSearchParams(location.search).get('billing') === 'return'; } catch (e) {}
   try {
     var oauthReturnScreen = localStorage.getItem('repickwinn-oauth-return-screen');
     var justLoggedIn = sessionStorage.getItem('repickwinn-fresh-login');
@@ -4945,6 +5128,10 @@ function onAuthSuccess(user) {
       if (saved && PERSISTABLE_SCREENS.indexOf(saved) !== -1) lastScreen = saved;
     }
   } catch (e) { /* ignore */ }
+  if (returnedFromPayment) {
+    lastScreen = 'billingScreen';
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  }
   isHandlingPopState = true; // suppress pushState for this first screen — see replaceState below
   navigateTo(lastScreen);
   isHandlingPopState = false;
@@ -5338,6 +5525,7 @@ async function loadDashboardData(runId) {
 
   renderDashboard();
   populateParticipantsGiveawayFilter();
+  renderQuotaState();
 }
 
 function animateCounter(elementId, target) {
@@ -6214,6 +6402,54 @@ var TRANSLATIONS = {
     "billing_still_pending_generic": "Pas encore reçu — un paiement peut prendre quelques instants (carte) ou quelques minutes (crypto) à être confirmé. Réessaie dans un instant.",
     "billing_still_pending_card": "Paiement par carte pas encore confirmé — cela prend en général quelques secondes. Réessaie dans un instant.",
     "billing_card_sub": "Paiement sécurisé",
+    "billing_redirecting": "Redirection vers le paiement…",
+    "title_billing": "Abonnement",
+    "billing_page_sub": "Ta formule, ton utilisation et tes paiements, au même endroit.",
+    "menu_billing": "Abonnement",
+    "settings_billing_link_title": "Abonnement et paiements",
+    "settings_billing_link_sub": "Formule, utilisation et historique des paiements",
+    "plan_current_kicker": "Formule actuelle",
+    "plan_status_active": "Actif",
+    "plan_status_free": "Gratuit",
+    "plan_usage_label": "Tirages utilisés",
+    "plan_usage_scope_free": "au total",
+    "plan_usage_scope_month": "ce mois-ci",
+    "plan_unlimited": "Illimité",
+    "plan_renews_on": "Renouvellement le {date}",
+    "plan_access_until": "Accès jusqu'au {date}",
+    "plan_paid_with_card": "Payé par carte",
+    "plan_paid_with_crypto": "Payé en crypto",
+    "history_title": "Historique des paiements",
+    "history_sub": "Tous tes paiements, au même endroit.",
+    "history_empty": "Aucun paiement pour l'instant.",
+    "history_paid": "Payé",
+    "history_method_card": "Carte",
+    "history_method_crypto": "Crypto",
+    "quota_banner_free_used_title": "Ton tirage gratuit est utilisé",
+    "quota_banner_free_used_text": "Choisis une formule pour continuer à créer des tirages.",
+    "quota_banner_cta": "Voir les formules",
+    "quota_banner_free_left": "Plan gratuit · {left} tirage offert restant",
+    "quota_banner_paid_used_title": "Quota du mois atteint ({used}/{limit})",
+    "quota_banner_paid_used_text": "Il se renouvelle le 1er du mois. Tu peux aussi passer à la formule supérieure.",
+    "quota_banner_paid_usage": "{tier} · {used}/{limit} tirages ce mois-ci",
+    "quota_banner_manage": "Gérer",
+    "quota_modal_title": "Plus de tirage disponible",
+    "quota_modal_free": "Tu as utilisé ton tirage gratuit. Pour en créer d'autres, choisis une formule : Basique, Medium ou Pro.",
+    "quota_modal_paid": "Tu as atteint la limite de {limit} tirages pour ce mois. Elle se renouvelle le 1er du mois, ou tu peux passer à la formule supérieure.",
+    "quota_modal_later": "Plus tard",
+    "soon_kicker": "À venir",
+    "soon_title": "La plateforme grandit avec toi.",
+    "soon_sub": "RerePickWinn évolue en continu. Voici ce qui se prépare.",
+    "soon_badge": "En préparation",
+    "soon1_h": "De nouveaux jeux de tirage",
+    "soon1_p": "D'autres façons de désigner un gagnant viendront rejoindre les 6 modes actuels.",
+    "soon2_h": "Des jeux encore plus soignés",
+    "soon2_p": "Animations, rythme et réglages améliorés, pour des tirages toujours plus agréables à regarder.",
+    "soon3_h": "Et bien d'autres nouveautés",
+    "soon3_p": "De nouvelles fonctionnalités arrivent régulièrement, directement dans ton espace.",
+    "soon_cta_text": "Rejoins RerePickWinn dès maintenant et suis son évolution au fil des nouveautés.",
+    "soon_cta": "Créer mon compte gratuitement",
+    "soon_cta_plans": "Voir les formules",
     "billing_crypto_sub": "Paiement en cryptomonnaie",
     "period_monthly": "Mensuel",
     "period_quarterly": "3 mois",
@@ -6359,7 +6595,7 @@ var TRANSLATIONS = {
     "settings_legal_sub": "Documents légaux et confidentialité",
     "billing_current_plan": "Plan actuel : {tier}",
     "toast_free_participant_limit": "Plan gratuit limité à {count} participants par tirage — passe Pro pour lever cette limite.",
-    "toast_free_lifetime_limit": "Ton tirage gratuit est déjà utilisé — choisis une formule dans Paramètres pour en créer d'autres.",
+    "toast_free_lifetime_limit": "Ton tirage gratuit est déjà utilisé — choisis une formule dans Abonnement pour en créer d'autres.",
     "toast_free_giveaway_limit": "Tu as atteint ta limite de {count} tirage(s) ce mois-ci — passe à une formule supérieure pour en créer d'autres.",
     "legal_last_updated": "Dernière mise à jour : 7 août 2026",
     "terms_h2": "Conditions Générales d'Utilisation",
@@ -6824,6 +7060,54 @@ var TRANSLATIONS = {
     "billing_still_pending_generic": "Not received yet — a payment can take a few seconds (card) or a few minutes (crypto) to confirm. Try again shortly.",
     "billing_still_pending_card": "Card payment not confirmed yet — this usually takes a few seconds. Try again shortly.",
     "billing_card_sub": "Secure payment",
+    "billing_redirecting": "Redirecting to payment…",
+    "title_billing": "Subscription",
+    "billing_page_sub": "Your plan, your usage and your payments, in one place.",
+    "menu_billing": "Subscription",
+    "settings_billing_link_title": "Subscription & payments",
+    "settings_billing_link_sub": "Plan, usage and payment history",
+    "plan_current_kicker": "Current plan",
+    "plan_status_active": "Active",
+    "plan_status_free": "Free",
+    "plan_usage_label": "Draws used",
+    "plan_usage_scope_free": "in total",
+    "plan_usage_scope_month": "this month",
+    "plan_unlimited": "Unlimited",
+    "plan_renews_on": "Renews on {date}",
+    "plan_access_until": "Access until {date}",
+    "plan_paid_with_card": "Paid by card",
+    "plan_paid_with_crypto": "Paid with crypto",
+    "history_title": "Payment history",
+    "history_sub": "All your payments, in one place.",
+    "history_empty": "No payments yet.",
+    "history_paid": "Paid",
+    "history_method_card": "Card",
+    "history_method_crypto": "Crypto",
+    "quota_banner_free_used_title": "Your free draw has been used",
+    "quota_banner_free_used_text": "Pick a plan to keep creating draws.",
+    "quota_banner_cta": "See plans",
+    "quota_banner_free_left": "Free plan · {left} free draw left",
+    "quota_banner_paid_used_title": "Monthly quota reached ({used}/{limit})",
+    "quota_banner_paid_used_text": "It resets on the 1st of the month. You can also move up to a higher plan.",
+    "quota_banner_paid_usage": "{tier} · {used}/{limit} draws this month",
+    "quota_banner_manage": "Manage",
+    "quota_modal_title": "No draws left",
+    "quota_modal_free": "You have used your free draw. To create more, pick a plan: Basic, Medium or Pro.",
+    "quota_modal_paid": "You have reached the limit of {limit} draws for this month. It resets on the 1st of the month, or you can move up to a higher plan.",
+    "quota_modal_later": "Later",
+    "soon_kicker": "Coming soon",
+    "soon_title": "The platform grows with you.",
+    "soon_sub": "RerePickWinn keeps evolving. Here is what is in the works.",
+    "soon_badge": "In the works",
+    "soon1_h": "New draw games",
+    "soon1_p": "More ways to pick a winner will join the 6 current modes.",
+    "soon2_h": "Even more polished games",
+    "soon2_p": "Improved animations, pacing and settings, for draws that are ever more enjoyable to watch.",
+    "soon3_h": "And plenty more",
+    "soon3_p": "New features arrive regularly, right inside your workspace.",
+    "soon_cta_text": "Join RerePickWinn today and follow it as new features arrive.",
+    "soon_cta": "Create my free account",
+    "soon_cta_plans": "See plans",
     "billing_crypto_sub": "Cryptocurrency payment",
     "period_monthly": "Monthly",
     "period_quarterly": "3 months",
@@ -6969,7 +7253,7 @@ var TRANSLATIONS = {
     "settings_legal_sub": "Legal documents and privacy",
     "billing_current_plan": "Current plan: {tier}",
     "toast_free_participant_limit": "Free plan limited to {count} participants per giveaway — upgrade to Pro to remove this limit.",
-    "toast_free_lifetime_limit": "Your free giveaway has been used — pick a plan in Settings to create more.",
+    "toast_free_lifetime_limit": "Your free giveaway has been used — pick a plan in Subscription to create more.",
     "toast_free_giveaway_limit": "You've reached your limit of {count} giveaway(s) this month — upgrade your plan to create more.",
     "legal_last_updated": "Last updated: August 7, 2026",
     "terms_h2": "Terms of Service",
@@ -7434,6 +7718,54 @@ var TRANSLATIONS = {
     "billing_still_pending_generic": "Noch nicht eingegangen — eine Zahlung kann einige Sekunden (Karte) oder Minuten (Krypto) dauern. Versuche es gleich noch einmal.",
     "billing_still_pending_card": "Kartenzahlung noch nicht bestätigt — das dauert meist nur wenige Sekunden. Versuche es gleich noch einmal.",
     "billing_card_sub": "Sichere Zahlung",
+    "billing_redirecting": "Weiterleitung zur Zahlung…",
+    "title_billing": "Abonnement",
+    "billing_page_sub": "Dein Tarif, deine Nutzung und deine Zahlungen an einem Ort.",
+    "menu_billing": "Abonnement",
+    "settings_billing_link_title": "Abonnement und Zahlungen",
+    "settings_billing_link_sub": "Tarif, Nutzung und Zahlungsverlauf",
+    "plan_current_kicker": "Aktueller Tarif",
+    "plan_status_active": "Aktiv",
+    "plan_status_free": "Kostenlos",
+    "plan_usage_label": "Verwendete Ziehungen",
+    "plan_usage_scope_free": "insgesamt",
+    "plan_usage_scope_month": "diesen Monat",
+    "plan_unlimited": "Unbegrenzt",
+    "plan_renews_on": "Verlängerung am {date}",
+    "plan_access_until": "Zugang bis {date}",
+    "plan_paid_with_card": "Mit Karte bezahlt",
+    "plan_paid_with_crypto": "Mit Krypto bezahlt",
+    "history_title": "Zahlungsverlauf",
+    "history_sub": "Alle deine Zahlungen an einem Ort.",
+    "history_empty": "Noch keine Zahlungen.",
+    "history_paid": "Bezahlt",
+    "history_method_card": "Karte",
+    "history_method_crypto": "Krypto",
+    "quota_banner_free_used_title": "Deine kostenlose Ziehung ist verbraucht",
+    "quota_banner_free_used_text": "Wähle einen Tarif, um weitere Ziehungen zu erstellen.",
+    "quota_banner_cta": "Tarife ansehen",
+    "quota_banner_free_left": "Kostenloser Tarif · {left} Gratis-Ziehung übrig",
+    "quota_banner_paid_used_title": "Monatskontingent erreicht ({used}/{limit})",
+    "quota_banner_paid_used_text": "Es wird am 1. des Monats zurückgesetzt. Du kannst auch auf einen höheren Tarif wechseln.",
+    "quota_banner_paid_usage": "{tier} · {used}/{limit} Ziehungen diesen Monat",
+    "quota_banner_manage": "Verwalten",
+    "quota_modal_title": "Keine Ziehung mehr verfügbar",
+    "quota_modal_free": "Du hast deine kostenlose Ziehung verbraucht. Für weitere wähle einen Tarif: Basic, Medium oder Pro.",
+    "quota_modal_paid": "Du hast das Limit von {limit} Ziehungen für diesen Monat erreicht. Es wird am 1. des Monats zurückgesetzt, oder du wechselst auf einen höheren Tarif.",
+    "quota_modal_later": "Später",
+    "soon_kicker": "Demnächst",
+    "soon_title": "Die Plattform wächst mit dir.",
+    "soon_sub": "RerePickWinn entwickelt sich ständig weiter. Das ist in Arbeit.",
+    "soon_badge": "In Vorbereitung",
+    "soon1_h": "Neue Ziehungsspiele",
+    "soon1_p": "Weitere Wege, einen Gewinner zu ermitteln, kommen zu den 6 aktuellen Modi dazu.",
+    "soon2_h": "Noch ausgefeiltere Spiele",
+    "soon2_p": "Verbesserte Animationen, Tempo und Einstellungen – für Ziehungen, die noch mehr Spaß beim Zuschauen machen.",
+    "soon3_h": "Und noch viel mehr",
+    "soon3_p": "Neue Funktionen kommen regelmäßig, direkt in deinen Arbeitsbereich.",
+    "soon_cta_text": "Werde jetzt Teil von RerePickWinn und verfolge die Neuerungen.",
+    "soon_cta": "Kostenloses Konto erstellen",
+    "soon_cta_plans": "Tarife ansehen",
     "billing_crypto_sub": "Zahlung in Kryptowährung",
     "period_monthly": "Monatlich",
     "period_quarterly": "3 Monate",
@@ -7954,6 +8286,7 @@ function applyLanguage(lang) {
   // effect immediately instead of only after a page reload.
   try {
     if (typeof currentUser !== 'undefined' && currentUser) {
+      if (typeof renderQuotaState === 'function') { renderQuotaState(); if (visibleScreenId === 'billingScreen') loadPaymentHistory(); }
       if (currentActiveScreen === 'giveawaysScreen' && typeof renderGiveawaysScreen === 'function') renderGiveawaysScreen();
       else if (currentActiveScreen === 'participantsScreen' && typeof renderParticipantsScreen === 'function') renderParticipantsScreen();
       else if (currentActiveScreen === 'winnersScreen' && typeof renderWinnersScreen === 'function') renderWinnersScreen();
@@ -8076,6 +8409,7 @@ function escapeHtml(str) {
 // WIZARD
 // ============================================================
 function startWizard() {
+  if (giveawayQuota().reached) { openQuotaModal(); return; }
   // In case a YouTube collection from a previous giveaway was somehow
   // still running (shouldn't normally happen given showScreen's own
   // cleanup, but cheap to guarantee here too).
@@ -9810,7 +10144,7 @@ async function loadSubscriptionStatus() {
   try {
     var { data } = await supabaseClient
       .from('subscriptions')
-      .select('status, tier, current_period_end')
+      .select('status, tier, current_period_end, provider, period')
       .eq('user_id', currentUser.id)
       .maybeSingle();
     currentSubscription = data || null;
@@ -9818,6 +10152,7 @@ async function loadSubscriptionStatus() {
     currentSubscription = null;
   }
   renderBillingCard();
+  renderQuotaState();
 }
 
 function renderBillingCard() {
@@ -9846,6 +10181,116 @@ function renderBillingCard() {
     renderBillingPriceDisplay();
   }
 }
+
+// ============================================================
+// QUOTA, PLAN SUMMARY, PAYMENT HISTORY
+// ============================================================
+function giveawayQuota() {
+  var limit = currentTierLimits().giveaways;
+  var isFree = currentTier() === 'free';
+  var monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
+  var used = currentGiveaways.filter(function(g) { return isFree || (g.created_at && new Date(g.created_at) >= monthStart); }).length;
+  return { limit: limit, used: used, isFree: isFree, reached: limit !== Infinity && used >= limit };
+}
+
+function formatLongDate(iso) {
+  try { return new Date(iso).toLocaleDateString(currentLang(), { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { return ''; }
+}
+
+function renderQuotaState() {
+  var q = giveawayQuota();
+  var tier = currentTier();
+
+  var chip = document.getElementById('navPlanChip');
+  var chipLabel = document.getElementById('navPlanChipLabel');
+  if (chip && chipLabel) {
+    chipLabel.textContent = t('tier_' + tier);
+    chip.classList.toggle('is-paid', tier !== 'free');
+  }
+
+  var banner = document.getElementById('quotaBanner');
+  if (banner) {
+    var html = '';
+    var cls = 'quota-banner';
+    if (q.reached && q.isFree) {
+      cls += ' is-alert';
+      html = '<div class="quota-banner-main"><strong>' + t('quota_banner_free_used_title') + '</strong><span>' + t('quota_banner_free_used_text') + '</span></div>' +
+             '<button class="btn btn-primary btn-sm" onclick="showScreen(\'billingScreen\')"><span class="btn-label">' + t('quota_banner_cta') + '</span></button>';
+    } else if (q.reached) {
+      cls += ' is-alert';
+      html = '<div class="quota-banner-main"><strong>' + t('quota_banner_paid_used_title', { used: q.used, limit: q.limit }) + '</strong><span>' + t('quota_banner_paid_used_text') + '</span></div>' +
+             '<button class="btn btn-primary btn-sm" onclick="showScreen(\'billingScreen\')"><span class="btn-label">' + t('quota_banner_cta') + '</span></button>';
+    } else if (q.isFree) {
+      html = '<div class="quota-banner-main"><span>' + t('quota_banner_free_left', { left: q.limit - q.used }) + '</span></div>' +
+             '<button class="link-btn" onclick="showScreen(\'billingScreen\')">' + t('quota_banner_cta') + ' →</button>';
+    } else if (q.limit !== Infinity) {
+      html = '<div class="quota-banner-main"><span>' + t('quota_banner_paid_usage', { tier: t('tier_' + tier), used: q.used, limit: q.limit }) + '</span></div>' +
+             '<button class="link-btn" onclick="showScreen(\'billingScreen\')">' + t('quota_banner_manage') + ' →</button>';
+    }
+    banner.className = cls;
+    banner.innerHTML = html;
+    banner.style.display = html ? 'flex' : 'none';
+  }
+  renderPlanSummary();
+}
+
+function renderPlanSummary() {
+  var el = document.getElementById('planSummary');
+  if (!el) return;
+  var q = giveawayQuota();
+  var tier = currentTier();
+  var live = subscriptionIsLive(currentSubscription);
+  var pct = q.limit === Infinity ? 100 : Math.min(100, Math.round(q.used / q.limit * 100));
+  var usageValue = q.limit === Infinity ? t('plan_unlimited') : (q.used + ' / ' + q.limit);
+  var scope = q.isFree ? t('plan_usage_scope_free') : t('plan_usage_scope_month');
+  var meta = '';
+  if (live && currentSubscription.current_period_end) {
+    var d = formatLongDate(currentSubscription.current_period_end);
+    meta += '<li>' + t(currentSubscription.provider === 'dodo' ? 'plan_renews_on' : 'plan_access_until', { date: d }) + '</li>';
+  }
+  if (live && currentSubscription.provider) {
+    meta += '<li>' + t(currentSubscription.provider === 'dodo' ? 'plan_paid_with_card' : 'plan_paid_with_crypto') + '</li>';
+  }
+  if (live && currentSubscription.period) {
+    meta += '<li>' + t('period_' + currentSubscription.period) + '</li>';
+  }
+  el.innerHTML =
+    '<div class="plan-summary-head">' +
+      '<div><span class="plan-summary-kicker">' + t('plan_current_kicker') + '</span><h2 class="plan-summary-name">' + t('tier_' + tier) + '</h2></div>' +
+      '<span class="plan-status ' + (live ? 'is-live' : '') + '">' + t(live ? 'plan_status_active' : 'plan_status_free') + '</span>' +
+    '</div>' +
+    '<div class="plan-usage"><div class="plan-usage-row"><span>' + t('plan_usage_label') + ' <em>' + scope + '</em></span><strong>' + usageValue + '</strong></div>' +
+    '<div class="plan-usage-bar"><i style="width:' + pct + '%"' + (q.reached ? ' class="is-full"' : '') + '></i></div></div>' +
+    (meta ? '<ul class="plan-meta">' + meta + '</ul>' : '');
+}
+
+async function loadPaymentHistory() {
+  var list = document.getElementById('paymentHistoryList');
+  if (!list || !currentUser) return;
+  var rows = [];
+  try {
+    var res = await supabaseClient.from('payments')
+      .select('id, provider, tier, period, amount, currency, created_at')
+      .order('created_at', { ascending: false }).limit(30);
+    rows = (res && res.data) || [];
+  } catch (e) { rows = []; }
+  if (!rows.length) { list.innerHTML = '<p class="empty-state" style="padding:14px 0;">' + t('history_empty') + '</p>'; return; }
+  list.innerHTML = rows.map(function(r) {
+    var amount = Number(r.amount).toFixed(2) + ((r.currency || 'USD') === 'USD' ? ' $' : ' ' + r.currency);
+    var plan = t('tier_' + r.tier) + (r.period ? ' · ' + t('period_' + r.period) : '');
+    var method = t(r.provider === 'dodo' ? 'history_method_card' : 'history_method_crypto');
+    return '<div class="pay-row"><div class="pay-row-main"><strong>' + escapeHtml(plan) + '</strong><span>' + formatLongDate(r.created_at) + ' · ' + method + '</span></div>' +
+           '<div class="pay-row-side"><strong>' + amount + '</strong><span class="pay-ok">' + t('history_paid') + '</span></div></div>';
+  }).join('');
+}
+
+function openQuotaModal() {
+  var q = giveawayQuota();
+  var txt = document.getElementById('quotaModalText');
+  if (txt) txt.textContent = q.isFree ? t('quota_modal_free') : t('quota_modal_paid', { limit: q.limit });
+  document.getElementById('quotaModal').style.display = 'flex';
+}
+function closeQuotaModal() { document.getElementById('quotaModal').style.display = 'none'; }
 
 async function refreshBillingStatusClicked() {
   var btn = document.getElementById('billingRefreshBtn');
