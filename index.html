@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261015220124" />
+<meta name="app-build" content="20261015225712" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -6437,6 +6437,9 @@ var TRANSLATIONS = {
     "quota_modal_free": "Tu as utilisé ton tirage gratuit. Pour en créer d'autres, choisis une formule : Basique, Medium ou Pro.",
     "quota_modal_paid": "Tu as atteint la limite de {limit} tirages pour ce mois. Elle se renouvelle le 1er du mois, ou tu peux passer à la formule supérieure.",
     "quota_modal_later": "Plus tard",
+    "plan_free_draw_label": "Tirage gratuit offert",
+    "plan_free_draw_used": "Utilisé",
+    "plan_free_draw_available": "Disponible",
     "soon_kicker": "À venir",
     "soon_title": "La plateforme grandit avec toi.",
     "soon_sub": "RerePickWinn évolue en continu. Voici ce qui se prépare.",
@@ -7095,6 +7098,9 @@ var TRANSLATIONS = {
     "quota_modal_free": "You have used your free draw. To create more, pick a plan: Basic, Medium or Pro.",
     "quota_modal_paid": "You have reached the limit of {limit} draws for this month. It resets on the 1st of the month, or you can move up to a higher plan.",
     "quota_modal_later": "Later",
+    "plan_free_draw_label": "Free draw included",
+    "plan_free_draw_used": "Used",
+    "plan_free_draw_available": "Available",
     "soon_kicker": "Coming soon",
     "soon_title": "The platform grows with you.",
     "soon_sub": "RerePickWinn keeps evolving. Here is what is in the works.",
@@ -7753,6 +7759,9 @@ var TRANSLATIONS = {
     "quota_modal_free": "Du hast deine kostenlose Ziehung verbraucht. Für weitere wähle einen Tarif: Basic, Medium oder Pro.",
     "quota_modal_paid": "Du hast das Limit von {limit} Ziehungen für diesen Monat erreicht. Es wird am 1. des Monats zurückgesetzt, oder du wechselst auf einen höheren Tarif.",
     "quota_modal_later": "Später",
+    "plan_free_draw_label": "Inklusive Gratis-Ziehung",
+    "plan_free_draw_used": "Verbraucht",
+    "plan_free_draw_available": "Verfügbar",
     "soon_kicker": "Demnächst",
     "soon_title": "Die Plattform wächst mit dir.",
     "soon_sub": "RerePickWinn entwickelt sich ständig weiter. Das ist in Arbeit.",
@@ -10218,13 +10227,13 @@ function renderQuotaState() {
              '<button class="btn btn-primary btn-sm" onclick="showScreen(\'billingScreen\')"><span class="btn-label">' + t('quota_banner_cta') + '</span></button>';
     } else if (q.reached) {
       cls += ' is-alert';
-      html = '<div class="quota-banner-main"><strong>' + t('quota_banner_paid_used_title', { used: q.used, limit: q.limit }) + '</strong><span>' + t('quota_banner_paid_used_text') + '</span></div>' +
+      html = '<div class="quota-banner-main"><strong>' + t('quota_banner_paid_used_title', { used: Math.min(q.used, q.limit), limit: q.limit }) + '</strong><span>' + t('quota_banner_paid_used_text') + '</span></div>' +
              '<button class="btn btn-primary btn-sm" onclick="showScreen(\'billingScreen\')"><span class="btn-label">' + t('quota_banner_cta') + '</span></button>';
     } else if (q.isFree) {
       html = '<div class="quota-banner-main"><span>' + t('quota_banner_free_left', { left: q.limit - q.used }) + '</span></div>' +
              '<button class="link-btn" onclick="showScreen(\'billingScreen\')">' + t('quota_banner_cta') + ' →</button>';
     } else if (q.limit !== Infinity) {
-      html = '<div class="quota-banner-main"><span>' + t('quota_banner_paid_usage', { tier: t('tier_' + tier), used: q.used, limit: q.limit }) + '</span></div>' +
+      html = '<div class="quota-banner-main"><span>' + t('quota_banner_paid_usage', { tier: t('tier_' + tier), used: Math.min(q.used, q.limit), limit: q.limit }) + '</span></div>' +
              '<button class="link-btn" onclick="showScreen(\'billingScreen\')">' + t('quota_banner_manage') + ' →</button>';
     }
     banner.className = cls;
@@ -10241,8 +10250,14 @@ function renderPlanSummary() {
   var tier = currentTier();
   var live = subscriptionIsLive(currentSubscription);
   var pct = q.limit === Infinity ? 100 : Math.min(100, Math.round(q.used / q.limit * 100));
-  var usageValue = q.limit === Infinity ? t('plan_unlimited') : (q.used + ' / ' + q.limit);
-  var scope = q.isFree ? t('plan_usage_scope_free') : t('plan_usage_scope_month');
+  var usageLabel, usageValue;
+  if (q.isFree) {
+    usageLabel = t('plan_free_draw_label');
+    usageValue = t(q.reached ? 'plan_free_draw_used' : 'plan_free_draw_available');
+  } else {
+    usageLabel = t('plan_usage_label') + ' <em>' + t('plan_usage_scope_month') + '</em>';
+    usageValue = q.limit === Infinity ? t('plan_unlimited') : (Math.min(q.used, q.limit) + ' / ' + q.limit);
+  }
   var meta = '';
   if (live && currentSubscription.current_period_end) {
     var d = formatLongDate(currentSubscription.current_period_end);
@@ -10259,7 +10274,7 @@ function renderPlanSummary() {
       '<div><span class="plan-summary-kicker">' + t('plan_current_kicker') + '</span><h2 class="plan-summary-name">' + t('tier_' + tier) + '</h2></div>' +
       '<span class="plan-status ' + (live ? 'is-live' : '') + '">' + t(live ? 'plan_status_active' : 'plan_status_free') + '</span>' +
     '</div>' +
-    '<div class="plan-usage"><div class="plan-usage-row"><span>' + t('plan_usage_label') + ' <em>' + scope + '</em></span><strong>' + usageValue + '</strong></div>' +
+    '<div class="plan-usage"><div class="plan-usage-row"><span>' + usageLabel + '</span><strong>' + usageValue + '</strong></div>' +
     '<div class="plan-usage-bar"><i style="width:' + pct + '%"' + (q.reached ? ' class="is-full"' : '') + '></i></div></div>' +
     (meta ? '<ul class="plan-meta">' + meta + '</ul>' : '');
 }
