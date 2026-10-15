@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261015205505" />
+<meta name="app-build" content="20261015214753" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2227,6 +2227,16 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 .pay-card-btn.is-loading .pay-card-arrow { opacity:.4; }
 .pay-card-btn:disabled { opacity:.75; cursor:wait; transform:none; }
 
+/* Crypto pay button: same size as card button, light surface with Bitcoin tile */
+.pay-crypto-btn { color:var(--text,#16132b); background:#fff; border:1.5px solid rgba(110,80,240,.28); box-shadow:0 4px 14px -8px rgba(30,20,80,.35); }
+.pay-crypto-btn:hover { filter:none; border-color:rgba(110,80,240,.55); box-shadow:0 8px 20px -10px rgba(30,20,80,.45); }
+.pay-crypto-btn .pay-card-ic.pay-btc-ic { background:transparent; }
+.pay-crypto-btn .pay-btc-ic svg { width:38px; height:38px; }
+.pay-crypto-btn .pay-card-sub { opacity:.65; }
+.pay-crypto-btn .pay-card-arrow { color:#6b4fe0; }
+[data-theme="dark"] .pay-crypto-btn { background:#1c1a31; color:#ecebfa; border-color:rgba(154,140,255,.35); }
+[data-theme="dark"] .pay-crypto-btn .pay-card-arrow { color:#9a8cff; }
+
 </style>
 </head>
 <body>
@@ -3414,8 +3424,10 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
               <span class="pay-card-txt"><span class="btn-label">Payer par carte</span><span class="pay-card-sub" id="billingCardSub" data-i18n="billing_card_sub">Paiement sécurisé</span></span>
               <span class="pay-card-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
             </button>
-            <button class="btn btn-secondary btn-block" id="billingUpgradeBtn" onclick="upgradeToProClicked()" style="margin-top:10px;">
-              <span class="btn-label" data-i18n="billing_upgrade_btn">Passer Pro (paiement crypto)</span> <span class="btn-lock-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7"/></svg></span>
+            <button class="btn btn-block pay-card-btn pay-crypto-btn" id="billingUpgradeBtn" onclick="upgradeToProClicked()" style="margin-top:10px;">
+              <span class="pay-card-ic pay-btc-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#F7931A"/><g fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 7.4h3.9a2.2 2.2 0 0 1 0 4.4H9.6M9.6 11.8h4.4a2.3 2.3 0 0 1 0 4.6H9.6M9.6 7.4v9M11.6 5.7v1.7M13.6 5.7v1.7M11.6 16.4v1.9M13.6 16.4v1.9"/></g></svg></span>
+              <span class="pay-card-txt"><span class="btn-label" data-i18n="billing_upgrade_btn">Payer en crypto</span><span class="pay-card-sub" data-i18n="billing_crypto_sub">Paiement en cryptomonnaie</span></span>
+              <span class="pay-card-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
             </button>
             <button class="link-btn" id="billingRefreshBtn" onclick="refreshBillingStatusClicked()" style="display:block; margin-top:10px; width:100%; text-align:center;" data-i18n="billing_refresh_btn">J'ai payé — vérifier mon statut</button>
           </div>
@@ -6202,6 +6214,7 @@ var TRANSLATIONS = {
     "billing_still_pending_generic": "Pas encore reçu — un paiement peut prendre quelques instants (carte) ou quelques minutes (crypto) à être confirmé. Réessaie dans un instant.",
     "billing_still_pending_card": "Paiement par carte pas encore confirmé — cela prend en général quelques secondes. Réessaie dans un instant.",
     "billing_card_sub": "Paiement sécurisé",
+    "billing_crypto_sub": "Paiement en cryptomonnaie",
     "period_monthly": "Mensuel",
     "period_quarterly": "3 mois",
     "period_semiannual": "6 mois",
@@ -6811,6 +6824,7 @@ var TRANSLATIONS = {
     "billing_still_pending_generic": "Not received yet — a payment can take a few seconds (card) or a few minutes (crypto) to confirm. Try again shortly.",
     "billing_still_pending_card": "Card payment not confirmed yet — this usually takes a few seconds. Try again shortly.",
     "billing_card_sub": "Secure payment",
+    "billing_crypto_sub": "Cryptocurrency payment",
     "period_monthly": "Monthly",
     "period_quarterly": "3 months",
     "period_semiannual": "6 months",
@@ -7420,6 +7434,7 @@ var TRANSLATIONS = {
     "billing_still_pending_generic": "Noch nicht eingegangen — eine Zahlung kann einige Sekunden (Karte) oder Minuten (Krypto) dauern. Versuche es gleich noch einmal.",
     "billing_still_pending_card": "Kartenzahlung noch nicht bestätigt — das dauert meist nur wenige Sekunden. Versuche es gleich noch einmal.",
     "billing_card_sub": "Sichere Zahlung",
+    "billing_crypto_sub": "Zahlung in Kryptowährung",
     "period_monthly": "Monatlich",
     "period_quarterly": "3 Monate",
     "period_semiannual": "6 Monate",
