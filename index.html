@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261016101525" />
+<meta name="app-build" content="20261016102150" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2402,6 +2402,10 @@ p { line-height: 1.65; }
 .lp-price-desc{min-height:63px}
 .lp-price-note{font-size:12px;min-height:18px}
 @media(max-width:600px){.lp-price-desc{min-height:0}}
+
+/* Navbar stays pinned: overflow-x:hidden on the parent turned it into a scroll container and broke sticky */
+.landing-screen { overflow-x: clip; overflow-y: visible; }
+.lp-nav { position: -webkit-sticky; position: sticky; top: 0; z-index: 100; transform: none; }
 
 </style>
 </head>
