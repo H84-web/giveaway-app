@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261016110838" />
+<meta name="app-build" content="20261016111318" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2856,7 +2856,7 @@ p { line-height: 1.65; }
       <div class="lp-price-card">
         <span class="lp-price-period" data-i18n="tier_free">Gratuit</span>
         <p class="lp-price-desc" data-i18n="pricing_free_d"></p>
-        <div class="lp-price-amount" data-price-amount="free">0$<span data-i18n="billing_total_for_monthly">/mois</span></div>
+        <div class="lp-price-amount" data-price-amount="free">0$</div>
         <p class="lp-price-note">&nbsp;</p>
         <ul class="lp-price-features">
           <li data-i18n="pricing_free_f1">1 tirage au total, offert</li>
@@ -3558,9 +3558,9 @@ p { line-height: 1.65; }
           </div>
 
           <div class="billing-period-tabs" id="billingPeriodTabs">
-            <button type="button" class="billing-period-tab active" data-period="monthly" onclick="selectBillingPeriod('monthly')"><span data-i18n="period_monthly">Mensuel</span></button>
+            <button type="button" class="billing-period-tab" data-period="monthly" onclick="selectBillingPeriod('monthly')"><span data-i18n="period_monthly">Mensuel</span></button>
             <button type="button" class="billing-period-tab" data-period="semiannual" onclick="selectBillingPeriod('semiannual')"><span data-i18n="period_semiannual">6 mois</span> <span class="billing-period-tab-save" id="periodSaveSemiannual"></span></button>
-            <button type="button" class="billing-period-tab" data-period="annual" onclick="selectBillingPeriod('annual')"><span data-i18n="period_annual">1 an</span> <span class="billing-period-tab-save" id="periodSaveAnnual"></span></button>
+            <button type="button" class="billing-period-tab active" data-period="annual" onclick="selectBillingPeriod('annual')"><span data-i18n="period_annual">1 an</span> <span class="billing-period-tab-save" id="periodSaveAnnual"></span></button>
           </div>
 
           <div class="billing-pro-box">
@@ -10277,7 +10277,7 @@ var TIER_PRICES = {
 };
 var PERIOD_MONTHS = { monthly: 1, semiannual: 6, annual: 12 };
 var selectedTier = 'pro';
-var selectedBillingPeriod = 'monthly';
+var selectedBillingPeriod = 'annual';
 
 // An active subscription counts while its paid period has not ended (3 days of grace).
 function subscriptionIsLive(sub) {
