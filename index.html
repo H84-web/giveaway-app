@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261016092814" />
+<meta name="app-build" content="20261016095032" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2395,6 +2395,14 @@ p { line-height: 1.65; }
 /* Section headings line up with the content below them */
 #lp-pricing .lp-section-head, #lp-who .lp-section-head { max-width: 1180px; padding-left: 0; padding-right: 0; }
 
+/* ---- pricing copy additions ---- */
+.lp-price-desc{font-size:14px;line-height:1.5;color:var(--muted);margin:6px 0 10px;min-height:42px}
+.lp-price-note{font-size:13px;color:var(--muted)}
+.lp-price-foot{max-width:760px;margin:20px auto 0;padding:0 16px;text-align:center;font-size:13px;line-height:1.55;color:var(--muted)}
+.lp-price-desc{min-height:63px}
+.lp-price-note{font-size:12px;white-space:nowrap;min-height:18px}
+@media(max-width:600px){.lp-price-desc{min-height:0}}
+
 </style>
 </head>
 <body>
@@ -2559,7 +2567,7 @@ p { line-height: 1.65; }
       <div class="lp-hero-visual lp-reveal lp-reveal-delay">
         <div class="lp-app-card">
           <div class="lp-app-card-top">
-            <span class="lp-app-live"><span class="lp-app-live-dot"></span> <span data-i18n="mock_live">En direct</span></span>
+            <span class="lp-app-live"><span class="lp-app-live-dot"></span> <span data-i18n="mock_live">Exemple</span></span>
             <span class="lp-app-countdown" id="lpMockCountdown">02:14:36</span>
           </div>
 
@@ -2636,48 +2644,6 @@ p { line-height: 1.65; }
   </section>
 
   <!-- ============ CAPABILITY ROW ============ -->
-  <section class="lp-quick-trust lp-reveal">
-    <div class="lp-quick-trust-item">
-      <span class="lp-quick-trust-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5"/>
-          <circle cx="12" cy="12" r="3.5"/>
-        </svg>
-      </span>
-      <div><strong data-i18n="quick_trust1_title">Tirage vérifiable</strong><span data-i18n="quick_trust1_text">Chaque résultat est aléatoire et auditable.</span></div>
-    </div>
-    <div class="lp-quick-trust-item">
-      <span class="lp-quick-trust-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9.5-4.1-1.9-7-5.3-7-9.5V6l7-3z"/>
-          <path d="M9.2 12.2l2 2 3.6-3.8"/>
-        </svg>
-      </span>
-      <div><strong data-i18n="quick_trust2_title">Données protégées</strong><span data-i18n="quick_trust2_text">Tes participants restent les tiens, rien n'est revendu.</span></div>
-    </div>
-    <div class="lp-quick-trust-item">
-      <span class="lp-quick-trust-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M8 3h8M12 3v3"/>
-          <path d="M6.5 9.5a5.5 5.5 0 0 0 11 0z" transform="translate(0 2)"/>
-          <path d="M5.5 20h13"/>
-          <path d="M12 11.5V20"/>
-        </svg>
-      </span>
-      <div><strong data-i18n="quick_trust3_title">Prêt en minutes</strong><span data-i18n="quick_trust3_text">Importe, lance, désigne. Rien à installer.</span></div>
-    </div>
-    <div class="lp-quick-trust-item">
-      <span class="lp-quick-trust-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 19V5"/><path d="M4 19h16"/>
-          <path d="M7.5 15.5l3.5-4 3 2.5 4.5-6"/>
-          <path d="M18.5 8h-3.5M18.5 8v3.5"/>
-        </svg>
-      </span>
-      <div><strong data-i18n="quick_trust4_title">Croissance mesurée</strong><span data-i18n="quick_trust4_text">Vois ce que chaque campagne t'a réellement apporté.</span></div>
-    </div>
-  </section>
-
   <!-- ============ HOW IT WORKS ============ -->
   <section class="lp-section" id="lp-how">
     <div class="lp-section-head lp-reveal">
@@ -2708,12 +2674,11 @@ p { line-height: 1.65; }
     <div class="lp-pillars-inner">
       <div class="lp-pillars-head">
         <span class="lp-pillars-label" data-i18n="trust_strip_label">Conçu pour les créateurs, marques et communautés</span>
-        <div class="lp-pillars-chips"><span>Instagram</span><span>YouTube</span><span>TikTok</span><span>Discord</span></div>
       </div>
       <div class="lp-pillars-grid">
-        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3.5v6M12 14.5v6M3.5 12h6M14.5 12h6" opacity=".6"/></svg></span><strong data-i18n="pillar1_h">6 tirages animés</strong><span data-i18n="pillar1_p">Roue, Plinko, courses et plus encore.</span></div>
-        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8.5 9h.01M12 12h.01M15.5 15h.01"/></svg></span><strong data-i18n="pillar2_h">Tirage équitable</strong><span data-i18n="pillar2_p">Gagnant choisi au hasard, côté serveur.</span></div>
-        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg></span><strong data-i18n="pillar3_h">Certificat vérifiable</strong><span data-i18n="pillar3_p">Une preuve à partager avec ton audience.</span></div>
+        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8.5 9h.01M12 12h.01M15.5 15h.01"/></svg></span><strong data-i18n="pillar1_h">Sélection aléatoire</strong><span data-i18n="pillar1_p">Le gagnant est sélectionné au hasard parmi les participants éligibles.</span></div>
+        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7.5V19l-4-2v-4.5z"/></svg></span><strong data-i18n="pillar2_h">Règles d'éligibilité claires</strong><span data-i18n="pillar2_p">Doublons, mot-clé, mentions minimum : tu fixes les règles avant le tirage.</span></div>
+        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3.5 4.5v4h4M12 7.5V12l3 2"/></svg></span><strong data-i18n="pillar3_h">Historique consultable</strong><span data-i18n="pillar3_p">Retrouve chaque tirage, son gagnant et ses informations au même endroit.</span></div>
       </div>
     </div>
   </section>
@@ -2732,7 +2697,7 @@ p { line-height: 1.65; }
         <div class="lp-ui-card">
           <div class="lp-ui-field"><span data-i18n="ui_field_name">Nom du giveaway</span><strong>iPhone 16 Pro</strong></div>
           <div class="lp-ui-field"><span data-i18n="ui_field_prize">Lot à gagner</span><strong>iPhone 16 Pro 256 Go</strong></div>
-          <div class="lp-ui-field"><span data-i18n="ui_field_enddate">Date de fin</span><strong>25 août 2026</strong></div>
+          <div class="lp-ui-field"><span data-i18n="ui_field_enddate">Date de fin</span><strong>31/12</strong></div>
           <div class="lp-ui-field"><span data-i18n="ui_field_source">Source des participants</span><strong>Commentaires Instagram</strong></div>
           <button class="lp-ui-btn" data-i18n="ui_btn_create">Créer le giveaway</button>
         </div>
@@ -2786,7 +2751,7 @@ p { line-height: 1.65; }
           <span class="lp-result-label" data-i18n="result_label">Résultat certifié</span>
           <strong class="lp-result-name">@julie.creates</strong>
           <div class="lp-result-meta">
-            <span>25 août 2026</span><span class="lp-trust-dot">·</span><span>1 284 participants</span>
+            <span data-i18n="mock_live">Exemple</span><span class="lp-trust-dot">·</span><span>1 284 participants</span>
           </div>
           <div class="lp-result-actions">
             <span class="lp-ui-btn-ghost" data-i18n="result_share">Partager</span>
@@ -2827,23 +2792,6 @@ p { line-height: 1.65; }
       <div class="lp-feature-row lp-reveal">
         <h3 data-i18n="feature6_h">Résultats partageables</h3>
         <p data-i18n="feature6_p">Partage le gagnant instantanément, avec certificat téléchargeable.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ TRUST / FAIR BY DESIGN ============ -->
-  <section class="lp-section">
-    <div class="lp-trust-section">
-      <div class="lp-reveal">
-        <span class="lp-kicker" data-i18n="trust_kicker">Confiance</span>
-        <h2 class="lp-section-title" data-i18n="trust_title">Équitable par construction.</h2>
-      </div>
-      <div class="lp-trust-list lp-reveal lp-reveal-delay">
-        <div class="lp-trust-item"><span class="lp-trust-check">✓</span> <span data-i18n="trust1">Sélection aléatoire</span></div>
-        <div class="lp-trust-item"><span class="lp-trust-check">✓</span> <span data-i18n="trust2">Participants éligibles uniquement</span></div>
-        <div class="lp-trust-item"><span class="lp-trust-check">✓</span> <span data-i18n="trust3">Résultats transparents</span></div>
-        <div class="lp-trust-item"><span class="lp-trust-check">✓</span> <span data-i18n="trust4">Historique des gagnants</span></div>
-        <div class="lp-trust-item"><span class="lp-trust-check">✓</span> <span data-i18n="trust5">Preuve partageable</span></div>
       </div>
     </div>
   </section>
@@ -2908,25 +2856,27 @@ p { line-height: 1.65; }
   <section class="lp-section lp-section-alt" id="lp-pricing">
     <div class="lp-section-head lp-reveal">
       <span class="lp-kicker" data-i18n="pricing_kicker">Tarifs</span>
-      <h2 class="lp-section-title" data-i18n="pricing_title">Simple, sans surprise.</h2>
+      <h2 class="lp-section-title" data-i18n="pricing_title">Choisis la formule adaptée à tes giveaways.</h2>
       <p class="lp-showcase-text" data-i18n="pricing_sub">Commence gratuitement. Passe à un forfait supérieur quand tu en as besoin, paiement en crypto, sans engagement.</p>
     </div>
 
     <div class="lp-pricing-grid lp-reveal lp-reveal-delay">
       <div class="lp-price-card">
         <span class="lp-price-period" data-i18n="tier_free">Gratuit</span>
+        <p class="lp-price-desc" data-i18n="pricing_free_d"></p>
         <div class="lp-price-amount">0$<span data-i18n="billing_total_for_monthly">/mois</span></div>
         <p class="lp-price-note">&nbsp;</p>
         <ul class="lp-price-features">
-          <li data-i18n="pricing_free_f1">1 tirage offert</li>
+          <li data-i18n="pricing_free_f1">1 tirage au total, offert</li>
           <li data-i18n="pricing_free_f2">100 participants / tirage</li>
         </ul>
         <button class="lp-ui-btn-ghost lp-price-btn" onclick="showAuthFromLanding('signupView')" data-i18n="pricing_start_free">Commencer gratuitement</button>
       </div>
       <div class="lp-price-card">
         <span class="lp-price-period" data-i18n="tier_basic">Basique</span>
+        <p class="lp-price-desc" data-i18n="pricing_basic_d"></p>
         <div class="lp-price-amount">7,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
-        <p class="lp-price-note"><span class="lp-price-save">-37%</span> <span data-i18n="pricing_at_year">à l'année</span></p>
+        <p class="lp-price-note" data-price-note="basic"></p>
         <ul class="lp-price-features">
           <li data-i18n="pricing_basic_f1">3 tirages par mois</li>
           <li data-i18n="pricing_basic_f2">500 participants / tirage</li>
@@ -2935,9 +2885,10 @@ p { line-height: 1.65; }
       </div>
       <div class="lp-price-card lp-price-card-featured">
         <span class="lp-price-featured-badge" data-i18n="pricing_popular">Populaire</span>
-        <span class="lp-price-period" data-i18n="tier_medium">Medium</span>
+        <span class="lp-price-period" data-i18n="tier_medium">Plus</span>
+        <p class="lp-price-desc" data-i18n="pricing_medium_d"></p>
         <div class="lp-price-amount">19,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
-        <p class="lp-price-note"><span class="lp-price-save">-37%</span> <span data-i18n="pricing_at_year">à l'année</span></p>
+        <p class="lp-price-note" data-price-note="medium"></p>
         <ul class="lp-price-features">
           <li data-i18n="pricing_medium_f1">7 tirages par mois</li>
           <li data-i18n="pricing_medium_f2">2 000 participants / tirage</li>
@@ -2946,8 +2897,9 @@ p { line-height: 1.65; }
       </div>
       <div class="lp-price-card">
         <span class="lp-price-period" data-i18n="tier_pro">Pro</span>
+        <p class="lp-price-desc" data-i18n="pricing_pro_d"></p>
         <div class="lp-price-amount">59,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
-        <p class="lp-price-note"><span class="lp-price-save">-37%</span> <span data-i18n="pricing_at_year">à l'année</span></p>
+        <p class="lp-price-note" data-price-note="pro"></p>
         <ul class="lp-price-features">
           <li data-i18n="billing_feature_unlimited_giveaways">Tirages illimités</li>
           <li data-i18n="billing_feature_unlimited_participants">Participants illimités</li>
@@ -2955,11 +2907,12 @@ p { line-height: 1.65; }
         <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('pro', 'annual')" data-i18n="pricing_start">Commencer</button>
       </div>
     </div>
+    <p class="lp-price-foot" data-i18n="pricing_footnote"></p>
     <div class="lp-compare lp-reveal">
       <h3 class="lp-compare-title" data-i18n="cmp_title">Comparer les formules</h3>
       <div class="lp-compare-scroll">
         <table class="lp-compare-table">
-          <thead><tr><th scope="col" data-i18n="cmp_col_feature">Fonctionnalités</th><th scope="col" data-i18n="tier_free">Gratuit</th><th scope="col" data-i18n="tier_basic">Basique</th><th scope="col" class="is-featured" data-i18n="tier_medium">Medium</th><th scope="col" data-i18n="tier_pro">Pro</th></tr></thead>
+          <thead><tr><th scope="col" data-i18n="cmp_col_feature">Fonctionnalités</th><th scope="col" data-i18n="tier_free">Gratuit</th><th scope="col" data-i18n="tier_basic">Basique</th><th scope="col" class="is-featured" data-i18n="tier_medium">Plus</th><th scope="col" data-i18n="tier_pro">Pro</th></tr></thead>
           <tbody>
           <tr><th scope="row" data-i18n="cmp_row_giveaways">Tirages par mois</th><td><span data-i18n="cmp_free_once">1 au total</span></td><td>3</td><td>7</td><td><span data-i18n="cmp_unlimited">Illimité</span></td></tr>
           <tr><th scope="row" data-i18n="cmp_row_participants">Participants par tirage</th><td>100</td><td>500</td><td><span data-i18n="cmp_n2000">2 000</span></td><td><span data-i18n="cmp_unlimited">Illimité</span></td></tr>
@@ -2985,28 +2938,40 @@ p { line-height: 1.65; }
 
       <div class="lp-faq-list lp-reveal">
         <div class="lp-faq-item">
-          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q1">Comment créer un giveaway ?</span><span class="lp-faq-icon">+</span></button>
-          <div class="lp-faq-a"><p data-i18n="faq_a1">Crée un compte gratuit, clique sur "Nouveau tirage", renseigne le titre et la date de fin, puis importe tes participants — depuis Instagram, YouTube, un CSV ou une liste collée.</p></div>
+          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q1"></span><span class="lp-faq-icon">+</span></button>
+          <div class="lp-faq-a"><p data-i18n="faq_a1"></p></div>
         </div>
         <div class="lp-faq-item">
-          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q2">Comment le gagnant est-il sélectionné ?</span><span class="lp-faq-icon">+</span></button>
-          <div class="lp-faq-a"><p data-i18n="faq_a2">Le tirage est déterminé aléatoirement côté serveur avant même que l'animation ne démarre — le résultat visuel ne peut jamais être manipulé.</p></div>
+          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q2"></span><span class="lp-faq-icon">+</span></button>
+          <div class="lp-faq-a"><p data-i18n="faq_a2"></p></div>
         </div>
         <div class="lp-faq-item">
-          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q3">Puis-je importer mes participants depuis Instagram ?</span><span class="lp-faq-icon">+</span></button>
-          <div class="lp-faq-a"><p data-i18n="faq_a3">Oui — connecte ton compte Instagram Business depuis les Paramètres, colle le lien d'un de tes posts, et RerePickWinn récupère les commentaires automatiquement.</p></div>
+          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q3"></span><span class="lp-faq-icon">+</span></button>
+          <div class="lp-faq-a"><p data-i18n="faq_a3"></p></div>
         </div>
         <div class="lp-faq-item">
-          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q4">Le tirage est-il vraiment aléatoire ?</span><span class="lp-faq-icon">+</span></button>
-          <div class="lp-faq-a"><p data-i18n="faq_a4">Oui, 100%. Chaque mode de tirage a un rendu visuel différent, mais le gagnant est toujours déterminé par un tirage aléatoire équitable.</p></div>
+          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q4"></span><span class="lp-faq-icon">+</span></button>
+          <div class="lp-faq-a"><p data-i18n="faq_a4"></p></div>
         </div>
         <div class="lp-faq-item">
-          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q5">Est-ce gratuit ?</span><span class="lp-faq-icon">+</span></button>
-          <div class="lp-faq-a"><p data-i18n="faq_a5">Oui, RerePickWinn est actuellement gratuit à utiliser.</p></div>
+          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q5"></span><span class="lp-faq-icon">+</span></button>
+          <div class="lp-faq-a"><p data-i18n="faq_a5"></p></div>
         </div>
         <div class="lp-faq-item">
-          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q6">Puis-je partager le résultat sur les réseaux sociaux ?</span><span class="lp-faq-icon">+</span></button>
-          <div class="lp-faq-a"><p data-i18n="faq_a6">Oui — un bouton "Partager" utilise le partage natif de ton téléphone, et un certificat de gagnant téléchargeable est généré automatiquement.</p></div>
+          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q6"></span><span class="lp-faq-icon">+</span></button>
+          <div class="lp-faq-a"><p data-i18n="faq_a6"></p></div>
+        </div>
+        <div class="lp-faq-item">
+          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q7"></span><span class="lp-faq-icon">+</span></button>
+          <div class="lp-faq-a"><p data-i18n="faq_a7"></p></div>
+        </div>
+        <div class="lp-faq-item">
+          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q8"></span><span class="lp-faq-icon">+</span></button>
+          <div class="lp-faq-a"><p data-i18n="faq_a8"></p></div>
+        </div>
+        <div class="lp-faq-item">
+          <button class="lp-faq-q" onclick="toggleLpFaq(this)"><span data-i18n="faq_q9"></span><span class="lp-faq-icon">+</span></button>
+          <div class="lp-faq-a"><p data-i18n="faq_a9"></p></div>
         </div>
       </div>
     </div>
@@ -3032,7 +2997,7 @@ p { line-height: 1.65; }
         <p data-i18n="footer_tagline">La plateforme simple pour créer, animer et gagner tes giveaways.</p>
       </div>
       <div class="lp-footer-col">
-        <h5 data-i18n="nav_product">Produit</h5>
+        <h5 data-i18n="footer_nav">Navigation</h5>
         <a href="#lp-product" onclick="closeLpMobileMenu()" data-i18n="nav_product">Produit</a>
         <a href="#lp-how" onclick="closeLpMobileMenu()" data-i18n="nav_how">Comment ça marche</a>
         <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_features">Fonctionnalités</a>
@@ -3562,7 +3527,7 @@ p { line-height: 1.65; }
 
           <div class="billing-tier-tabs" id="billingTierTabs">
             <button type="button" class="billing-tier-tab" data-tier="basic" onclick="selectBillingTier('basic')" data-i18n="tier_basic">Basique</button>
-            <button type="button" class="billing-tier-tab" data-tier="medium" onclick="selectBillingTier('medium')" data-i18n="tier_medium">Medium</button>
+            <button type="button" class="billing-tier-tab" data-tier="medium" onclick="selectBillingTier('medium')" data-i18n="tier_medium">Plus</button>
             <button type="button" class="billing-tier-tab active" data-tier="pro" onclick="selectBillingTier('pro')" data-i18n="tier_pro">Pro</button>
           </div>
 
@@ -6310,6 +6275,18 @@ function initTheme() {
 // ============================================================
 var TRANSLATIONS = {
   fr: {
+    "footer_nav": "Navigation",
+    "pricing_free_d": "Pour découvrir RerePickWinn et organiser ton premier tirage.",
+    "pricing_basic_d": "Pour les créateurs qui organisent quelques giveaways par mois.",
+    "pricing_medium_d": "Pour les créateurs et petites marques qui organisent des campagnes régulières.",
+    "pricing_pro_d": "Pour les organisateurs qui gèrent de gros volumes de participants.",
+    "pricing_note_fmt": "6 mois : {six} $ · 1 an : {year} $ (−{pct} %)",
+    "faq_q7": "Puis-je partager le résultat ?",
+    "faq_a7": "Oui. Un bouton « Partager » utilise le partage de ton téléphone, et tu peux télécharger l'attestation du gagnant sous forme d'image.",
+    "faq_q8": "Comment fonctionne l'abonnement et comment l'arrêter ?",
+    "faq_a8": "Par carte bancaire, l'abonnement se renouvelle automatiquement à la fin de la période choisie (1 mois, 6 mois ou 1 an). Tu peux l'arrêter à tout moment en écrivant à contact@rerepickwinn.com. En cryptomonnaie, le paiement est unique pour la durée choisie : il n'y a pas de renouvellement automatique.",
+    "faq_q9": "Mes données et celles de mes participants sont-elles protégées ?",
+    "faq_a9": "Nous ne collectons que les informations nécessaires au fonctionnement de la plateforme. Les paiements par carte sont traités par Dodo Payments : nous ne voyons jamais tes données de carte. Pour le détail, consulte la politique de confidentialité.",
     "nav_dashboard": "Tableau de bord",
     "nav_giveaways": "Mes tirages",
     "nav_participants": "Participants",
@@ -6442,7 +6419,7 @@ var TRANSLATIONS = {
     "toast_sheets_imported": "{count} participants importés depuis Google Sheets",
     "toast_sheets_error": "Erreur Google Sheets : {msg}",
     "billing_title": "Abonnement",
-    "billing_free_desc": "Plan gratuit : 1 tirage offert, 100 participants. Ensuite, il faut une formule.",
+    "billing_free_desc": "Plan gratuit : 1 tirage au total, 100 participants. Pour en créer d'autres, choisis une formule.",
     "billing_pro_badge": "PRO",
     "billing_per_month": "/mois",
     "billing_feature_unlimited_giveaways": "Tirages illimités",
@@ -6487,15 +6464,15 @@ var TRANSLATIONS = {
     "quota_banner_paid_usage": "{tier} · {used}/{limit} tirages ce mois-ci",
     "quota_banner_manage": "Gérer",
     "quota_modal_title": "Plus de tirage disponible",
-    "quota_modal_free": "Tu as utilisé ton tirage gratuit. Pour en créer d'autres, choisis une formule : Basique, Medium ou Pro.",
+    "quota_modal_free": "Tu as utilisé ton tirage gratuit. Pour en créer d'autres, choisis une formule : Basique, Plus ou Pro.",
     "quota_modal_paid": "Tu as atteint la limite de {limit} tirages pour ce mois. Elle se renouvelle le 1er du mois, ou tu peux passer à la formule supérieure.",
     "quota_modal_later": "Plus tard",
-    "pillar1_h": "6 tirages animés",
-    "pillar1_p": "Roue, Plinko, courses et plus encore.",
-    "pillar2_h": "Tirage équitable",
-    "pillar2_p": "Gagnant choisi au hasard, côté serveur.",
-    "pillar3_h": "Certificat vérifiable",
-    "pillar3_p": "Une preuve à partager avec ton audience.",
+    "pillar1_h": "Sélection aléatoire",
+    "pillar1_p": "Le gagnant est sélectionné au hasard parmi les participants éligibles.",
+    "pillar2_h": "Règles d'éligibilité claires",
+    "pillar2_p": "Doublons, mot-clé, mentions minimum : tu fixes les règles avant le tirage.",
+    "pillar3_h": "Historique consultable",
+    "pillar3_p": "Retrouve chaque tirage, son gagnant et ses informations au même endroit.",
     "pillar4_h": "3 langues",
     "pillar4_p": "Français, English et Deutsch.",
     "plinko_cap_notice": "Plinko affiche {max} participants à la fois. Les {total} inscrits participent tous au tirage : le gagnant est tiré au hasard parmi tous et fait toujours partie des {max} affichés. À chaque nouveau lancement, un autre groupe de {max} est choisi au hasard.",
@@ -6503,16 +6480,16 @@ var TRANSLATIONS = {
     "plan_free_draw_used": "Utilisé",
     "plan_free_draw_available": "Disponible",
     "soon_kicker": "À venir",
-    "soon_title": "La plateforme grandit avec toi.",
-    "soon_sub": "RerePickWinn évolue en continu. Voici ce qui se prépare.",
+    "soon_title": "RerePickWinn évolue avec tes besoins.",
+    "soon_sub": "Nous améliorons régulièrement les outils pour rendre l'organisation des giveaways plus simple. Les fonctionnalités en préparation sont annoncées au fur et à mesure de leur disponibilité.",
     "soon_badge": "En préparation",
-    "soon1_h": "De nouveaux jeux de tirage",
-    "soon1_p": "D'autres façons de désigner un gagnant viendront rejoindre les 6 modes actuels.",
-    "soon2_h": "Des jeux encore plus soignés",
-    "soon2_p": "Animations, rythme et réglages améliorés, pour des tirages toujours plus agréables à regarder.",
-    "soon3_h": "Et bien d'autres nouveautés",
-    "soon3_p": "De nouvelles fonctionnalités arrivent régulièrement, directement dans ton espace.",
-    "soon_cta_text": "Rejoins RerePickWinn dès maintenant et suis son évolution au fil des nouveautés.",
+    "soon1_h": "Nouveaux modes de tirage",
+    "soon1_p": "D'autres jeux pour annoncer tes gagnants, en plus des six modes actuels.",
+    "soon2_h": "Résultats plus faciles à partager",
+    "soon2_p": "Des outils pour présenter et partager le résultat de tes tirages.",
+    "soon3_h": "Un suivi plus complet",
+    "soon3_p": "Des statistiques pour mieux comparer tes campagnes.",
+    "soon_cta_text": "Crée ton compte et découvre les outils disponibles pour tes giveaways.",
     "soon_cta": "Créer mon compte gratuitement",
     "soon_cta_plans": "Voir les formules",
     "billing_crypto_sub": "Paiement en cryptomonnaie",
@@ -6528,13 +6505,13 @@ var TRANSLATIONS = {
     "billing_save_percent": "-{percent}%",
     "nav_pricing": "Tarifs",
     "pricing_kicker": "Tarifs",
-    "pricing_title": "Investis dans ta croissance.",
-    "pricing_sub": "Commence gratuitement. Passe à un forfait supérieur quand tu en as besoin, paiement en crypto, sans engagement.",
+    "pricing_title": "Choisis la formule adaptée à tes giveaways.",
+    "pricing_sub": "Commence gratuitement, puis passe à une formule payante quand tu en as besoin. Paiement par carte bancaire ou en cryptomonnaie.",
     "pricing_start": "Commencer",
     "pricing_popular": "Populaire",
-    "pricing_footnote": "Chaque formule est aussi disponible en 6 mois ou 1 an, avec jusqu'à -37% — choisis la durée une fois connecté(e), dans Paramètres.",
+    "pricing_footnote": "Prix en dollars US, hors taxes éventuelles. « Illimité » : sous réserve des limites techniques de la plateforme. Chaque formule existe aussi en 6 mois ou 1 an : tu choisis la durée une fois connecté, dans la page Abonnement.",
     "tier_basic": "Basique",
-    "tier_medium": "Medium",
+    "tier_medium": "Plus",
     "tier_pro": "Pro",
     "billing_card_btn_tier": "{tier} — payer par carte",
     "billing_upgrade_btn_tier": "{tier} — payer en crypto",
@@ -6543,7 +6520,7 @@ var TRANSLATIONS = {
     "billing_already_subscribed": "Tu as déjà une demande en attente — vérifie ton email pour le lien de paiement.",
     "billing_already_active": "Ton abonnement est déjà actif !",
     "tier_free": "Gratuit",
-    "pricing_free_f1": "1 tirage offert",
+    "pricing_free_f1": "1 tirage au total, offert",
     "pricing_free_f2": "100 participants / tirage",
     "pricing_start_free": "Commencer gratuitement",
     "pricing_basic_f1": "3 tirages par mois",
@@ -6566,10 +6543,10 @@ var TRANSLATIONS = {
     "cmp_row_giveaways": "Tirages par mois",
     "cmp_row_participants": "Participants par tirage",
     "cmp_row_modes": "Tous les modes de tirage",
-    "cmp_row_certs": "Certificats de tirage",
+    "cmp_row_certs": "Attestation de tirage (image)",
     "cmp_row_history": "Historique des tirages",
-    "cmp_row_public": "Page de participation publique",
-    "cmp_row_growth": "Suivi de croissance",
+    "cmp_row_public": "Page d'inscription publique",
+    "cmp_row_growth": "Suivi avant / après",
     "cmp_unlimited": "Illimité",
     "cmp_n2000": "2 000",
     "cmp_included": "Inclus",
@@ -6821,17 +6798,17 @@ var TRANSLATIONS = {
     "nav_faq": "FAQ",
     "nav_login": "Se connecter",
     "theme_toggle_label": "Thème clair/sombre",
-    "cta_nav": "Faire grandir ma communauté →",
-    "hero_badge": "Transforme chaque giveaway en abonnés qui restent",
+    "cta_nav": "Créer un giveaway →",
+    "hero_badge": "La plateforme pour organiser tes giveaways",
     "hero_title": "Fais <span class=\"lp-hero-title-accent\">grandir</span><br>ta communauté.<br>Un giveaway à la fois.",
-    "hero_sub": "Le giveaway attire les gens. RerePickWinn t'aide à les garder — et à mesurer ce que ta communauté y gagne vraiment.",
-    "cta_create_giveaway": "Lancer ma campagne",
-    "hero_cta_secondary": "Voir comment ça marche",
-    "hero_proof": "Gratuit pour commencer · Aucune carte bancaire requise",
-    "mock_live": "En direct",
-    "mock_active": "Campagne en cours",
+    "hero_sub": "Organise tes tirages au sort, gère tes participants en quelques clics et suis les résultats de chaque campagne.",
+    "cta_create_giveaway": "Créer mon giveaway gratuitement",
+    "hero_cta_secondary": "Découvrir comment ça marche",
+    "hero_proof": "Gratuit pour commencer · Sans carte bancaire",
+    "mock_live": "Exemple",
+    "mock_active": "Démonstration",
     "mock_entries": "participants",
-    "mock_growth": "abonnés depuis le lancement",
+    "mock_growth": "abonnés gagnés (donnée d'exemple)",
     "search_giveaways_ph": "Rechercher un tirage...",
     "search_participants_ph": "Rechercher un participant...",
     "filter_all_giveaways": "Tous les tirages",
@@ -6854,21 +6831,21 @@ var TRANSLATIONS = {
     "toast_file_imported": "{count} participants importés depuis {source}",
     "toast_csv_empty": "Aucun participant trouvé dans ce fichier — vérifie que les pseudos sont dans la première colonne.",
     "how_kicker": "Comment ça marche",
-    "how_title": "Trois étapes, pas trois soirées.",
-    "how_s1_title": "Rassemble tes participants",
-    "how_s1_text": "Colle une liste, importe un CSV ou un fichier Excel, connecte Instagram ou YouTube, ou partage ton lien public : les gens s'inscrivent eux-mêmes.",
-    "how_s2_title": "Filtre et lance",
-    "how_s2_text": "Retire les doublons, exige un mot-clé ou un nombre de mentions, choisis parmi six tirages animés, puis lance devant ton audience.",
-    "how_s3_title": "Prouve et mesure",
-    "how_s3_text": "Le gagnant reçoit un certificat vérifiable, et tu vois exactement ce que la campagne a rapporté à ta communauté.",
+    "how_title": "Ton giveaway organisé en 3 étapes simples.",
+    "how_s1_title": "Ajoute tes participants",
+    "how_s1_text": "Importe un fichier CSV ou Excel, colle une liste de pseudos, récupère des commentaires, ou partage ton lien public d'inscription.",
+    "how_s2_title": "Vérifie et lance ton tirage",
+    "how_s2_text": "Retire les doublons, applique tes règles d'éligibilité et choisis ton mode de tirage parmi six.",
+    "how_s3_title": "Annonce ton gagnant",
+    "how_s3_text": "Consulte le résultat, retrouve-le dans ton historique et partage-le avec ton audience.",
     "who_kicker": "Pour qui",
-    "who_title": "Conçu pour ceux qui construisent une audience.",
+    "who_title": "Pour les créateurs, marques et communautés.",
     "who1_title": "Créateurs",
-    "who1_text": "Transforme un giveaway ponctuel en abonnés qui restent, et montre à ton audience que le tirage est honnête.",
+    "who1_text": "Organise tes giveaways et annonce tes gagnants avec un tirage animé que ton audience peut suivre.",
     "who2_title": "Marques & boutiques",
-    "who2_text": "Lance une campagne produit, récupère de vrais contacts, et garde une trace vérifiable du tirage pour tes clients.",
+    "who2_text": "Lance un concours produit, collecte les inscriptions via un lien public et garde l'historique de tes tirages.",
     "who3_title": "Communautés",
-    "who3_text": "Anime ton Discord, ton serveur ou ton groupe avec un tirage que personne ne peut soupçonner d'être arrangé.",
+    "who3_text": "Anime ton serveur Discord ou ton groupe avec un tirage clair et simple à partager.",
     "join_stat_entries": "participants",
     "join_stat_left": "temps restant",
     "join_stat_chances": "tes chances",
@@ -6902,9 +6879,9 @@ var TRANSLATIONS = {
     "door_join_text": "Tu as reçu un lien de giveaway ? Ouvre-le directement : aucun compte n'est nécessaire pour participer.",
     "door_join_note": "Le lien t'est donné par l'organisateur, sur sa publication ou sa story.",
     "door_create_title": "Je veux organiser",
-    "door_create_text": "Crée ta campagne, fixe tes conditions (abonnement, like, commentaire) et regarde ta communauté grandir à chaque tirage.",
-    "door_create_cta": "Créer ma campagne",
-    "door_create_note": "Gratuit pour commencer · Aucune carte bancaire",
+    "door_create_text": "Crée ton giveaway, fixe tes règles de participation et partage le lien avec ton audience.",
+    "door_create_cta": "Créer mon giveaway",
+    "door_create_note": "Gratuit pour commencer · Sans carte bancaire",
     "menu_join": "Participer à un giveaway",
     "joinlink_title": "Participer à un giveaway",
     "joinlink_text": "Colle le lien que l'organisateur a partagé, ou juste son identifiant. Tu seras redirigé(e) vers la page de participation.",
@@ -6915,7 +6892,7 @@ var TRANSLATIONS = {
     "float_participants": "1 284 participants",
     "float_ending": "Fin dans 02:14:36",
     "float_winner_selected": "Gagnant désigné ✓",
-    "trust_strip_label": "Pour les créateurs et marques qui veulent une communauté, pas juste des vues",
+    "trust_strip_label": "Pour les créateurs, marques et communautés qui veulent aller plus loin qu'un simple tirage au sort.",
     "showcase1_kicker": "01 — Créer",
     "showcase1_title": "Configure ton giveaway en quelques minutes.",
     "showcase1_text": "Titre, lot à gagner, date de fin, règles de participation — tout se fait depuis un seul écran, sans complexité.",
@@ -6926,32 +6903,32 @@ var TRANSLATIONS = {
     "ui_btn_create": "Créer le giveaway",
     "showcase2_kicker": "02 — Participants",
     "showcase2_title": "Chaque participant, clairement listé.",
-    "showcase2_text": "Pseudo, source, statut — retrouve instantanément qui participe, importé automatiquement depuis tes commentaires.",
+    "showcase2_text": "Pseudo, source, statut : retrouve qui participe, qu'il soit importé ou inscrit via ton lien public.",
     "ui_list_footer": "1 284 participants éligibles",
     "showcase3_kicker": "03 — Désigner un gagnant",
-    "showcase3_title": "Un tirage juste, animé, vérifiable.",
-    "showcase3_text": "6 modes de tirage animés pour un résultat qui capte l'attention — toujours déterminé aléatoirement, jamais manipulable.",
+    "showcase3_title": "Un tirage animé, à partager en direct.",
+    "showcase3_text": "6 modes de tirage animés pour annoncer ton gagnant de façon interactive. Il est sélectionné au hasard parmi les participants éligibles.",
     "winner_selecting": "Sélection en cours…",
     "winner_label": "Gagnant",
     "showcase4_kicker": "04 — Résultat",
     "showcase4_title": "Un résultat prêt à partager.",
-    "showcase4_text": "Gagnant, date, nombre de participants — le tout certifié et partageable en un clic sur tes réseaux.",
-    "result_label": "Résultat certifié",
+    "showcase4_text": "Gagnant, date, nombre de participants : télécharge une attestation et partage le résultat avec ton audience.",
+    "result_label": "Résultat du tirage",
     "result_share": "Partager",
-    "result_certificate": "Certificat",
-    "features_title": "Pensé pour les vrais problèmes des organisateurs.",
-    "feature1_h": "Mise en place rapide",
-    "feature1_p": "Lance un giveaway en quelques minutes, sans configuration complexe.",
-    "feature2_h": "Règles de participation flexibles",
-    "feature2_p": "Définis précisément comment les gens peuvent participer — mot-clé, mentions minimum, sans doublons.",
-    "feature3_h": "Sélection équitable",
-    "feature3_p": "Le gagnant est choisi aléatoirement parmi les participants éligibles, déterminé côté serveur.",
-    "feature4_h": "Résultats transparents",
-    "feature4_p": "Donne confiance à tes participants avec un tirage animé et vérifiable.",
-    "feature5_h": "Gestion des participants",
-    "feature5_p": "Tout est organisé au même endroit — imports, filtres, historique.",
-    "feature6_h": "Résultats partageables",
-    "feature6_p": "Partage le gagnant instantanément, avec certificat téléchargeable.",
+    "result_certificate": "Attestation",
+    "features_title": "Tout ce qu'il te faut pour organiser un giveaway réussi.",
+    "feature1_h": "Création rapide",
+    "feature1_p": "Configure ton giveaway, ajoute ton lot et définis les règles de participation depuis un seul espace.",
+    "feature2_h": "Participants bien organisés",
+    "feature2_p": "Importe tes listes, supprime les doublons et identifie les participants qui respectent tes conditions.",
+    "feature3_h": "Des tirages qui captent l'attention",
+    "feature3_p": "Choisis parmi six modes de tirage pour rendre l'annonce du gagnant plus interactive.",
+    "feature4_h": "Des résultats transparents",
+    "feature4_p": "Consulte le résultat de chaque tirage et partage les informations utiles avec ton audience.",
+    "feature5_h": "Un historique centralisé",
+    "feature5_p": "Retrouve tes campagnes passées, leurs gagnants et les informations associées.",
+    "feature6_h": "Un suivi de tes campagnes",
+    "feature6_p": "Renseigne tes abonnés avant et après chaque campagne pour comparer tes giveaways.",
     "trust_kicker": "Confiance",
     "trust_title": "Équitable par construction.",
     "trust1": "Sélection aléatoire",
@@ -6959,27 +6936,39 @@ var TRANSLATIONS = {
     "trust3": "Résultats transparents",
     "trust4": "Historique des gagnants",
     "trust5": "Preuve partageable",
-    "final_cta_title": "Ta communauté grandit à partir d'ici.",
-    "final_cta_sub": "Lance ton premier giveaway gratuitement — et vois ton audience grandir.",
+    "final_cta_title": "Crée ton premier giveaway gratuitement.",
+    "final_cta_sub": "Ton premier tirage est offert, sans carte bancaire.",
     "faq_kicker": "Questions fréquentes",
-    "faq_q1": "Comment créer un giveaway ?",
-    "faq_a1": "Crée un compte gratuit, clique sur \"Nouveau tirage\", renseigne le titre et la date de fin, puis importe tes participants — depuis Instagram, YouTube, un CSV ou une liste collée.",
-    "faq_q2": "Comment le gagnant est-il sélectionné ?",
-    "faq_a2": "Le tirage est déterminé aléatoirement côté serveur avant même que l'animation ne démarre — le résultat visuel ne peut jamais être manipulé.",
-    "faq_q3": "Puis-je importer mes participants depuis Instagram ?",
-    "faq_a3": "Oui — connecte ton compte Instagram Business depuis les Paramètres, colle le lien d'un de tes posts, et RerePickWinn récupère les commentaires automatiquement.",
-    "faq_q4": "Le tirage est-il vraiment aléatoire ?",
-    "faq_a4": "Oui, 100%. Chaque mode de tirage a un rendu visuel différent, mais le gagnant est toujours déterminé par un tirage aléatoire équitable.",
-    "faq_q5": "Est-ce gratuit ?",
-    "faq_a5": "Oui, RerePickWinn est actuellement gratuit à utiliser.",
-    "faq_q6": "Puis-je partager le résultat sur les réseaux sociaux ?",
-    "faq_a6": "Oui — un bouton \"Partager\" utilise le partage natif de ton téléphone, et un certificat de gagnant téléchargeable est généré automatiquement.",
-    "footer_tagline": "La plateforme simple pour créer, animer et gagner tes giveaways.",
+    "faq_q1": "Comment créer mon premier giveaway ?",
+    "faq_a1": "Crée ton compte gratuit, clique sur « Nouveau tirage », renseigne le titre et les règles, ajoute tes participants, puis lance le tirage.",
+    "faq_q2": "Comment le gagnant est-il choisi ?",
+    "faq_a2": "Le gagnant est sélectionné au hasard parmi les participants éligibles, après application de tes règles (doublons, mot-clé, mentions minimum). Le mode de tirage change l'animation, pas la méthode de sélection.",
+    "faq_q3": "Puis-je importer mes participants depuis Instagram, TikTok ou YouTube ?",
+    "faq_a3": "Tu peux importer un fichier CSV ou Excel, un Google Sheets, coller une liste de pseudos, récupérer des commentaires YouTube et, avec un compte Instagram Business connecté, des commentaires Instagram. TikTok n'est pas pris en charge pour l'instant : exporte tes participants dans un fichier, puis importe-le.",
+    "faq_q4": "Comment éviter les doublons ?",
+    "faq_a4": "Active l'option « Retirer les doublons » lors de la création du tirage. Sur la page d'inscription publique, une même adresse e-mail ne peut s'inscrire qu'une fois.",
+    "faq_q5": "Le tirage est-il vérifiable ?",
+    "faq_a5": "Chaque tirage est enregistré dans ton historique avec son gagnant, son mode et le nombre de participants. Tu peux télécharger une attestation numérotée. Il n'existe pas encore de page publique pour vérifier un tirage.",
+    "faq_q6": "Que comprend la formule gratuite ?",
+    "faq_a6": "1 tirage au total (et non un par mois), jusqu'à 100 participants, avec tous les modes de tirage. Pour créer d'autres tirages, il faut choisir une formule.",
+    "footer_tagline": "La plateforme pour organiser, animer et gérer tes giveaways.",
     "footer_legal": "Légal",
     "footer_contact": "Contact",
     "footer_copyright": "© 2026 RerePickWinn. Tous droits réservés."
   },
   en: {
+    "footer_nav": "Navigation",
+    "pricing_free_d": "To discover RerePickWinn and run your first draw.",
+    "pricing_basic_d": "For creators who run a few giveaways a month.",
+    "pricing_medium_d": "For creators and small brands running regular campaigns.",
+    "pricing_pro_d": "For organizers handling large numbers of participants.",
+    "pricing_note_fmt": "6 months: ${six} · 1 year: ${year} (−{pct}%)",
+    "faq_q7": "Can I share the result?",
+    "faq_a7": "Yes. A “Share” button uses your phone’s share sheet, and you can download the winner’s certificate as an image.",
+    "faq_q8": "How does the subscription work, and how do I stop it?",
+    "faq_a8": "By card, the subscription renews automatically at the end of the chosen period (1 month, 6 months or 1 year). You can stop it at any time by writing to contact@rerepickwinn.com. With cryptocurrency, the payment is a single one for the chosen duration: there is no automatic renewal.",
+    "faq_q9": "Is my data, and my participants’ data, protected?",
+    "faq_a9": "We only collect the information needed to run the platform. Card payments are handled by Dodo Payments: we never see your card details. For the details, see the privacy policy.",
     "nav_dashboard": "Dashboard",
     "nav_giveaways": "My giveaways",
     "nav_participants": "Participants",
@@ -7112,7 +7101,7 @@ var TRANSLATIONS = {
     "toast_sheets_imported": "{count} participants imported from Google Sheets",
     "toast_sheets_error": "Google Sheets error: {msg}",
     "billing_title": "Subscription",
-    "billing_free_desc": "Free plan: 1 free giveaway, 100 participants. After that, a plan is required.",
+    "billing_free_desc": "Free plan: 1 draw in total, 100 participants. To create more, pick a plan.",
     "billing_pro_badge": "PRO",
     "billing_per_month": "/month",
     "billing_feature_unlimited_giveaways": "Unlimited giveaways",
@@ -7157,15 +7146,15 @@ var TRANSLATIONS = {
     "quota_banner_paid_usage": "{tier} · {used}/{limit} draws this month",
     "quota_banner_manage": "Manage",
     "quota_modal_title": "No draws left",
-    "quota_modal_free": "You have used your free draw. To create more, pick a plan: Basic, Medium or Pro.",
+    "quota_modal_free": "You have used your free draw. To create more, pick a plan: Basic, Plus or Pro.",
     "quota_modal_paid": "You have reached the limit of {limit} draws for this month. It resets on the 1st of the month, or you can move up to a higher plan.",
     "quota_modal_later": "Later",
-    "pillar1_h": "6 animated draws",
-    "pillar1_p": "Wheel, Plinko, races and more.",
-    "pillar2_h": "Fair draw",
-    "pillar2_p": "Winner picked at random, server-side.",
-    "pillar3_h": "Verifiable certificate",
-    "pillar3_p": "Proof you can share with your audience.",
+    "pillar1_h": "Random selection",
+    "pillar1_p": "The winner is picked at random among eligible participants.",
+    "pillar2_h": "Clear eligibility rules",
+    "pillar2_p": "Duplicates, keyword, minimum mentions: you set the rules before the draw.",
+    "pillar3_h": "Browsable history",
+    "pillar3_p": "Find every draw, its winner and its details in one place.",
     "pillar4_h": "3 languages",
     "pillar4_p": "Français, English and Deutsch.",
     "plinko_cap_notice": "Plinko shows {max} participants at a time. All {total} entrants take part in the draw: the winner is picked at random among everyone and is always one of the {max} shown. On each new launch, another random group of {max} is shown.",
@@ -7173,16 +7162,16 @@ var TRANSLATIONS = {
     "plan_free_draw_used": "Used",
     "plan_free_draw_available": "Available",
     "soon_kicker": "Coming soon",
-    "soon_title": "The platform grows with you.",
-    "soon_sub": "RerePickWinn keeps evolving. Here is what is in the works.",
+    "soon_title": "RerePickWinn evolves with your needs.",
+    "soon_sub": "We regularly improve the tools to make giveaways simpler to run. Features in the works are announced as they become available.",
     "soon_badge": "In the works",
-    "soon1_h": "New draw games",
-    "soon1_p": "More ways to pick a winner will join the 6 current modes.",
-    "soon2_h": "Even more polished games",
-    "soon2_p": "Improved animations, pacing and settings, for draws that are ever more enjoyable to watch.",
-    "soon3_h": "And plenty more",
-    "soon3_p": "New features arrive regularly, right inside your workspace.",
-    "soon_cta_text": "Join RerePickWinn today and follow it as new features arrive.",
+    "soon1_h": "New draw modes",
+    "soon1_p": "More games to announce your winners, on top of the six current modes.",
+    "soon2_h": "Easier-to-share results",
+    "soon2_p": "Tools to present and share the result of your draws.",
+    "soon3_h": "More complete tracking",
+    "soon3_p": "Statistics to compare your campaigns more easily.",
+    "soon_cta_text": "Create your account and discover the tools available for your giveaways.",
     "soon_cta": "Create my free account",
     "soon_cta_plans": "See plans",
     "billing_crypto_sub": "Cryptocurrency payment",
@@ -7198,13 +7187,13 @@ var TRANSLATIONS = {
     "billing_save_percent": "-{percent}%",
     "nav_pricing": "Pricing",
     "pricing_kicker": "Pricing",
-    "pricing_title": "Invest in your growth.",
-    "pricing_sub": "Start for free. Upgrade whenever you need to, pay in crypto, no commitment.",
+    "pricing_title": "Choose the plan that fits your giveaways.",
+    "pricing_sub": "Start for free, then move to a paid plan when you need one. Pay by card or with cryptocurrency.",
     "pricing_start": "Get started",
     "pricing_popular": "Popular",
-    "pricing_footnote": "Every plan is also available for 6 or 12 months, with up to 37% off — pick the length once you're logged in, in Settings.",
+    "pricing_footnote": "Prices in US dollars, excluding any applicable taxes. “Unlimited” is subject to the platform’s technical limits. Every plan is also available for 6 months or 1 year: pick the duration once signed in, on the Subscription page.",
     "tier_basic": "Basic",
-    "tier_medium": "Medium",
+    "tier_medium": "Plus",
     "tier_pro": "Pro",
     "billing_card_btn_tier": "{tier} — pay by card",
     "billing_upgrade_btn_tier": "{tier} — pay with crypto",
@@ -7213,7 +7202,7 @@ var TRANSLATIONS = {
     "billing_already_subscribed": "You already have a request pending — check your email for the payment link.",
     "billing_already_active": "Your subscription is already active!",
     "tier_free": "Free",
-    "pricing_free_f1": "1 free giveaway",
+    "pricing_free_f1": "1 draw in total, included",
     "pricing_free_f2": "100 participants / giveaway",
     "pricing_start_free": "Start for free",
     "pricing_basic_f1": "3 giveaways per month",
@@ -7236,10 +7225,10 @@ var TRANSLATIONS = {
     "cmp_row_giveaways": "Giveaways per month",
     "cmp_row_participants": "Participants per giveaway",
     "cmp_row_modes": "All draw modes",
-    "cmp_row_certs": "Draw certificates",
+    "cmp_row_certs": "Draw certificate (image)",
     "cmp_row_history": "Draw history",
-    "cmp_row_public": "Public entry page",
-    "cmp_row_growth": "Growth tracking",
+    "cmp_row_public": "Public sign-up page",
+    "cmp_row_growth": "Before / after tracking",
     "cmp_unlimited": "Unlimited",
     "cmp_n2000": "2,000",
     "cmp_included": "Included",
@@ -7491,17 +7480,17 @@ var TRANSLATIONS = {
     "nav_faq": "FAQ",
     "nav_login": "Log in",
     "theme_toggle_label": "Light/dark theme",
-    "cta_nav": "Grow my community →",
-    "hero_badge": "Turn every giveaway into followers who stay",
+    "cta_nav": "Create a giveaway →",
+    "hero_badge": "The platform for organizing your giveaways",
     "hero_title": "<span class=\"lp-hero-title-accent\">Grow</span><br>your community.<br>One giveaway at a time.",
-    "hero_sub": "The giveaway brings people in. RerePickWinn helps you keep them — and measure what your community actually gains.",
-    "cta_create_giveaway": "Launch my campaign",
+    "hero_sub": "Run your prize draws, manage your participants in a few clicks and follow the results of every campaign.",
+    "cta_create_giveaway": "Create my giveaway for free",
     "hero_cta_secondary": "See how it works",
-    "hero_proof": "Free to start · No credit card required",
-    "mock_live": "Live",
-    "mock_active": "Campaign running",
+    "hero_proof": "Free to start · No credit card",
+    "mock_live": "Example",
+    "mock_active": "Demo",
     "mock_entries": "entries",
-    "mock_growth": "followers since launch",
+    "mock_growth": "followers gained (sample data)",
     "search_giveaways_ph": "Search a giveaway...",
     "search_participants_ph": "Search a participant...",
     "filter_all_giveaways": "All giveaways",
@@ -7524,21 +7513,21 @@ var TRANSLATIONS = {
     "toast_file_imported": "{count} participants imported from {source}",
     "toast_csv_empty": "No participants found in this file — check that the usernames are in the first column.",
     "how_kicker": "How it works",
-    "how_title": "Three steps, not three evenings.",
-    "how_s1_title": "Gather your entrants",
-    "how_s1_text": "Paste a list, import a CSV or Excel file, connect Instagram or YouTube, or share your public link and let people enter themselves.",
-    "how_s2_title": "Filter and run it",
-    "how_s2_text": "Strip duplicates, require a keyword or a number of mentions, pick one of six animated draws, then run it in front of your audience.",
-    "how_s3_title": "Prove it and measure it",
-    "how_s3_text": "The winner gets a verifiable certificate, and you see exactly what the campaign brought your community.",
+    "how_title": "Your giveaway, organized in 3 simple steps.",
+    "how_s1_title": "Add your participants",
+    "how_s1_text": "Import a CSV or Excel file, paste a list of usernames, collect comments, or share your public sign-up link.",
+    "how_s2_title": "Check and run your draw",
+    "how_s2_text": "Remove duplicates, apply your eligibility rules and pick your draw mode out of six.",
+    "how_s3_title": "Announce your winner",
+    "how_s3_text": "See the result, find it again in your history and share it with your audience.",
     "who_kicker": "Who it's for",
-    "who_title": "Built for people growing an audience.",
+    "who_title": "For creators, brands and communities.",
     "who1_title": "Creators",
-    "who1_text": "Turn a one-off giveaway into followers who stay, and show your audience the draw was honest.",
+    "who1_text": "Run your giveaways and announce winners with an animated draw your audience can follow.",
     "who2_title": "Brands & shops",
-    "who2_text": "Run a product campaign, collect real contacts, and keep a verifiable record of the draw for your customers.",
+    "who2_text": "Launch a product contest, collect entries through a public link and keep the history of your draws.",
     "who3_title": "Communities",
-    "who3_text": "Liven up your Discord, server or group with a draw nobody can suspect of being rigged.",
+    "who3_text": "Liven up your Discord server or group with a clear draw that is easy to share.",
     "join_stat_entries": "entries",
     "join_stat_left": "time left",
     "join_stat_chances": "your chances",
@@ -7572,8 +7561,8 @@ var TRANSLATIONS = {
     "door_join_text": "Got a giveaway link? Just open it — no account needed to take part.",
     "door_join_note": "The organizer shares the link in their post or story.",
     "door_create_title": "I want to run one",
-    "door_create_text": "Create your campaign, set your requirements (follow, like, comment) and watch your community grow with every draw.",
-    "door_create_cta": "Create my campaign",
+    "door_create_text": "Create your giveaway, set your entry rules and share the link with your audience.",
+    "door_create_cta": "Create my giveaway",
     "door_create_note": "Free to start · No credit card",
     "menu_join": "Enter a giveaway",
     "joinlink_title": "Enter a giveaway",
@@ -7585,7 +7574,7 @@ var TRANSLATIONS = {
     "float_participants": "1,284 participants",
     "float_ending": "Ending in 02:14:36",
     "float_winner_selected": "Winner selected ✓",
-    "trust_strip_label": "For creators and brands who want a community, not just views",
+    "trust_strip_label": "For creators, brands and communities who want to go beyond a simple prize draw.",
     "showcase1_kicker": "01 — Create",
     "showcase1_title": "Set up your giveaway in minutes.",
     "showcase1_text": "Title, prize, end date, entry rules — it all happens on one screen, without the hassle.",
@@ -7596,32 +7585,32 @@ var TRANSLATIONS = {
     "ui_btn_create": "Create giveaway",
     "showcase2_kicker": "02 — Participants",
     "showcase2_title": "Every participant, clearly listed.",
-    "showcase2_text": "Handle, source, status — instantly see who's entered, imported automatically from your comments.",
+    "showcase2_text": "Username, source, status: see who is taking part, whether imported or signed up through your public link.",
     "ui_list_footer": "1,284 eligible participants",
     "showcase3_kicker": "03 — Pick a winner",
-    "showcase3_title": "A fair, animated, verifiable draw.",
-    "showcase3_text": "6 animated draw modes for a result that grabs attention — always determined randomly, never rigged.",
+    "showcase3_title": "An animated draw, ready to share live.",
+    "showcase3_text": "6 animated draw modes to announce your winner in an interactive way. The winner is picked at random among eligible participants.",
     "winner_selecting": "Selecting winner…",
     "winner_label": "Winner",
     "showcase4_kicker": "04 — Result",
     "showcase4_title": "A result ready to share.",
-    "showcase4_text": "Winner, date, participant count — all certified and shareable in one click on your socials.",
-    "result_label": "Certified result",
+    "showcase4_text": "Winner, date, number of participants: download a certificate and share the result with your audience.",
+    "result_label": "Draw result",
     "result_share": "Share",
     "result_certificate": "Certificate",
-    "features_title": "Built for the real problems organizers face.",
-    "feature1_h": "Fast setup",
-    "feature1_p": "Launch a giveaway in minutes, with no complex configuration.",
-    "feature2_h": "Flexible entry rules",
-    "feature2_p": "Define exactly how people can enter — keyword, minimum mentions, no duplicates.",
-    "feature3_h": "Fair selection",
-    "feature3_p": "The winner is chosen randomly among eligible participants, determined server-side.",
+    "features_title": "Everything you need to run a successful giveaway.",
+    "feature1_h": "Quick setup",
+    "feature1_p": "Configure your giveaway, add your prize and set your entry rules from one place.",
+    "feature2_h": "Well-organized participants",
+    "feature2_p": "Import your lists, remove duplicates and spot the participants who meet your conditions.",
+    "feature3_h": "Draws that grab attention",
+    "feature3_p": "Pick from six draw modes to make the winner announcement more interactive.",
     "feature4_h": "Transparent results",
-    "feature4_p": "Give your participants confidence with an animated, verifiable draw.",
-    "feature5_h": "Participant management",
-    "feature5_p": "Everything organized in one place — imports, filters, history.",
-    "feature6_h": "Shareable results",
-    "feature6_p": "Share the winner instantly, with a downloadable certificate.",
+    "feature4_p": "See the result of every draw and share the useful details with your audience.",
+    "feature5_h": "A central history",
+    "feature5_p": "Find your past campaigns, their winners and the related details.",
+    "feature6_h": "Campaign tracking",
+    "feature6_p": "Enter your followers before and after each campaign to compare your giveaways.",
     "trust_kicker": "Trust",
     "trust_title": "Fair by design.",
     "trust1": "Random selection",
@@ -7629,27 +7618,39 @@ var TRANSLATIONS = {
     "trust3": "Transparent results",
     "trust4": "Winner history",
     "trust5": "Shareable proof",
-    "final_cta_title": "Your community grows from here.",
-    "final_cta_sub": "Launch your first giveaway free — and watch your audience grow.",
+    "final_cta_title": "Create your first giveaway for free.",
+    "final_cta_sub": "Your first draw is on us, no credit card needed.",
     "faq_kicker": "Frequently asked questions",
-    "faq_q1": "How do I create a giveaway?",
-    "faq_a1": "Create a free account, click \"New giveaway\", fill in the title and end date, then import your participants — from Instagram, YouTube, a CSV, or a pasted list.",
-    "faq_q2": "How is the winner selected?",
-    "faq_a2": "The draw is determined randomly server-side before the animation even starts — the visual result can never be manipulated.",
-    "faq_q3": "Can I import participants from Instagram?",
-    "faq_a3": "Yes — connect your Instagram Business account from Settings, paste the link to one of your posts, and RerePickWinn fetches the comments automatically.",
-    "faq_q4": "Is the draw really random?",
-    "faq_a4": "Yes, 100%. Each draw mode looks different, but the winner is always determined by a fair random draw.",
-    "faq_q5": "Is it free?",
-    "faq_a5": "Yes, RerePickWinn is currently free to use.",
-    "faq_q6": "Can I share the result on social media?",
-    "faq_a6": "Yes — a \"Share\" button uses your phone's native sharing, and a downloadable winner certificate is generated automatically.",
-    "footer_tagline": "The simple platform to create, run and win your giveaways.",
+    "faq_q1": "How do I create my first giveaway?",
+    "faq_a1": "Create your free account, click “New draw”, enter the title and rules, add your participants, then run the draw.",
+    "faq_q2": "How is the winner chosen?",
+    "faq_a2": "The winner is picked at random among eligible participants, after your rules (duplicates, keyword, minimum mentions) are applied. The draw mode changes the animation, not the selection method.",
+    "faq_q3": "Can I import my participants from Instagram, TikTok or YouTube?",
+    "faq_a3": "You can import a CSV or Excel file or a Google Sheet, paste a list of usernames, collect YouTube comments and, with a connected Instagram Business account, Instagram comments. TikTok is not supported yet: export your participants to a file, then import it.",
+    "faq_q4": "How do I avoid duplicates?",
+    "faq_a4": "Turn on the “Remove duplicates” option when creating the draw. On the public sign-up page, one email address can only enter once.",
+    "faq_q5": "Can a draw be verified?",
+    "faq_a5": "Every draw is saved in your history with its winner, mode and number of participants. You can download a numbered certificate. There is no public page to verify a draw yet.",
+    "faq_q6": "What does the free plan include?",
+    "faq_a6": "1 draw in total (not one per month), up to 100 participants, with all draw modes. To create more draws, you need to pick a plan.",
+    "footer_tagline": "The platform to organize, run and manage your giveaways.",
     "footer_legal": "Legal",
     "footer_contact": "Contact",
     "footer_copyright": "© 2026 RerePickWinn. All rights reserved."
   },
   de: {
+    "footer_nav": "Navigation",
+    "pricing_free_d": "Um RerePickWinn kennenzulernen und deine erste Ziehung durchzuführen.",
+    "pricing_basic_d": "Für Creator, die ein paar Giveaways pro Monat durchführen.",
+    "pricing_medium_d": "Für Creator und kleine Marken mit regelmäßigen Kampagnen.",
+    "pricing_pro_d": "Für Veranstalter mit großen Teilnehmerzahlen.",
+    "pricing_note_fmt": "6 Monate: {six} $ · 1 Jahr: {year} $ (−{pct} %)",
+    "faq_q7": "Kann ich das Ergebnis teilen?",
+    "faq_a7": "Ja. Eine Schaltfläche „Teilen“ nutzt die Teilen-Funktion deines Telefons, und du kannst die Urkunde des Gewinners als Bild herunterladen.",
+    "faq_q8": "Wie funktioniert das Abonnement und wie beende ich es?",
+    "faq_a8": "Bei Kartenzahlung verlängert sich das Abonnement am Ende des gewählten Zeitraums automatisch (1 Monat, 6 Monate oder 1 Jahr). Du kannst es jederzeit beenden, indem du an contact@rerepickwinn.com schreibst. Bei Kryptowährung ist die Zahlung einmalig für die gewählte Laufzeit: Es gibt keine automatische Verlängerung.",
+    "faq_q9": "Sind meine Daten und die meiner Teilnehmer geschützt?",
+    "faq_a9": "Wir erheben nur die Informationen, die für den Betrieb der Plattform nötig sind. Kartenzahlungen werden von Dodo Payments abgewickelt: Wir sehen deine Kartendaten nie. Details findest du in der Datenschutzerklärung.",
     "nav_dashboard": "Übersicht",
     "nav_giveaways": "Meine Verlosungen",
     "nav_participants": "Teilnehmer",
@@ -7782,7 +7783,7 @@ var TRANSLATIONS = {
     "toast_sheets_imported": "{count} Teilnehmer von Google Sheets importiert",
     "toast_sheets_error": "Google-Sheets-Fehler: {msg}",
     "billing_title": "Abonnement",
-    "billing_free_desc": "Kostenloser Plan: 1 Gratis-Verlosung, 100 Teilnehmer. Danach ist ein Tarif nötig.",
+    "billing_free_desc": "Kostenloser Tarif: 1 Ziehung insgesamt, 100 Teilnehmer. Für weitere wähle einen Tarif.",
     "billing_pro_badge": "PRO",
     "billing_per_month": "/Monat",
     "billing_feature_unlimited_giveaways": "Unbegrenzte Verlosungen",
@@ -7827,15 +7828,15 @@ var TRANSLATIONS = {
     "quota_banner_paid_usage": "{tier} · {used}/{limit} Ziehungen diesen Monat",
     "quota_banner_manage": "Verwalten",
     "quota_modal_title": "Keine Ziehung mehr verfügbar",
-    "quota_modal_free": "Du hast deine kostenlose Ziehung verbraucht. Für weitere wähle einen Tarif: Basic, Medium oder Pro.",
+    "quota_modal_free": "Du hast deine kostenlose Ziehung verbraucht. Für weitere wähle einen Tarif: Basic, Plus oder Pro.",
     "quota_modal_paid": "Du hast das Limit von {limit} Ziehungen für diesen Monat erreicht. Es wird am 1. des Monats zurückgesetzt, oder du wechselst auf einen höheren Tarif.",
     "quota_modal_later": "Später",
-    "pillar1_h": "6 animierte Ziehungen",
-    "pillar1_p": "Glücksrad, Plinko, Rennen und mehr.",
-    "pillar2_h": "Faire Ziehung",
-    "pillar2_p": "Gewinner zufällig ermittelt, serverseitig.",
-    "pillar3_h": "Prüfbares Zertifikat",
-    "pillar3_p": "Ein Nachweis zum Teilen mit deiner Community.",
+    "pillar1_h": "Zufällige Auswahl",
+    "pillar1_p": "Der Gewinner wird zufällig unter den teilnahmeberechtigten Teilnehmern ermittelt.",
+    "pillar2_h": "Klare Teilnahmeregeln",
+    "pillar2_p": "Duplikate, Stichwort, Mindestanzahl an Erwähnungen: Du legst die Regeln vor der Ziehung fest.",
+    "pillar3_h": "Einsehbarer Verlauf",
+    "pillar3_p": "Finde jede Ziehung, ihren Gewinner und die Details an einem Ort.",
     "pillar4_h": "3 Sprachen",
     "pillar4_p": "Français, English und Deutsch.",
     "plinko_cap_notice": "Plinko zeigt {max} Teilnehmer gleichzeitig. Alle {total} Teilnehmer sind in der Ziehung: Der Gewinner wird zufällig unter allen ermittelt und gehört immer zu den {max} angezeigten. Bei jedem neuen Start wird eine andere zufällige Gruppe von {max} angezeigt.",
@@ -7843,16 +7844,16 @@ var TRANSLATIONS = {
     "plan_free_draw_used": "Verbraucht",
     "plan_free_draw_available": "Verfügbar",
     "soon_kicker": "Demnächst",
-    "soon_title": "Die Plattform wächst mit dir.",
-    "soon_sub": "RerePickWinn entwickelt sich ständig weiter. Das ist in Arbeit.",
+    "soon_title": "RerePickWinn entwickelt sich mit deinen Anforderungen weiter.",
+    "soon_sub": "Wir verbessern die Werkzeuge regelmäßig, damit Giveaways einfacher werden. Geplante Funktionen werden angekündigt, sobald sie verfügbar sind.",
     "soon_badge": "In Vorbereitung",
-    "soon1_h": "Neue Ziehungsspiele",
-    "soon1_p": "Weitere Wege, einen Gewinner zu ermitteln, kommen zu den 6 aktuellen Modi dazu.",
-    "soon2_h": "Noch ausgefeiltere Spiele",
-    "soon2_p": "Verbesserte Animationen, Tempo und Einstellungen – für Ziehungen, die noch mehr Spaß beim Zuschauen machen.",
-    "soon3_h": "Und noch viel mehr",
-    "soon3_p": "Neue Funktionen kommen regelmäßig, direkt in deinen Arbeitsbereich.",
-    "soon_cta_text": "Werde jetzt Teil von RerePickWinn und verfolge die Neuerungen.",
+    "soon1_h": "Neue Ziehungsmodi",
+    "soon1_p": "Weitere Spiele zur Gewinnerbekanntgabe, zusätzlich zu den sechs aktuellen Modi.",
+    "soon2_h": "Leichter teilbare Ergebnisse",
+    "soon2_p": "Werkzeuge, um das Ergebnis deiner Ziehungen darzustellen und zu teilen.",
+    "soon3_h": "Umfassendere Auswertung",
+    "soon3_p": "Statistiken, um deine Kampagnen besser zu vergleichen.",
+    "soon_cta_text": "Erstelle dein Konto und entdecke die verfügbaren Werkzeuge für deine Giveaways.",
     "soon_cta": "Kostenloses Konto erstellen",
     "soon_cta_plans": "Tarife ansehen",
     "billing_crypto_sub": "Zahlung in Kryptowährung",
@@ -7868,13 +7869,13 @@ var TRANSLATIONS = {
     "billing_save_percent": "-{percent}%",
     "nav_pricing": "Preise",
     "pricing_kicker": "Preise",
-    "pricing_title": "Investiere in dein Wachstum.",
-    "pricing_sub": "Starte kostenlos. Wechsle den Tarif, wann immer du willst, Zahlung in Krypto, ohne Verpflichtung.",
+    "pricing_title": "Wähle den Tarif, der zu deinen Giveaways passt.",
+    "pricing_sub": "Starte kostenlos und wechsle zu einem kostenpflichtigen Tarif, wenn du ihn brauchst. Zahlung per Karte oder in Kryptowährung.",
     "pricing_start": "Loslegen",
     "pricing_popular": "Beliebt",
-    "pricing_footnote": "Jeder Tarif ist auch für 6 oder 12 Monate verfügbar, mit bis zu 37% Rabatt — wähle die Laufzeit, sobald du angemeldet bist, in den Einstellungen.",
+    "pricing_footnote": "Preise in US-Dollar, zuzüglich eventuell anfallender Steuern. „Unbegrenzt“ vorbehaltlich der technischen Grenzen der Plattform. Jeder Tarif ist auch für 6 Monate oder 1 Jahr verfügbar: Die Laufzeit wählst du nach der Anmeldung auf der Seite Abonnement.",
     "tier_basic": "Basis",
-    "tier_medium": "Medium",
+    "tier_medium": "Plus",
     "tier_pro": "Pro",
     "billing_card_btn_tier": "{tier} — mit Karte zahlen",
     "billing_upgrade_btn_tier": "{tier} — mit Krypto zahlen",
@@ -7883,7 +7884,7 @@ var TRANSLATIONS = {
     "billing_already_subscribed": "Du hast bereits eine ausstehende Anfrage — überprüfe deine E-Mail für den Zahlungslink.",
     "billing_already_active": "Dein Abonnement ist bereits aktiv!",
     "tier_free": "Kostenlos",
-    "pricing_free_f1": "1 Gratis-Verlosung",
+    "pricing_free_f1": "1 Ziehung insgesamt, inklusive",
     "pricing_free_f2": "100 Teilnehmer / Verlosung",
     "pricing_start_free": "Kostenlos starten",
     "pricing_basic_f1": "3 Verlosungen pro Monat",
@@ -7906,10 +7907,10 @@ var TRANSLATIONS = {
     "cmp_row_giveaways": "Verlosungen pro Monat",
     "cmp_row_participants": "Teilnehmer pro Verlosung",
     "cmp_row_modes": "Alle Ziehungsmodi",
-    "cmp_row_certs": "Ziehungszertifikate",
+    "cmp_row_certs": "Ziehungsurkunde (Bild)",
     "cmp_row_history": "Ziehungsverlauf",
-    "cmp_row_public": "Öffentliche Teilnahmeseite",
-    "cmp_row_growth": "Wachstums-Tracking",
+    "cmp_row_public": "Öffentliche Anmeldeseite",
+    "cmp_row_growth": "Vorher-/Nachher-Vergleich",
     "cmp_unlimited": "Unbegrenzt",
     "cmp_n2000": "2.000",
     "cmp_included": "Enthalten",
@@ -8161,17 +8162,17 @@ var TRANSLATIONS = {
     "nav_faq": "FAQ",
     "nav_login": "Anmelden",
     "theme_toggle_label": "Helles/dunkles Design",
-    "cta_nav": "Meine Community vergrößern →",
-    "hero_badge": "Mach aus jedem Giveaway Follower, die bleiben",
+    "cta_nav": "Giveaway erstellen →",
+    "hero_badge": "Die Plattform für deine Giveaways",
     "hero_title": "<span class=\"lp-hero-title-accent\">Vergrößere</span><br>deine Community.<br>Ein Giveaway nach dem anderen.",
-    "hero_sub": "Das Giveaway bringt Leute. RerePickWinn hilft dir, sie zu behalten — und zu messen, was deine Community wirklich gewinnt.",
-    "cta_create_giveaway": "Kampagne starten",
-    "hero_cta_secondary": "So funktioniert's",
-    "hero_proof": "Kostenlos starten · Keine Kreditkarte erforderlich",
-    "mock_live": "Live",
-    "mock_active": "Laufende Kampagne",
+    "hero_sub": "Organisiere deine Verlosungen, verwalte deine Teilnehmer mit wenigen Klicks und behalte die Ergebnisse jeder Kampagne im Blick.",
+    "cta_create_giveaway": "Mein Giveaway kostenlos erstellen",
+    "hero_cta_secondary": "So funktioniert es",
+    "hero_proof": "Kostenlos starten · Keine Kreditkarte",
+    "mock_live": "Beispiel",
+    "mock_active": "Demo",
     "mock_entries": "Teilnehmer",
-    "mock_growth": "Follower seit dem Start",
+    "mock_growth": "gewonnene Follower (Beispieldaten)",
     "search_giveaways_ph": "Verlosung suchen...",
     "search_participants_ph": "Teilnehmer suchen...",
     "filter_all_giveaways": "Alle Verlosungen",
@@ -8194,21 +8195,21 @@ var TRANSLATIONS = {
     "toast_file_imported": "{count} Teilnehmer aus {source} importiert",
     "toast_csv_empty": "Keine Teilnehmer in dieser Datei gefunden — prüfe, ob die Namen in der ersten Spalte stehen.",
     "how_kicker": "So funktioniert's",
-    "how_title": "Drei Schritte, nicht drei Abende.",
-    "how_s1_title": "Sammle deine Teilnehmer",
-    "how_s1_text": "Füge eine Liste ein, importiere eine CSV- oder Excel-Datei, verbinde Instagram oder YouTube, oder teile deinen öffentlichen Link — die Leute tragen sich selbst ein.",
-    "how_s2_title": "Filtern und starten",
-    "how_s2_text": "Entferne Duplikate, verlange ein Stichwort oder eine Anzahl Erwähnungen, wähle eine von sechs animierten Verlosungen und starte vor deinem Publikum.",
-    "how_s3_title": "Beweisen und messen",
-    "how_s3_text": "Der Gewinner erhält ein nachprüfbares Zertifikat, und du siehst genau, was die Kampagne deiner Community gebracht hat.",
+    "how_title": "Dein Giveaway in 3 einfachen Schritten.",
+    "how_s1_title": "Teilnehmer hinzufügen",
+    "how_s1_text": "Importiere eine CSV- oder Excel-Datei, füge eine Liste mit Nutzernamen ein, sammle Kommentare oder teile deinen öffentlichen Anmeldelink.",
+    "how_s2_title": "Prüfen und Ziehung starten",
+    "how_s2_text": "Entferne Duplikate, wende deine Teilnahmeregeln an und wähle einen von sechs Ziehungsmodi.",
+    "how_s3_title": "Gewinner bekannt geben",
+    "how_s3_text": "Sieh dir das Ergebnis an, finde es in deinem Verlauf wieder und teile es mit deiner Community.",
     "who_kicker": "Für wen",
-    "who_title": "Gemacht für alle, die eine Community aufbauen.",
+    "who_title": "Für Creator, Marken und Communities.",
     "who1_title": "Creator",
-    "who1_text": "Mach aus einem einmaligen Giveaway Follower, die bleiben — und zeig deinem Publikum, dass die Verlosung ehrlich war.",
+    "who1_text": "Führe deine Giveaways durch und gib Gewinner mit einer animierten Ziehung bekannt, die deine Community verfolgen kann.",
     "who2_title": "Marken & Shops",
-    "who2_text": "Starte eine Produktkampagne, sammle echte Kontakte und behalte einen nachprüfbaren Nachweis der Verlosung für deine Kunden.",
+    "who2_text": "Starte ein Produktgewinnspiel, sammle Teilnahmen über einen öffentlichen Link und behalte den Verlauf deiner Ziehungen.",
     "who3_title": "Communitys",
-    "who3_text": "Beleb deinen Discord, Server oder deine Gruppe mit einer Verlosung, die niemand für manipuliert halten kann.",
+    "who3_text": "Belebe deinen Discord-Server oder deine Gruppe mit einer klaren, leicht teilbaren Ziehung.",
     "join_stat_entries": "Teilnehmer",
     "join_stat_left": "verbleibend",
     "join_stat_chances": "deine Chancen",
@@ -8242,8 +8243,8 @@ var TRANSLATIONS = {
     "door_join_text": "Du hast einen Giveaway-Link? Öffne ihn einfach — für die Teilnahme brauchst du kein Konto.",
     "door_join_note": "Den Link gibt dir der Veranstalter in seinem Beitrag oder seiner Story.",
     "door_create_title": "Ich möchte eines veranstalten",
-    "door_create_text": "Erstelle deine Kampagne, lege deine Bedingungen fest (Folgen, Like, Kommentar) und sieh deine Community mit jeder Verlosung wachsen.",
-    "door_create_cta": "Kampagne erstellen",
+    "door_create_text": "Erstelle dein Giveaway, lege deine Teilnahmeregeln fest und teile den Link mit deiner Community.",
+    "door_create_cta": "Mein Giveaway erstellen",
     "door_create_note": "Kostenlos starten · Keine Kreditkarte",
     "menu_join": "An einem Giveaway teilnehmen",
     "joinlink_title": "An einem Giveaway teilnehmen",
@@ -8255,7 +8256,7 @@ var TRANSLATIONS = {
     "float_participants": "1.284 Teilnehmer",
     "float_ending": "Endet in 02:14:36",
     "float_winner_selected": "Gewinner ermittelt ✓",
-    "trust_strip_label": "Für Creator und Marken, die eine Community wollen, nicht nur Views",
+    "trust_strip_label": "Für Creator, Marken und Communities, die mehr als eine einfache Verlosung wollen.",
     "showcase1_kicker": "01 — Erstellen",
     "showcase1_title": "Richte dein Giveaway in wenigen Minuten ein.",
     "showcase1_text": "Titel, Preis, Enddatum, Teilnahmebedingungen — alles auf einem einzigen Bildschirm, ganz ohne Komplexität.",
@@ -8266,32 +8267,32 @@ var TRANSLATIONS = {
     "ui_btn_create": "Giveaway erstellen",
     "showcase2_kicker": "02 — Teilnehmer",
     "showcase2_title": "Jeder Teilnehmer, klar aufgelistet.",
-    "showcase2_text": "Name, Quelle, Status — sieh sofort, wer teilnimmt, automatisch importiert aus deinen Kommentaren.",
+    "showcase2_text": "Nutzername, Quelle, Status: Sieh, wer teilnimmt – ob importiert oder über deinen öffentlichen Link angemeldet.",
     "ui_list_footer": "1.284 teilnahmeberechtigte Teilnehmer",
     "showcase3_kicker": "03 — Gewinner ermitteln",
-    "showcase3_title": "Eine faire, animierte, überprüfbare Verlosung.",
-    "showcase3_text": "6 animierte Verlosungsmodi für ein Ergebnis, das fesselt — immer zufällig bestimmt, nie manipulierbar.",
+    "showcase3_title": "Eine animierte Ziehung zum Live-Teilen.",
+    "showcase3_text": "6 animierte Ziehungsmodi, um deinen Gewinner interaktiv bekannt zu geben. Er wird zufällig unter den teilnahmeberechtigten Teilnehmern ermittelt.",
     "winner_selecting": "Auswahl läuft…",
     "winner_label": "Gewinner",
     "showcase4_kicker": "04 — Ergebnis",
     "showcase4_title": "Ein Ergebnis, bereit zum Teilen.",
-    "showcase4_text": "Gewinner, Datum, Teilnehmerzahl — alles zertifiziert und mit einem Klick auf deinen Kanälen teilbar.",
-    "result_label": "Zertifiziertes Ergebnis",
+    "showcase4_text": "Gewinner, Datum, Teilnehmerzahl: Lade eine Urkunde herunter und teile das Ergebnis mit deiner Community.",
+    "result_label": "Ziehungsergebnis",
     "result_share": "Teilen",
-    "result_certificate": "Zertifikat",
-    "features_title": "Entwickelt für die echten Probleme von Veranstaltern.",
+    "result_certificate": "Urkunde",
+    "features_title": "Alles, was du für ein erfolgreiches Giveaway brauchst.",
     "feature1_h": "Schnelle Einrichtung",
-    "feature1_p": "Starte eine Verlosung in wenigen Minuten, ganz ohne komplizierte Einrichtung.",
-    "feature2_h": "Flexible Teilnahmebedingungen",
-    "feature2_p": "Lege genau fest, wie Leute teilnehmen können — Stichwort, Mindesterwähnungen, keine Duplikate.",
-    "feature3_h": "Faire Auswahl",
-    "feature3_p": "Der Gewinner wird zufällig unter den teilnahmeberechtigten Teilnehmern ausgewählt, serverseitig bestimmt.",
+    "feature1_p": "Richte dein Giveaway ein, füge deinen Preis hinzu und lege die Teilnahmeregeln an einem Ort fest.",
+    "feature2_h": "Gut organisierte Teilnehmer",
+    "feature2_p": "Importiere deine Listen, entferne Duplikate und erkenne die Teilnehmer, die deine Bedingungen erfüllen.",
+    "feature3_h": "Ziehungen, die Aufmerksamkeit wecken",
+    "feature3_p": "Wähle aus sechs Ziehungsmodi, um die Gewinnerbekanntgabe interaktiver zu gestalten.",
     "feature4_h": "Transparente Ergebnisse",
-    "feature4_p": "Gib deinen Teilnehmern Vertrauen mit einer animierten, überprüfbaren Verlosung.",
-    "feature5_h": "Teilnehmerverwaltung",
-    "feature5_p": "Alles an einem Ort organisiert — Importe, Filter, Verlauf.",
-    "feature6_h": "Teilbare Ergebnisse",
-    "feature6_p": "Teile den Gewinner sofort, mit herunterladbarem Zertifikat.",
+    "feature4_p": "Sieh dir das Ergebnis jeder Ziehung an und teile die wichtigen Informationen mit deiner Community.",
+    "feature5_h": "Ein zentraler Verlauf",
+    "feature5_p": "Finde vergangene Kampagnen, ihre Gewinner und die zugehörigen Informationen.",
+    "feature6_h": "Kampagnen im Blick",
+    "feature6_p": "Trage deine Follower vor und nach jeder Kampagne ein, um deine Giveaways zu vergleichen.",
     "trust_kicker": "Vertrauen",
     "trust_title": "Von Grund auf fair.",
     "trust1": "Zufällige Auswahl",
@@ -8299,22 +8300,22 @@ var TRANSLATIONS = {
     "trust3": "Transparente Ergebnisse",
     "trust4": "Gewinnerverlauf",
     "trust5": "Teilbarer Nachweis",
-    "final_cta_title": "Deine Community wächst ab hier.",
-    "final_cta_sub": "Starte dein erstes Giveaway kostenlos — und sieh deine Reichweite wachsen.",
+    "final_cta_title": "Erstelle dein erstes Giveaway kostenlos.",
+    "final_cta_sub": "Deine erste Ziehung ist inklusive, ohne Kreditkarte.",
     "faq_kicker": "Häufig gestellte Fragen",
-    "faq_q1": "Wie erstelle ich ein Giveaway?",
-    "faq_a1": "Erstelle ein kostenloses Konto, klicke auf \"Neue Verlosung\", gib Titel und Enddatum ein und importiere dann deine Teilnehmer — von Instagram, YouTube, einer CSV-Datei oder einer eingefügten Liste.",
-    "faq_q2": "Wie wird der Gewinner ausgewählt?",
-    "faq_a2": "Die Verlosung wird serverseitig zufällig bestimmt, noch bevor die Animation überhaupt startet — das visuelle Ergebnis kann niemals manipuliert werden.",
-    "faq_q3": "Kann ich Teilnehmer von Instagram importieren?",
-    "faq_a3": "Ja — verbinde dein Instagram-Business-Konto in den Einstellungen, füge den Link zu einem deiner Beiträge ein, und RerePickWinn ruft die Kommentare automatisch ab.",
-    "faq_q4": "Ist die Verlosung wirklich zufällig?",
-    "faq_a4": "Ja, zu 100 %. Jeder Verlosungsmodus sieht anders aus, aber der Gewinner wird immer durch eine faire, zufällige Verlosung bestimmt.",
-    "faq_q5": "Ist es kostenlos?",
-    "faq_a5": "Ja, RerePickWinn ist derzeit kostenlos nutzbar.",
-    "faq_q6": "Kann ich das Ergebnis in sozialen Netzwerken teilen?",
-    "faq_a6": "Ja — ein \"Teilen\"-Button nutzt die native Freigabefunktion deines Smartphones, und ein herunterladbares Gewinnerzertifikat wird automatisch erstellt.",
-    "footer_tagline": "Die einfache Plattform, um deine Giveaways zu erstellen, zu veranstalten und zu gewinnen.",
+    "faq_q1": "Wie erstelle ich mein erstes Giveaway?",
+    "faq_a1": "Erstelle dein kostenloses Konto, klicke auf „Neue Ziehung“, gib Titel und Regeln ein, füge deine Teilnehmer hinzu und starte die Ziehung.",
+    "faq_q2": "Wie wird der Gewinner ermittelt?",
+    "faq_a2": "Der Gewinner wird zufällig unter den teilnahmeberechtigten Teilnehmern ermittelt, nachdem deine Regeln (Duplikate, Stichwort, Mindestanzahl an Erwähnungen) angewendet wurden. Der Ziehungsmodus ändert die Animation, nicht die Auswahlmethode.",
+    "faq_q3": "Kann ich Teilnehmer von Instagram, TikTok oder YouTube importieren?",
+    "faq_a3": "Du kannst eine CSV- oder Excel-Datei oder ein Google Sheet importieren, eine Liste mit Nutzernamen einfügen, YouTube-Kommentare sammeln und – mit verbundenem Instagram-Business-Konto – Instagram-Kommentare. TikTok wird noch nicht unterstützt: Exportiere deine Teilnehmer in eine Datei und importiere sie dann.",
+    "faq_q4": "Wie vermeide ich Duplikate?",
+    "faq_a4": "Aktiviere beim Erstellen der Ziehung die Option „Duplikate entfernen“. Auf der öffentlichen Anmeldeseite kann sich dieselbe E-Mail-Adresse nur einmal anmelden.",
+    "faq_q5": "Ist die Ziehung überprüfbar?",
+    "faq_a5": "Jede Ziehung wird mit Gewinner, Modus und Teilnehmerzahl in deinem Verlauf gespeichert. Du kannst eine nummerierte Urkunde herunterladen. Eine öffentliche Seite zur Überprüfung einer Ziehung gibt es noch nicht.",
+    "faq_q6": "Was enthält der kostenlose Tarif?",
+    "faq_a6": "1 Ziehung insgesamt (nicht eine pro Monat), bis zu 100 Teilnehmer, mit allen Ziehungsmodi. Für weitere Ziehungen brauchst du einen Tarif.",
+    "footer_tagline": "Die Plattform, um deine Giveaways zu organisieren, durchzuführen und zu verwalten.",
     "footer_legal": "Rechtliches",
     "footer_contact": "Kontakt",
     "footer_copyright": "© 2026 RerePickWinn. Alle Rechte vorbehalten."
@@ -8338,6 +8339,20 @@ function t(key, vars) {
     });
   }
   return str;
+}
+
+
+function renderLandingPrices(lang) {
+  lang = lang || 'fr';
+  var dict = TRANSLATIONS[lang] || TRANSLATIONS.fr;
+  var fmt = function(n) { return n.toFixed(2).replace('.', lang === 'en' ? '.' : ','); };
+  document.querySelectorAll('[data-price-note]').forEach(function(el) {
+    var p = TIER_PRICES[el.getAttribute('data-price-note')];
+    if (!p) return;
+    var pct = Math.round((1 - p.annual / (p.monthly * 12)) * 100);
+    el.textContent = (dict.pricing_note_fmt || '')
+      .split('{six}').join(fmt(p.semiannual)).split('{year}').join(fmt(p.annual)).split('{pct}').join(pct);
+  });
 }
 
 function applyLanguage(lang) {
@@ -8373,6 +8388,7 @@ function applyLanguage(lang) {
   // their text is produced by t() at render time. Re-rendering whichever
   // one is currently on screen is what makes a language switch take
   // effect immediately instead of only after a page reload.
+  renderLandingPrices(lang);
   try {
     if (typeof currentUser !== 'undefined' && currentUser) {
       if (typeof renderQuotaState === 'function') { renderQuotaState(); if (visibleScreenId === 'billingScreen') loadPaymentHistory(); }
@@ -10180,7 +10196,7 @@ var MAX_PARTICIPANTS_PER_IMPORT = 10000;
 var currentSubscription = null;
 
 // ============================================================
-// BILLING — 3 tiers (Basique / Medium / Pro) × 4 billing periods
+// BILLING — 3 tiers (Basique / Plus / Pro) × 4 billing periods
 // (monthly / 3mo / 6mo / 1yr) = 12 combinations. Prices and feature
 // limits are kept in one place so the UI (prices, savings badges,
 // gating messages) and the request sent to
