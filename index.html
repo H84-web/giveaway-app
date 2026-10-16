@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261015225712" />
+<meta name="app-build" content="20261016091757" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2326,6 +2326,43 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
 @media (prefers-reduced-motion: reduce) { .lp-soon-spin svg, .lp-soon-float svg, .lp-soon-twinkle svg, .lp-soon-pill i { animation:none; } }
 [data-theme="dark"] .lp-soon-card { background:rgba(255,255,255,.04); }
 
+.plinko-cap-notice { margin:0 auto 12px; max-width:560px; padding:10px 14px; border-radius:12px; font-size:var(--fs-sm); line-height:1.5; text-align:left;
+  color:var(--ink-soft); background:var(--accent-soft); border:1px solid rgba(91,91,246,.22); }
+[data-theme="dark"] .plinko-cap-notice { background:rgba(91,91,246,.16); color:#d6d3ff; }
+.plinko-cap-notice { padding-right:56px; }
+
+/* ============ Landing: "how it works" cards + pillars band ============ */
+#lp-how .lp-section-head { max-width:1180px; padding:0 24px; margin-bottom:28px; }
+.lp-steps { gap:18px; }
+@media (min-width:820px){ .lp-steps { gap:20px; } }
+.lp-step { padding:24px 22px 26px; border-radius:20px; background:var(--card); border:1px solid var(--line); box-shadow:var(--shadow-sm);
+  transition:transform .25s var(--ease-out), box-shadow .25s var(--ease-out), border-color .25s; }
+.lp-step:hover { transform:translateY(-4px); box-shadow:var(--shadow-md); border-color:rgba(91,91,246,.35); }
+.lp-step:not(:last-child)::after { display:none; }
+.lp-step-num { display:inline-grid; place-items:center; width:34px; height:34px; border-radius:50%; font-size:var(--fs-sm); font-weight:800; color:#fff; background:var(--gradient-brand); box-shadow:var(--shadow-accent); margin-bottom:14px; letter-spacing:0; opacity:1; -webkit-text-fill-color:#fff; }
+.lp-step-ic { float:right; width:42px; height:42px; border-radius:13px; display:grid; place-items:center; color:var(--accent); background:var(--accent-soft); }
+.lp-step-ic svg { width:22px; height:22px; }
+.lp-step h3 { font-size:var(--fs-md); clear:both; }
+
+.lp-pillars { max-width:1180px; margin:20px auto 8px; padding:0 24px; }
+.lp-pillars-inner { border-radius:26px; padding:28px 28px 30px; color:#fff; position:relative; overflow:hidden;
+  background:radial-gradient(120% 140% at 0% 0%, #6a5cff 0%, #4a3fd6 45%, #2d2680 100%); box-shadow:0 22px 50px -24px rgba(60,50,200,.7); }
+.lp-pillars-inner::after { content:''; position:absolute; right:-80px; top:-80px; width:260px; height:260px; border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,.18), transparent 65%); pointer-events:none; }
+.lp-pillars-head { display:flex; align-items:center; justify-content:space-between; gap:14px 24px; flex-wrap:wrap; margin-bottom:22px; position:relative; z-index:1; }
+.lp-pillars-label { font-size:var(--fs-sm); font-weight:600; opacity:.9; }
+.lp-pillars-chips { display:flex; gap:8px; flex-wrap:wrap; }
+.lp-pillars-chips span { font-size:var(--fs-xs); font-weight:600; padding:6px 13px; border-radius:99px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); color:#fff; }
+.lp-pillars-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; position:relative; z-index:1; }
+@media (max-width:900px){ .lp-pillars-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:480px){ .lp-pillars-inner { padding:22px 18px 24px; } .lp-pillars-grid { grid-template-columns:1fr; } }
+.lp-pillar { display:flex; flex-direction:column; gap:4px; padding:16px; border-radius:16px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); transition:background .2s, transform .2s; }
+.lp-pillar:hover { background:rgba(255,255,255,.14); transform:translateY(-2px); }
+.lp-pillar-ic { width:38px; height:38px; border-radius:12px; display:grid; place-items:center; background:rgba(255,255,255,.18); margin-bottom:8px; }
+.lp-pillar-ic svg { width:20px; height:20px; }
+.lp-pillar strong { font-size:var(--fs-base); font-weight:700; }
+.lp-pillar span:not(.lp-pillar-ic) { font-size:var(--fs-sm); opacity:.8; line-height:1.45; }
+[data-theme="dark"] .lp-step { background:rgba(255,255,255,.04); }
+
 </style>
 </head>
 <body>
@@ -2617,52 +2654,36 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
     </div>
     <div class="lp-steps lp-reveal lp-reveal-delay">
       <div class="lp-step">
-        <span class="lp-step-num">01</span>
+        <span class="lp-step-num">01</span><span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 19v-1.5a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3V19"/><circle cx="9.5" cy="7.5" r="3"/><path d="M21 19v-1.5a3 3 0 0 0-2.2-2.9M15.5 4.7a3 3 0 0 1 0 5.6"/></svg></span>
         <h3 data-i18n="how_s1_title">Rassemble tes participants</h3>
         <p data-i18n="how_s1_text">Colle une liste, importe un CSV ou un fichier Excel, connecte Instagram ou YouTube, ou partage ton lien public : les gens s'inscrivent eux-mêmes.</p>
       </div>
       <div class="lp-step">
-        <span class="lp-step-num">02</span>
+        <span class="lp-step-num">02</span><span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"/></svg></span>
         <h3 data-i18n="how_s2_title">Filtre et lance</h3>
         <p data-i18n="how_s2_text">Retire les doublons, exige un mot-clé ou un nombre de mentions, choisis parmi six tirages animés, puis lance devant ton audience.</p>
       </div>
       <div class="lp-step">
-        <span class="lp-step-num">03</span>
+        <span class="lp-step-num">03</span><span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg></span>
         <h3 data-i18n="how_s3_title">Prouve et mesure</h3>
         <p data-i18n="how_s3_text">Le gagnant reçoit un certificat vérifiable, et tu vois exactement ce que la campagne a rapporté à ta communauté.</p>
       </div>
     </div>
   </section>
 
-  <!-- ============ TRUST / COMPATIBILITY STRIP ============ -->
-  <section class="lp-trust-strip lp-reveal">
-    <span class="lp-trust-label" data-i18n="trust_strip_label">Conçu pour les créateurs, marques et communautés</span>
-    <div class="lp-trust-platforms">
-      <span class="lp-platform-ig">Instagram</span><span class="lp-trust-dot">·</span>
-      <span class="lp-platform-yt">YouTube</span><span class="lp-trust-dot">·</span>
-      <span class="lp-platform-tt">TikTok</span><span class="lp-trust-dot">·</span>
-      <span class="lp-platform-dc">Discord</span>
-    </div>
-  </section>
-
-  <!-- ============ SOCIAL PROOF BAR ============ -->
-  <section class="lp-social-proof lp-reveal">
-    <span class="lp-social-proof-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M16 19v-1.5a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3V19"/>
-        <circle cx="9.5" cy="7.5" r="3"/>
-        <path d="M21 19v-1.5a3 3 0 0 0-2.2-2.9M15.5 4.7a3 3 0 0 1 0 5.6"/>
-      </svg>
-    </span>
-    <div class="lp-social-proof-copy">
-      <strong data-i18n="social_proof_title">Des milliers de créateurs nous font déjà confiance</strong>
-      <span data-i18n="social_proof_sub">Rejoins une communauté qui organise mieux et grandit plus vite.</span>
-    </div>
-    <div class="lp-social-proof-avatars">
-      <span class="lp-social-avatar" style="background:#8B5CF6;">A</span>
-      <span class="lp-social-avatar" style="background:var(--red);">L</span>
-      <span class="lp-social-avatar" style="background:var(--green);">S</span>
-      <span class="lp-social-proof-count">+2K</span>
+  <!-- ============ PILLARS (replaces the old platform strip + social proof) ============ -->
+  <section class="lp-pillars lp-reveal">
+    <div class="lp-pillars-inner">
+      <div class="lp-pillars-head">
+        <span class="lp-pillars-label" data-i18n="trust_strip_label">Conçu pour les créateurs, marques et communautés</span>
+        <div class="lp-pillars-chips"><span>Instagram</span><span>YouTube</span><span>TikTok</span><span>Discord</span></div>
+      </div>
+      <div class="lp-pillars-grid">
+        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3.5v6M12 14.5v6M3.5 12h6M14.5 12h6" opacity=".6"/></svg></span><strong data-i18n="pillar1_h">6 tirages animés</strong><span data-i18n="pillar1_p">Roue, Plinko, courses et plus encore.</span></div>
+        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8.5 9h.01M12 12h.01M15.5 15h.01"/></svg></span><strong data-i18n="pillar2_h">Tirage équitable</strong><span data-i18n="pillar2_p">Gagnant choisi au hasard, côté serveur.</span></div>
+        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg></span><strong data-i18n="pillar3_h">Certificat vérifiable</strong><span data-i18n="pillar3_p">Une preuve à partager avec ton audience.</span></div>
+        <div class="lp-pillar"><span class="lp-pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg></span><strong data-i18n="pillar4_h">3 langues</strong><span data-i18n="pillar4_p">Français, English et Deutsch.</span></div>
+      </div>
     </div>
   </section>
 
@@ -4136,6 +4157,7 @@ p, .hint, .form-label, .empty-state, .card-section-sub {
         <!-- PLINKO MODE -->
         <div id="drawStagePlinko" class="draw-stage" style="display:none; position:relative;">
           <button type="button" class="duck-sound-toggle" id="plinkoSoundToggle" onclick="togglePlinkoSound()" title="Activer/désactiver le son"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9.5v5h3l4 3.5v-12l-4 3.5H5z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10"/></svg></button>
+          <div class="plinko-cap-notice" id="plinkoCapNotice" style="display:none;"></div>
           <canvas id="plinkoCanvas" class="duck-canvas"></canvas>
         </div>
 
@@ -6437,6 +6459,15 @@ var TRANSLATIONS = {
     "quota_modal_free": "Tu as utilisé ton tirage gratuit. Pour en créer d'autres, choisis une formule : Basique, Medium ou Pro.",
     "quota_modal_paid": "Tu as atteint la limite de {limit} tirages pour ce mois. Elle se renouvelle le 1er du mois, ou tu peux passer à la formule supérieure.",
     "quota_modal_later": "Plus tard",
+    "pillar1_h": "6 tirages animés",
+    "pillar1_p": "Roue, Plinko, courses et plus encore.",
+    "pillar2_h": "Tirage équitable",
+    "pillar2_p": "Gagnant choisi au hasard, côté serveur.",
+    "pillar3_h": "Certificat vérifiable",
+    "pillar3_p": "Une preuve à partager avec ton audience.",
+    "pillar4_h": "3 langues",
+    "pillar4_p": "Français, English et Deutsch.",
+    "plinko_cap_notice": "Plinko affiche {max} participants à la fois. Les {total} inscrits participent tous au tirage : le gagnant est tiré au hasard parmi tous et fait toujours partie des {max} affichés. À chaque nouveau lancement, un autre groupe de {max} est choisi au hasard.",
     "plan_free_draw_label": "Tirage gratuit offert",
     "plan_free_draw_used": "Utilisé",
     "plan_free_draw_available": "Disponible",
@@ -7098,6 +7129,15 @@ var TRANSLATIONS = {
     "quota_modal_free": "You have used your free draw. To create more, pick a plan: Basic, Medium or Pro.",
     "quota_modal_paid": "You have reached the limit of {limit} draws for this month. It resets on the 1st of the month, or you can move up to a higher plan.",
     "quota_modal_later": "Later",
+    "pillar1_h": "6 animated draws",
+    "pillar1_p": "Wheel, Plinko, races and more.",
+    "pillar2_h": "Fair draw",
+    "pillar2_p": "Winner picked at random, server-side.",
+    "pillar3_h": "Verifiable certificate",
+    "pillar3_p": "Proof you can share with your audience.",
+    "pillar4_h": "3 languages",
+    "pillar4_p": "Français, English and Deutsch.",
+    "plinko_cap_notice": "Plinko shows {max} participants at a time. All {total} entrants take part in the draw: the winner is picked at random among everyone and is always one of the {max} shown. On each new launch, another random group of {max} is shown.",
     "plan_free_draw_label": "Free draw included",
     "plan_free_draw_used": "Used",
     "plan_free_draw_available": "Available",
@@ -7759,6 +7799,15 @@ var TRANSLATIONS = {
     "quota_modal_free": "Du hast deine kostenlose Ziehung verbraucht. Für weitere wähle einen Tarif: Basic, Medium oder Pro.",
     "quota_modal_paid": "Du hast das Limit von {limit} Ziehungen für diesen Monat erreicht. Es wird am 1. des Monats zurückgesetzt, oder du wechselst auf einen höheren Tarif.",
     "quota_modal_later": "Später",
+    "pillar1_h": "6 animierte Ziehungen",
+    "pillar1_p": "Glücksrad, Plinko, Rennen und mehr.",
+    "pillar2_h": "Faire Ziehung",
+    "pillar2_p": "Gewinner zufällig ermittelt, serverseitig.",
+    "pillar3_h": "Prüfbares Zertifikat",
+    "pillar3_p": "Ein Nachweis zum Teilen mit deiner Community.",
+    "pillar4_h": "3 Sprachen",
+    "pillar4_p": "Français, English und Deutsch.",
+    "plinko_cap_notice": "Plinko zeigt {max} Teilnehmer gleichzeitig. Alle {total} Teilnehmer sind in der Ziehung: Der Gewinner wird zufällig unter allen ermittelt und gehört immer zu den {max} angezeigten. Bei jedem neuen Start wird eine andere zufällige Gruppe von {max} angezeigt.",
     "plan_free_draw_label": "Inklusive Gratis-Ziehung",
     "plan_free_draw_used": "Verbraucht",
     "plan_free_draw_available": "Verfügbar",
@@ -8254,7 +8303,7 @@ function t(key, vars) {
   var str = dict[key] || TRANSLATIONS.fr[key] || key;
   if (vars) {
     Object.keys(vars).forEach(function(k) {
-      str = str.replace('{' + k + '}', vars[k]);
+      str = str.split('{' + k + '}').join(vars[k]);
     });
   }
   return str;
@@ -11431,6 +11480,7 @@ function runDraw() {
 function runDrawRound(remainingPool, roundNumber, totalWinnersWanted) {
   winner = null;
   isSpinning = true;
+  if (drawMode === 'plinko') renderPlinkoCapNotice(remainingPool.length);
   var btn = document.getElementById('drawSpinBtn');
   btn.disabled = true;
 
@@ -13749,7 +13799,19 @@ function initPlinkoCanvas(slotCount) {
   return ctx;
 }
 
+function renderPlinkoCapNotice(total) {
+  var el = document.getElementById('plinkoCapNotice');
+  if (!el) return;
+  if (total > MAX_PLINKO_SLOTS) {
+    el.textContent = t('plinko_cap_notice', { max: MAX_PLINKO_SLOTS, total: total });
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function setupPlinkoStage(pool) {
+  renderPlinkoCapNotice(pool.length);
   var slots = Math.max(1, Math.min(pool.length, MAX_PLINKO_SLOTS));
   plinkoPool = pool.slice(0, slots);
 
