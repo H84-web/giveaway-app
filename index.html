@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-build" content="20261016102150" />
+<meta name="app-build" content="20261016105623" />
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RerePickWinn — Tirages au sort professionnels</title>
@@ -2407,6 +2407,76 @@ p { line-height: 1.65; }
 .landing-screen { overflow-x: clip; overflow-y: visible; }
 .lp-nav { position: -webkit-sticky; position: sticky; top: 0; z-index: 100; transform: none; }
 
+/* ---- period toggle ---- */
+.lp-period-toggle{display:flex;width:max-content;max-width:100%;margin:0 auto 26px;padding:4px;gap:2px;background:rgba(var(--lp-ink-rgb),0.06);border-radius:999px}
+.lp-period-toggle button{border:0;background:transparent;padding:9px 18px;border-radius:999px;font:600 14px 'Inter',sans-serif;color:rgba(var(--lp-ink-rgb),0.75);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.lp-period-toggle button.is-active{background:var(--lp-card);color:var(--lp-ink);box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.lp-period-toggle em{font-style:normal;font-size:12px;font-weight:700;color:var(--green);margin-left:4px}
+@media(max-width:480px){.lp-period-toggle button{padding:9px 12px;font-size:13px}}
+/* featured plan stands out */
+@media(min-width:800px){.lp-price-card-featured{transform:translateY(-8px);border-width:2px;box-shadow:var(--shadow-lg),0 0 0 5px rgba(108,99,255,0.10)}.lp-price-card-featured:hover{transform:translateY(-12px)}}
+/* doors: organiser dominant */
+@media(min-width:820px){.lp-doors{grid-template-columns:1.6fr 1fr}}
+.lp-door-compact{background:transparent;box-shadow:none;padding:22px 22px}
+.lp-door-compact .lp-door-icon{display:none}
+.lp-door-compact h3{font-size:var(--fs-base)}
+.lp-door-primary{padding:30px 28px}
+.landing-screen section[id]{scroll-margin-top:84px}
+.lp-doors{align-items:start}
+
+/* ===== refonte : hero centré + démo, bande de chiffres, cartes ===== */
+.lp-hero-inner{grid-template-columns:1fr !important;text-align:center;gap:44px}
+.lp-hero-copy{max-width:820px;margin:0 auto}
+.lp-hero-actions{justify-content:center}
+.lp-hero-sub{margin-left:auto;margin-right:auto;max-width:640px}
+.rx-demo{max-width:980px;width:100%;margin:0 auto;background:var(--lp-card);border:1px solid rgba(var(--lp-border-rgb),0.10);border-radius:20px;box-shadow:0 30px 70px -28px rgba(80,70,200,.35),0 2px 8px rgba(0,0,0,.05);overflow:hidden;text-align:left}
+.rx-demo-bar{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(var(--lp-ink-rgb),0.035);border-bottom:1px solid rgba(var(--lp-border-rgb),0.08)}
+.rx-dots{display:flex;gap:6px}.rx-dots i{width:10px;height:10px;border-radius:50%;background:rgba(var(--lp-ink-rgb),0.18)}
+.rx-demo-url{flex:1;font-size:13px;color:rgba(var(--lp-ink-rgb),0.7);background:var(--lp-card);border:1px solid rgba(var(--lp-border-rgb),0.1);border-radius:8px;padding:5px 12px}
+.rx-chip{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#4F46E5;background:rgba(108,99,255,.12);padding:4px 9px;border-radius:99px}
+.rx-demo-grid{display:grid;grid-template-columns:1fr}
+@media(min-width:760px){.rx-demo-grid{grid-template-columns:1.15fr 1fr}}
+.rx-demo-left{padding:26px 28px}
+.rx-demo-left h3{font-size:20px;font-weight:800;margin:0 0 4px;color:var(--lp-ink)}
+.rx-muted{color:rgba(var(--lp-ink-rgb),0.68);font-size:14px;margin:0}
+.rx-demo-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
+.rx-demo-stats>div{background:rgba(var(--lp-ink-rgb),0.04);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.rx-demo-stats small{font-size:12px;color:rgba(var(--lp-ink-rgb),0.68)}
+.rx-demo-stats b{font-size:24px;font-weight:800;color:var(--lp-ink)}
+.rx-demo-stats em{font-style:normal;font-size:12px;font-weight:600;color:#C2410C}
+.rx-rules{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.rx-rules li,.rx-ok{display:flex;align-items:center;gap:9px;font-size:14px;color:rgba(var(--lp-ink-rgb),0.85)}
+.rx-rules svg,.rx-ok svg{width:16px;height:16px;color:#059669;flex:0 0 auto}
+.rx-demo-right{padding:26px 28px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;background:linear-gradient(160deg,rgba(108,99,255,.10),rgba(108,99,255,.02));border-top:1px solid rgba(var(--lp-border-rgb),0.08)}
+@media(min-width:760px){.rx-demo-right{border-top:0;border-left:1px solid rgba(var(--lp-border-rgb),0.08)}}
+.rx-winner-label{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#4F46E5}
+.rx-winner-av{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7A73FF,#5B4FE0);color:#fff;font-size:26px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(108,99,255,.4)}
+.rx-demo-right h4{font-size:20px;font-weight:800;margin:0;color:var(--lp-ink)}
+.rx-fake-btn{margin-top:6px;background:#5B4FE0;color:#fff;font-weight:600;font-size:14px;padding:10px 18px;border-radius:10px}
+.rx-demo-right small{font-size:12px}
+.rx-stats{padding:0 24px 40px}
+.rx-stats-inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:26px 20px;border-radius:18px;background:var(--lp-card);border:1px solid rgba(var(--lp-border-rgb),0.09);box-shadow:var(--shadow-sm);text-align:center}
+@media(min-width:760px){.rx-stats-inner{grid-template-columns:repeat(4,1fr)}}
+.rx-stats-inner b{display:block;font-size:34px;font-weight:800;color:#5B4FE0;letter-spacing:-.02em}
+.rx-stats-inner span{font-size:14px;color:rgba(var(--lp-ink-rgb),0.75)}
+.lp-steps .lp-step{background:var(--lp-card);border:1px solid rgba(var(--lp-border-rgb),0.09);border-radius:18px;padding:24px 22px;box-shadow:var(--shadow-sm)}
+.rx-tag{display:inline-block;margin-top:14px;font-size:12px;font-weight:700;color:#4F46E5;background:rgba(108,99,255,.10);padding:5px 11px;border-radius:99px}
+.rx-upsell{max-width:1180px;margin:30px auto 0;padding:22px 26px;border-radius:18px;background:linear-gradient(135deg,rgba(108,99,255,.12),rgba(108,99,255,.04));border:1px solid rgba(108,99,255,.22);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
+.rx-upsell h4{margin:0 0 4px;font-size:17px;font-weight:800;color:var(--lp-ink)}.rx-upsell p{margin:0;font-size:14px;color:rgba(var(--lp-ink-rgb),0.75)}
+.rx-feat-grid{max-width:1000px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:1fr;gap:18px}
+@media(min-width:760px){.rx-feat-grid{grid-template-columns:1fr 1fr}}
+.rx-feat{background:var(--lp-card);border:1px solid rgba(var(--lp-border-rgb),0.09);border-radius:18px;padding:26px 24px;box-shadow:var(--shadow-sm);transition:transform .2s,box-shadow .2s}
+.rx-feat:hover{transform:translateY(-4px);box-shadow:var(--shadow-md)}
+.rx-feat-ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(108,99,255,.12);color:#5B4FE0;margin-bottom:14px}
+.rx-feat-ic svg{width:22px;height:22px}
+.rx-feat h3{font-size:18px;font-weight:800;margin:0 0 8px;color:var(--lp-ink)}
+.rx-feat p{font-size:15px;line-height:1.6;margin:0 0 14px;color:rgba(var(--lp-ink-rgb),0.78)}
+.rx-chips{display:flex;flex-wrap:wrap;gap:7px}
+.rx-chip2{font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:99px;background:rgba(var(--lp-ink-rgb),0.06);color:rgba(var(--lp-ink-rgb),0.82)}
+.lp-door-primary{display:none}
+.lp-doors{grid-template-columns:1fr !important;max-width:640px;padding-bottom:24px}
+.lp-door-compact{text-align:center}
+
 </style>
 </head>
 <body>
@@ -2517,8 +2587,8 @@ p { line-height: 1.65; }
         <a href="#lp-how" class="lp-nav-link" data-i18n="nav_how">Comment ça marche</a>
         <a href="#lp-features" class="lp-nav-link" data-i18n="nav_features">Fonctionnalités</a>
         <a href="#lp-pricing" class="lp-nav-link" data-i18n="nav_pricing">Tarifs</a>
-        <a href="#lp-soon" class="lp-nav-link" data-i18n="soon_kicker">À venir</a>
         <a href="#lp-faq" class="lp-nav-link" data-i18n="nav_faq">FAQ</a>
+        <a href="#lp-soon" class="lp-nav-link" data-i18n="soon_kicker">À venir</a>
       </div>
       <div class="lp-nav-actions">
         <button class="lp-theme-toggle" id="lpThemeToggle" onclick="toggleLandingTheme()" aria-label="Thème clair/sombre" title="Thème clair/sombre"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
@@ -2539,8 +2609,8 @@ p { line-height: 1.65; }
       <a href="#lp-features" onclick="closeLpMobileMenu()" data-i18n="nav_features">Fonctionnalités</a>
       <a href="#lp-pricing" onclick="closeLpMobileMenu()" data-i18n="nav_pricing">Tarifs</a>
       <a href="#lp-how" onclick="closeLpMobileMenu()" data-i18n="nav_how">Comment ça marche</a>
-      <a href="#lp-soon" onclick="closeLpMobileMenu()" data-i18n="soon_kicker">À venir</a>
       <a href="#lp-faq" onclick="closeLpMobileMenu()" data-i18n="nav_faq">FAQ</a>
+      <a href="#lp-soon" onclick="closeLpMobileMenu()" data-i18n="soon_kicker">À venir</a>
       <button class="lp-theme-toggle lp-theme-toggle-mobile" id="lpThemeToggleMobile" onclick="toggleLandingTheme()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg> <span data-i18n="theme_toggle_label">Thème clair/sombre</span></button>
       <select id="languageSelectLandingMobile" class="lp-lang-select lp-lang-select-mobile" onchange="setLanguage(this.value)" aria-label="Langue">
         <option value="fr">🇫🇷 Français</option>
@@ -2568,52 +2638,30 @@ p { line-height: 1.65; }
         <p class="lp-hero-proof" data-i18n="hero_proof">Gratuit pour commencer · Aucune carte bancaire requise</p>
       </div>
 
-      <div class="lp-hero-visual lp-reveal lp-reveal-delay">
-        <div class="lp-app-card">
-          <div class="lp-app-card-top">
-            <span class="lp-app-live"><span class="lp-app-live-dot"></span> <span data-i18n="mock_live">Exemple</span></span>
-            <span class="lp-app-countdown" id="lpMockCountdown">02:14:36</span>
-          </div>
-
-          <div class="lp-app-card-body">
-            <div class="lp-app-thumb">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="4" y="9.5" width="16" height="10.5" rx="1.5"/>
-                <path d="M3 9.5h18M12 9.5V20"/>
-                <path d="M12 9.5S10.5 4 8 5s1 4.5 4 4.5zM12 9.5S13.5 4 16 5s-1 4.5-4 4.5z"/>
-              </svg>
+      <div class="rx-demo lp-reveal lp-reveal-delay" id="lp-demo">
+        <div class="rx-demo-bar"><span class="rx-dots"><i></i><i></i><i></i></span><span class="rx-demo-url" data-i18n="rx_demo_url">Exemple de tirage</span><span class="rx-chip" data-i18n="mock_live">Exemple</span></div>
+        <div class="rx-demo-grid">
+          <div class="rx-demo-left">
+            <h3 data-i18n="rx_demo_title">Concours : iPhone 16 Pro</h3>
+            <p class="rx-muted" data-i18n="rx_demo_by">Organisé par @tech_community</p>
+            <div class="rx-demo-stats">
+              <div><small data-i18n="rx_imported">Participants importés</small><b>1 420</b></div>
+              <div><small data-i18n="rx_eligible">Éligibles après règles</small><b>1 284</b><em data-i18n="rx_dupes">−136 doublons</em></div>
             </div>
-            <div class="lp-app-headings">
-              <h4 class="lp-app-title">iPhone 16 Pro</h4>
-              <span class="lp-app-meta" data-i18n="mock_active">Campagne en cours</span>
-            </div>
+            <ul class="rx-rules">
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="rx_rule1">Doublons retirés</span></li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="rx_rule2">Mot-clé requis dans le commentaire</span></li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="rx_rule3">2 mentions minimum</span></li>
+            </ul>
           </div>
-
-          <div class="lp-app-progress-head">
-            <span><strong>1 284</strong> <span data-i18n="mock_entries">participants</span></span>
-            <span class="lp-app-progress-goal">2 000</span>
-          </div>
-          <div class="lp-app-progress"><div class="lp-app-progress-bar" id="lpMockProgressBar"></div></div>
-
-          <div class="lp-app-divider"></div>
-
-          <!-- The one metric that states the product's actual promise:
-               not "a draw happened" but "the community grew". -->
-          <div class="lp-app-growth">
-            <span class="lp-app-growth-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M4 19V5M4 19h16"/><path d="M7.5 15.5l3.5-4 3 2.5 4.5-6"/><path d="M18.5 8h-3.5M18.5 8v3.5"/>
-              </svg>
-            </span>
-            <div>
-              <strong class="lp-app-growth-value">+312</strong>
-              <span class="lp-app-growth-label" data-i18n="mock_growth">abonnés depuis le lancement</span>
-            </div>
-            <span class="lp-app-growth-spark" aria-hidden="true">
-              <svg viewBox="0 0 64 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 20 L12 16 L22 17 L32 11 L42 12 L52 5 L62 3"/>
-              </svg>
-            </span>
+          <div class="rx-demo-right">
+            <span class="rx-winner-label" data-i18n="rx_winner_label">Gagnant tiré au sort</span>
+            <div class="rx-winner-av">J</div>
+            <h4>@julie.creates</h4>
+            <p class="rx-muted" data-i18n="rx_winner_comment">« Trop hâte de participer ! @sarah.k @marc_photo »</p>
+            <span class="rx-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="rx_eligible_ok">Participant éligible</span></span>
+            <span class="rx-fake-btn" data-i18n="rx_download">Télécharger l'attestation</span>
+            <small class="rx-muted" data-i18n="rx_winner_note">Attestation numérotée, téléchargeable en image.</small>
           </div>
         </div>
       </div>
@@ -2622,18 +2670,6 @@ p { line-height: 1.65; }
 
   <!-- ============ TWO DOORS ============ -->
   <section class="lp-doors lp-reveal">
-    <div class="lp-door" id="lpDoorJoin">
-      <span class="lp-door-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="4" y="9.5" width="16" height="10.5" rx="1.5"/><path d="M3 9.5h18M12 9.5V20"/>
-          <path d="M12 9.5S10.5 4 8 5s1 4.5 4 4.5zM12 9.5S13.5 4 16 5s-1 4.5-4 4.5z"/>
-        </svg>
-      </span>
-      <h3 data-i18n="door_join_title">Je veux participer</h3>
-      <p data-i18n="door_join_text">Tu as reçu un lien de giveaway ? Ouvre-le directement : aucun compte n'est nécessaire pour participer.</p>
-      <span class="lp-door-note" data-i18n="door_join_note">Le lien t'est donné par l'organisateur, sur sa publication ou sa story.</span>
-    </div>
-
     <div class="lp-door lp-door-primary">
       <span class="lp-door-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2644,6 +2680,27 @@ p { line-height: 1.65; }
       <p data-i18n="door_create_text">Crée ta campagne, fixe tes conditions (abonnement, like, commentaire) et regarde ta communauté grandir à chaque tirage.</p>
       <button class="lp-btn-primary lp-btn-lg" onclick="showAuthFromLanding('signupView')"><span data-i18n="door_create_cta">Créer ma campagne</span> <span aria-hidden="true">→</span></button>
       <span class="lp-door-note" data-i18n="door_create_note">Gratuit pour commencer · Aucune carte bancaire</span>
+    </div>
+
+    <div class="lp-door lp-door-compact" id="lpDoorJoin">
+      <span class="lp-door-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="9.5" width="16" height="10.5" rx="1.5"/><path d="M3 9.5h18M12 9.5V20"/>
+          <path d="M12 9.5S10.5 4 8 5s1 4.5 4 4.5zM12 9.5S13.5 4 16 5s-1 4.5-4 4.5z"/>
+        </svg>
+      </span>
+      <h3 data-i18n="door_join_title">Je veux participer</h3>
+      <p data-i18n="door_join_text">Tu as reçu un lien de giveaway ? Ouvre-le directement : aucun compte n'est nécessaire pour participer.</p>
+      <span class="lp-door-note" data-i18n="door_join_note">Le lien t'est donné par l'organisateur, sur sa publication ou sa story.</span>
+    </div>
+  </section>
+
+  <section class="rx-stats lp-reveal">
+    <div class="rx-stats-inner">
+      <div><b>6</b><span data-i18n="rx_stat1">modes de tirage animés</span></div>
+      <div><b>5</b><span data-i18n="rx_stat2">sources d'import</span></div>
+      <div><b>3</b><span data-i18n="rx_stat3">langues : FR, EN, DE</span></div>
+      <div><b>1</b><span data-i18n="rx_stat4">tirage offert pour démarrer</span></div>
     </div>
   </section>
 
@@ -2659,17 +2716,24 @@ p { line-height: 1.65; }
         <span class="lp-step-num">01</span><span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 19v-1.5a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3V19"/><circle cx="9.5" cy="7.5" r="3"/><path d="M21 19v-1.5a3 3 0 0 0-2.2-2.9M15.5 4.7a3 3 0 0 1 0 5.6"/></svg></span>
         <h3 data-i18n="how_s1_title">Rassemble tes participants</h3>
         <p data-i18n="how_s1_text">Colle une liste, importe un CSV ou un fichier Excel, connecte Instagram ou YouTube, ou partage ton lien public : les gens s'inscrivent eux-mêmes.</p>
+        <span class="rx-tag" data-i18n="rx_tag1"></span>
       </div>
       <div class="lp-step">
         <span class="lp-step-num">02</span><span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"/></svg></span>
         <h3 data-i18n="how_s2_title">Filtre et lance</h3>
         <p data-i18n="how_s2_text">Retire les doublons, exige un mot-clé ou un nombre de mentions, choisis parmi six tirages animés, puis lance devant ton audience.</p>
+        <span class="rx-tag" data-i18n="rx_tag2"></span>
       </div>
       <div class="lp-step">
         <span class="lp-step-num">03</span><span class="lp-step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg></span>
         <h3 data-i18n="how_s3_title">Prouve et mesure</h3>
         <p data-i18n="how_s3_text">Le gagnant reçoit un certificat vérifiable, et tu vois exactement ce que la campagne a rapporté à ta communauté.</p>
+        <span class="rx-tag" data-i18n="rx_tag3"></span>
       </div>
+    </div>
+    <div class="rx-upsell lp-reveal">
+      <div><h4 data-i18n="rx_up_h">Besoin de plus de tirages ou de participants ?</h4><p data-i18n="rx_up_p">Les formules payantes augmentent tes limites mensuelles.</p></div>
+      <button class="lp-ui-btn-ghost" onclick="lpScrollTo('lp-pricing')" data-i18n="rx_up_cta">Voir les formules</button>
     </div>
   </section>
 
@@ -2772,65 +2836,11 @@ p { line-height: 1.65; }
       <span class="lp-kicker" data-i18n="nav_features">Fonctionnalités</span>
       <h2 class="lp-section-title" data-i18n="features_title">Pensé pour les vrais problèmes des organisateurs.</h2>
     </div>
-    <div class="lp-feature-list">
-      <div class="lp-feature-row lp-reveal">
-        <h3 data-i18n="feature1_h">Mise en place rapide</h3>
-        <p data-i18n="feature1_p">Lance un giveaway en quelques minutes, sans configuration complexe.</p>
-      </div>
-      <div class="lp-feature-row lp-reveal">
-        <h3 data-i18n="feature2_h">Règles de participation flexibles</h3>
-        <p data-i18n="feature2_p">Définis précisément comment les gens peuvent participer — mot-clé, mentions minimum, sans doublons.</p>
-      </div>
-      <div class="lp-feature-row lp-reveal">
-        <h3 data-i18n="feature3_h">Sélection équitable</h3>
-        <p data-i18n="feature3_p">Le gagnant est choisi aléatoirement parmi les participants éligibles, déterminé côté serveur.</p>
-      </div>
-      <div class="lp-feature-row lp-reveal">
-        <h3 data-i18n="feature4_h">Résultats transparents</h3>
-        <p data-i18n="feature4_p">Donne confiance à tes participants avec un tirage animé et vérifiable.</p>
-      </div>
-      <div class="lp-feature-row lp-reveal">
-        <h3 data-i18n="feature5_h">Gestion des participants</h3>
-        <p data-i18n="feature5_p">Tout est organisé au même endroit — imports, filtres, historique.</p>
-      </div>
-      <div class="lp-feature-row lp-reveal">
-        <h3 data-i18n="feature6_h">Résultats partageables</h3>
-        <p data-i18n="feature6_p">Partage le gagnant instantanément, avec certificat téléchargeable.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ COMING SOON ============ -->
-  <section class="lp-section lp-soon" id="lp-soon">
-    <div class="lp-section-head lp-reveal">
-      <span class="lp-kicker" data-i18n="soon_kicker">À venir</span>
-      <h2 class="lp-section-title" data-i18n="soon_title">La plateforme grandit avec toi.</h2>
-      <p class="lp-soon-sub" data-i18n="soon_sub">RerePickWinn évolue en continu. Voici ce qui se prépare.</p>
-    </div>
-    <div class="lp-soon-grid">
-      <article class="lp-soon-card lp-reveal">
-        <span class="lp-soon-ic lp-soon-spin"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="24" cy="24" r="17"/><circle cx="24" cy="24" r="3.5"/><path d="M24 7v13M24 28v13M7 24h13M28 24h13M12 12l9.5 9.5M26.5 26.5L36 36M36 12l-9.5 9.5M21.5 26.5L12 36" opacity=".55"/></svg></span>
-        <span class="lp-soon-pill"><i></i><span data-i18n="soon_badge">En préparation</span></span>
-        <h3 data-i18n="soon1_h">De nouveaux jeux de tirage</h3>
-        <p data-i18n="soon1_p">D'autres façons de désigner un gagnant viendront rejoindre les 6 modes actuels.</p>
-      </article>
-      <article class="lp-soon-card lp-reveal lp-reveal-delay">
-        <span class="lp-soon-ic lp-soon-float"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 36c6-12 12-12 17-6s11 6 17-8"/><circle cx="14" cy="15" r="4"/><circle cx="31" cy="12" r="3"/><path d="M40 8v8M36 12h8" opacity=".7"/></svg></span>
-        <span class="lp-soon-pill"><i></i><span data-i18n="soon_badge">En préparation</span></span>
-        <h3 data-i18n="soon2_h">Des jeux encore plus soignés</h3>
-        <p data-i18n="soon2_p">Animations, rythme et réglages améliorés, pour des tirages toujours plus agréables à regarder.</p>
-      </article>
-      <article class="lp-soon-card lp-reveal lp-reveal-delay-2">
-        <span class="lp-soon-ic lp-soon-twinkle"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 6l4.2 11.8L40 22l-11.8 4.2L24 38l-4.2-11.8L8 22l11.8-4.2z"/><path d="M38 6v6M35 9h6" opacity=".7"/></svg></span>
-        <span class="lp-soon-pill"><i></i><span data-i18n="soon_badge">En préparation</span></span>
-        <h3 data-i18n="soon3_h">Et bien d'autres nouveautés</h3>
-        <p data-i18n="soon3_p">De nouvelles fonctionnalités arrivent régulièrement, directement dans ton espace.</p>
-      </article>
-    </div>
-    <div class="lp-soon-cta lp-reveal">
-      <p data-i18n="soon_cta_text">Rejoins RerePickWinn dès maintenant et suis son évolution au fil des nouveautés.</p>
-      <button class="lp-btn-primary" onclick="showAuthFromLanding('signupView')"><span data-i18n="soon_cta">Créer mon compte gratuitement</span> <span aria-hidden="true">→</span></button>
-      <button class="lp-btn-text" onclick="lpScrollTo('lp-pricing')" data-i18n="soon_cta_plans">Voir les formules</button>
+    <div class="rx-feat-grid">
+      <div class="rx-feat lp-reveal"><span class="rx-feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/></svg></span><h3 data-i18n="rf1_h"></h3><p data-i18n="rf1_p"></p><div class="rx-chips"><span class="rx-chip2" data-i18n="rc_prize"></span><span class="rx-chip2" data-i18n="rc_keyword"></span><span class="rx-chip2" data-i18n="rc_mentions"></span></div></div>
+      <div class="rx-feat lp-reveal"><span class="rx-feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 19v-1.5a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3V19M9.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM21 19v-1.5a3 3 0 0 0-2.2-2.9M16 5.2a3 3 0 0 1 0 5.6"/></svg></span><h3 data-i18n="rf2_h"></h3><p data-i18n="rf2_p"></p><div class="rx-chips"><span class="rx-chip2" data-i18n="rc_csv"></span><span class="rx-chip2" data-i18n="rc_sheets"></span><span class="rx-chip2" data-i18n="rc_link"></span></div></div>
+      <div class="rx-feat lp-reveal"><span class="rx-feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.2"/></svg></span><h3 data-i18n="rf3_h"></h3><p data-i18n="rf3_p"></p><div class="rx-chips"><span class="rx-chip2" data-i18n="mode_wheel_name"></span><span class="rx-chip2" data-i18n="mode_instant_name"></span><span class="rx-chip2" data-i18n="mode_slot_name"></span><span class="rx-chip2" data-i18n="mode_duck_name"></span><span class="rx-chip2" data-i18n="mode_plinko_name"></span><span class="rx-chip2" data-i18n="mode_marble_name"></span></div></div>
+      <div class="rx-feat lp-reveal"><span class="rx-feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M7.5 15.5l3.5-4 3 2.5 4.5-6"/></svg></span><h3 data-i18n="rf4_h"></h3><p data-i18n="rf4_p"></p><div class="rx-chips"><span class="rx-chip2" data-i18n="rc_cert"></span><span class="rx-chip2" data-i18n="rc_history"></span><span class="rx-chip2" data-i18n="rc_growth"></span></div></div>
     </div>
   </section>
 
@@ -2864,11 +2874,16 @@ p { line-height: 1.65; }
       <p class="lp-showcase-text" data-i18n="pricing_sub">Commence gratuitement. Passe à un forfait supérieur quand tu en as besoin, paiement en crypto, sans engagement.</p>
     </div>
 
+    <div class="lp-period-toggle lp-reveal" id="lpPeriodToggle" role="tablist">
+      <button type="button" role="tab" data-period="monthly" onclick="setLandingPeriod('monthly')" data-i18n="period_monthly">Mensuel</button>
+      <button type="button" role="tab" data-period="semiannual" onclick="setLandingPeriod('semiannual')" data-i18n="period_semiannual">6 mois</button>
+      <button type="button" role="tab" data-period="annual" onclick="setLandingPeriod('annual')" class="is-active"><span data-i18n="period_annual">Annuel</span> <em data-i18n="period_save">−37 %</em></button>
+    </div>
     <div class="lp-pricing-grid lp-reveal lp-reveal-delay">
       <div class="lp-price-card">
         <span class="lp-price-period" data-i18n="tier_free">Gratuit</span>
         <p class="lp-price-desc" data-i18n="pricing_free_d"></p>
-        <div class="lp-price-amount">0$<span data-i18n="billing_total_for_monthly">/mois</span></div>
+        <div class="lp-price-amount" data-price-amount="free">0$<span data-i18n="billing_total_for_monthly">/mois</span></div>
         <p class="lp-price-note">&nbsp;</p>
         <ul class="lp-price-features">
           <li data-i18n="pricing_free_f1">1 tirage au total, offert</li>
@@ -2879,36 +2894,36 @@ p { line-height: 1.65; }
       <div class="lp-price-card">
         <span class="lp-price-period" data-i18n="tier_basic">Basique</span>
         <p class="lp-price-desc" data-i18n="pricing_basic_d"></p>
-        <div class="lp-price-amount">7,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
+        <div class="lp-price-amount" data-price-amount="basic">7,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
         <p class="lp-price-note" data-price-note="basic"></p>
         <ul class="lp-price-features">
           <li data-i18n="pricing_basic_f1">3 tirages par mois</li>
           <li data-i18n="pricing_basic_f2">500 participants / tirage</li>
         </ul>
-        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('basic', 'annual')" data-i18n="pricing_start">Commencer</button>
+        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('basic', landingPeriod)" data-i18n="pricing_start">Commencer</button>
       </div>
       <div class="lp-price-card lp-price-card-featured">
         <span class="lp-price-featured-badge" data-i18n="pricing_popular">Populaire</span>
         <span class="lp-price-period" data-i18n="tier_medium">Plus</span>
         <p class="lp-price-desc" data-i18n="pricing_medium_d"></p>
-        <div class="lp-price-amount">19,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
+        <div class="lp-price-amount" data-price-amount="medium">19,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
         <p class="lp-price-note" data-price-note="medium"></p>
         <ul class="lp-price-features">
           <li data-i18n="pricing_medium_f1">7 tirages par mois</li>
           <li data-i18n="pricing_medium_f2">2 000 participants / tirage</li>
         </ul>
-        <button class="lp-btn-primary lp-price-btn" onclick="startProFromLanding('medium', 'annual')" data-i18n="pricing_start">Commencer</button>
+        <button class="lp-btn-primary lp-price-btn" onclick="startProFromLanding('medium', landingPeriod)" data-i18n="pricing_start">Commencer</button>
       </div>
       <div class="lp-price-card">
         <span class="lp-price-period" data-i18n="tier_pro">Pro</span>
         <p class="lp-price-desc" data-i18n="pricing_pro_d"></p>
-        <div class="lp-price-amount">59,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
+        <div class="lp-price-amount" data-price-amount="pro">59,99$<span data-i18n="billing_total_for_monthly">/mois</span></div>
         <p class="lp-price-note" data-price-note="pro"></p>
         <ul class="lp-price-features">
           <li data-i18n="billing_feature_unlimited_giveaways">Tirages illimités</li>
           <li data-i18n="billing_feature_unlimited_participants">Participants illimités</li>
         </ul>
-        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('pro', 'annual')" data-i18n="pricing_start">Commencer</button>
+        <button class="lp-ui-btn-ghost lp-price-btn" onclick="startProFromLanding('pro', landingPeriod)" data-i18n="pricing_start">Commencer</button>
       </div>
     </div>
     <p class="lp-price-foot" data-i18n="pricing_footnote"></p>
@@ -2978,6 +2993,40 @@ p { line-height: 1.65; }
           <div class="lp-faq-a"><p data-i18n="faq_a9"></p></div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ COMING SOON ============ -->
+  <section class="lp-section lp-section-alt lp-soon" id="lp-soon">
+    <div class="lp-section-head lp-reveal">
+      <span class="lp-kicker" data-i18n="soon_kicker">À venir</span>
+      <h2 class="lp-section-title" data-i18n="soon_title">La plateforme grandit avec toi.</h2>
+      <p class="lp-soon-sub" data-i18n="soon_sub">RerePickWinn évolue en continu. Voici ce qui se prépare.</p>
+    </div>
+    <div class="lp-soon-grid">
+      <article class="lp-soon-card lp-reveal">
+        <span class="lp-soon-ic lp-soon-spin"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="24" cy="24" r="17"/><circle cx="24" cy="24" r="3.5"/><path d="M24 7v13M24 28v13M7 24h13M28 24h13M12 12l9.5 9.5M26.5 26.5L36 36M36 12l-9.5 9.5M21.5 26.5L12 36" opacity=".55"/></svg></span>
+        <span class="lp-soon-pill"><i></i><span data-i18n="soon_badge">En préparation</span></span>
+        <h3 data-i18n="soon1_h">De nouveaux jeux de tirage</h3>
+        <p data-i18n="soon1_p">D'autres façons de désigner un gagnant viendront rejoindre les 6 modes actuels.</p>
+      </article>
+      <article class="lp-soon-card lp-reveal lp-reveal-delay">
+        <span class="lp-soon-ic lp-soon-float"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 36c6-12 12-12 17-6s11 6 17-8"/><circle cx="14" cy="15" r="4"/><circle cx="31" cy="12" r="3"/><path d="M40 8v8M36 12h8" opacity=".7"/></svg></span>
+        <span class="lp-soon-pill"><i></i><span data-i18n="soon_badge">En préparation</span></span>
+        <h3 data-i18n="soon2_h">Des jeux encore plus soignés</h3>
+        <p data-i18n="soon2_p">Animations, rythme et réglages améliorés, pour des tirages toujours plus agréables à regarder.</p>
+      </article>
+      <article class="lp-soon-card lp-reveal lp-reveal-delay-2">
+        <span class="lp-soon-ic lp-soon-twinkle"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 6l4.2 11.8L40 22l-11.8 4.2L24 38l-4.2-11.8L8 22l11.8-4.2z"/><path d="M38 6v6M35 9h6" opacity=".7"/></svg></span>
+        <span class="lp-soon-pill"><i></i><span data-i18n="soon_badge">En préparation</span></span>
+        <h3 data-i18n="soon3_h">Et bien d'autres nouveautés</h3>
+        <p data-i18n="soon3_p">De nouvelles fonctionnalités arrivent régulièrement, directement dans ton espace.</p>
+      </article>
+    </div>
+    <div class="lp-soon-cta lp-reveal">
+      <p data-i18n="soon_cta_text">Rejoins RerePickWinn dès maintenant et suis son évolution au fil des nouveautés.</p>
+      <button class="lp-btn-primary" onclick="showAuthFromLanding('signupView')"><span data-i18n="soon_cta">Créer mon compte gratuitement</span> <span aria-hidden="true">→</span></button>
+      <button class="lp-btn-text" onclick="lpScrollTo('lp-pricing')" data-i18n="soon_cta_plans">Voir les formules</button>
     </div>
   </section>
 
@@ -6279,6 +6328,53 @@ function initTheme() {
 // ============================================================
 var TRANSLATIONS = {
   fr: {
+    "rx_demo_url": "Exemple de tirage",
+    "rx_demo_title": "Concours : iPhone 16 Pro",
+    "rx_demo_by": "Organisé par @tech_community",
+    "rx_imported": "Participants importés",
+    "rx_eligible": "Éligibles après règles",
+    "rx_dupes": "−136 doublons",
+    "rx_rule1": "Doublons retirés",
+    "rx_rule2": "Mot-clé requis dans le commentaire",
+    "rx_rule3": "2 mentions minimum",
+    "rx_winner_label": "Gagnant tiré au sort",
+    "rx_winner_comment": "« Trop hâte de participer ! @sarah.k @marc_photo »",
+    "rx_eligible_ok": "Participant éligible",
+    "rx_download": "Télécharger l'attestation",
+    "rx_winner_note": "Attestation numérotée, téléchargeable en image.",
+    "rx_stat1": "modes de tirage animés",
+    "rx_stat2": "sources d'import",
+    "rx_stat3": "langues : FR, EN, DE",
+    "rx_stat4": "tirage offert pour démarrer",
+    "rx_tag1": "CSV, Excel, Sheets, commentaires",
+    "rx_tag2": "Règles d'éligibilité",
+    "rx_tag3": "Historique des tirages",
+    "rx_up_h": "Besoin de plus de tirages ou de participants ?",
+    "rx_up_p": "Les formules payantes augmentent tes limites mensuelles.",
+    "rx_up_cta": "Voir les formules",
+    "rf1_h": "Création rapide",
+    "rf1_p": "Configure ton giveaway, ajoute ton lot et définis les règles de participation depuis un seul espace.",
+    "rf2_h": "Participants bien organisés",
+    "rf2_p": "Importe tes listes, retire les doublons et ne garde que les participants qui respectent tes conditions.",
+    "rf3_h": "Des tirages qui captent l'attention",
+    "rf3_p": "Six modes animés pour annoncer ton gagnant de façon interactive.",
+    "rf4_h": "Résultats et historique",
+    "rf4_p": "Retrouve chaque tirage et son gagnant, télécharge une attestation et compare tes campagnes avant et après.",
+    "rc_prize": "Titre et lot",
+    "rc_keyword": "Mot-clé",
+    "rc_mentions": "Mentions minimum",
+    "rc_csv": "CSV / Excel",
+    "rc_sheets": "Google Sheets",
+    "rc_link": "Lien public",
+    "rc_cert": "Attestation numérotée",
+    "rc_history": "Historique",
+    "rc_growth": "Suivi avant / après",
+    "period_monthly": "Mensuel",
+    "period_semiannual": "6 mois",
+    "period_annual": "Annuel",
+    "period_save": "−37 %",
+    "price_monthly_note": "Facturé chaque mois",
+    "price_equiv_fmt": "soit {m} $ par mois · −{pct} %",
     "footer_nav": "Navigation",
     "pricing_free_d": "Pour découvrir RerePickWinn et organiser ton premier tirage.",
     "pricing_basic_d": "Pour les créateurs qui organisent quelques giveaways par mois.",
@@ -6513,7 +6609,7 @@ var TRANSLATIONS = {
     "pricing_sub": "Commence gratuitement, puis passe à une formule payante quand tu en as besoin. Paiement par carte bancaire ou en cryptomonnaie.",
     "pricing_start": "Commencer",
     "pricing_popular": "Populaire",
-    "pricing_footnote": "Prix en dollars US, hors taxes éventuelles. « Illimité » : sous réserve des limites techniques de la plateforme. Chaque formule existe aussi en 6 mois ou 1 an : tu choisis la durée une fois connecté, dans la page Abonnement.",
+    "pricing_footnote": "Prix en dollars US, hors taxes éventuelles. « Illimité » : sous réserve des limites techniques de la plateforme.",
     "tier_basic": "Basique",
     "tier_medium": "Plus",
     "tier_pro": "Pro",
@@ -6961,6 +7057,53 @@ var TRANSLATIONS = {
     "footer_copyright": "© 2026 RerePickWinn. Tous droits réservés."
   },
   en: {
+    "rx_demo_url": "Sample draw",
+    "rx_demo_title": "Contest: iPhone 16 Pro",
+    "rx_demo_by": "Run by @tech_community",
+    "rx_imported": "Imported participants",
+    "rx_eligible": "Eligible after rules",
+    "rx_dupes": "−136 duplicates",
+    "rx_rule1": "Duplicates removed",
+    "rx_rule2": "Keyword required in the comment",
+    "rx_rule3": "2 mentions minimum",
+    "rx_winner_label": "Winner drawn",
+    "rx_winner_comment": "“Can’t wait to take part! @sarah.k @marc_photo”",
+    "rx_eligible_ok": "Eligible participant",
+    "rx_download": "Download the certificate",
+    "rx_winner_note": "Numbered certificate, downloadable as an image.",
+    "rx_stat1": "animated draw modes",
+    "rx_stat2": "import sources",
+    "rx_stat3": "languages: FR, EN, DE",
+    "rx_stat4": "free draw to get started",
+    "rx_tag1": "CSV, Excel, Sheets, comments",
+    "rx_tag2": "Eligibility rules",
+    "rx_tag3": "Draw history",
+    "rx_up_h": "Need more draws or more participants?",
+    "rx_up_p": "Paid plans raise your monthly limits.",
+    "rx_up_cta": "See the plans",
+    "rf1_h": "Quick setup",
+    "rf1_p": "Configure your giveaway, add your prize and set your entry rules from one place.",
+    "rf2_h": "Well-organized participants",
+    "rf2_p": "Import your lists, remove duplicates and keep only the participants who meet your conditions.",
+    "rf3_h": "Draws that grab attention",
+    "rf3_p": "Six animated modes to announce your winner in an interactive way.",
+    "rf4_h": "Results and history",
+    "rf4_p": "Find every draw and its winner, download a certificate and compare your campaigns before and after.",
+    "rc_prize": "Title and prize",
+    "rc_keyword": "Keyword",
+    "rc_mentions": "Minimum mentions",
+    "rc_csv": "CSV / Excel",
+    "rc_sheets": "Google Sheets",
+    "rc_link": "Public link",
+    "rc_cert": "Numbered certificate",
+    "rc_history": "History",
+    "rc_growth": "Before / after tracking",
+    "period_monthly": "Monthly",
+    "period_semiannual": "6 months",
+    "period_annual": "Yearly",
+    "period_save": "−37%",
+    "price_monthly_note": "Billed every month",
+    "price_equiv_fmt": "that is ${m} per month · −{pct}%",
     "footer_nav": "Navigation",
     "pricing_free_d": "To discover RerePickWinn and run your first draw.",
     "pricing_basic_d": "For creators who run a few giveaways a month.",
@@ -7195,7 +7338,7 @@ var TRANSLATIONS = {
     "pricing_sub": "Start for free, then move to a paid plan when you need one. Pay by card or with cryptocurrency.",
     "pricing_start": "Get started",
     "pricing_popular": "Popular",
-    "pricing_footnote": "Prices in US dollars, excluding any applicable taxes. “Unlimited” is subject to the platform’s technical limits. Every plan is also available for 6 months or 1 year: pick the duration once signed in, on the Subscription page.",
+    "pricing_footnote": "Prices in US dollars, excluding any applicable taxes. “Unlimited” is subject to the platform’s technical limits.",
     "tier_basic": "Basic",
     "tier_medium": "Plus",
     "tier_pro": "Pro",
@@ -7643,6 +7786,53 @@ var TRANSLATIONS = {
     "footer_copyright": "© 2026 RerePickWinn. All rights reserved."
   },
   de: {
+    "rx_demo_url": "Beispielziehung",
+    "rx_demo_title": "Gewinnspiel: iPhone 16 Pro",
+    "rx_demo_by": "Veranstaltet von @tech_community",
+    "rx_imported": "Importierte Teilnehmer",
+    "rx_eligible": "Teilnahmeberechtigt nach Regeln",
+    "rx_dupes": "−136 Duplikate",
+    "rx_rule1": "Duplikate entfernt",
+    "rx_rule2": "Stichwort im Kommentar erforderlich",
+    "rx_rule3": "Mindestens 2 Erwähnungen",
+    "rx_winner_label": "Gezogener Gewinner",
+    "rx_winner_comment": "„Ich freue mich so! @sarah.k @marc_photo“",
+    "rx_eligible_ok": "Teilnahmeberechtigt",
+    "rx_download": "Urkunde herunterladen",
+    "rx_winner_note": "Nummerierte Urkunde, als Bild herunterladbar.",
+    "rx_stat1": "animierte Ziehungsmodi",
+    "rx_stat2": "Importquellen",
+    "rx_stat3": "Sprachen: FR, EN, DE",
+    "rx_stat4": "kostenlose Ziehung zum Start",
+    "rx_tag1": "CSV, Excel, Sheets, Kommentare",
+    "rx_tag2": "Teilnahmeregeln",
+    "rx_tag3": "Ziehungsverlauf",
+    "rx_up_h": "Mehr Ziehungen oder mehr Teilnehmer nötig?",
+    "rx_up_p": "Kostenpflichtige Tarife erhöhen deine monatlichen Grenzen.",
+    "rx_up_cta": "Tarife ansehen",
+    "rf1_h": "Schnelle Einrichtung",
+    "rf1_p": "Richte dein Giveaway ein, füge deinen Preis hinzu und lege die Teilnahmeregeln an einem Ort fest.",
+    "rf2_h": "Gut organisierte Teilnehmer",
+    "rf2_p": "Importiere deine Listen, entferne Duplikate und behalte nur Teilnehmer, die deine Bedingungen erfüllen.",
+    "rf3_h": "Ziehungen, die Aufmerksamkeit wecken",
+    "rf3_p": "Sechs animierte Modi, um deinen Gewinner interaktiv bekannt zu geben.",
+    "rf4_h": "Ergebnisse und Verlauf",
+    "rf4_p": "Finde jede Ziehung und ihren Gewinner, lade eine Urkunde herunter und vergleiche deine Kampagnen vorher und nachher.",
+    "rc_prize": "Titel und Preis",
+    "rc_keyword": "Stichwort",
+    "rc_mentions": "Mindest-Erwähnungen",
+    "rc_csv": "CSV / Excel",
+    "rc_sheets": "Google Sheets",
+    "rc_link": "Öffentlicher Link",
+    "rc_cert": "Nummerierte Urkunde",
+    "rc_history": "Verlauf",
+    "rc_growth": "Vorher-/Nachher-Vergleich",
+    "period_monthly": "Monatlich",
+    "period_semiannual": "6 Monate",
+    "period_annual": "Jährlich",
+    "period_save": "−37 %",
+    "price_monthly_note": "Monatliche Abrechnung",
+    "price_equiv_fmt": "also {m} $ pro Monat · −{pct} %",
     "footer_nav": "Navigation",
     "pricing_free_d": "Um RerePickWinn kennenzulernen und deine erste Ziehung durchzuführen.",
     "pricing_basic_d": "Für Creator, die ein paar Giveaways pro Monat durchführen.",
@@ -7877,7 +8067,7 @@ var TRANSLATIONS = {
     "pricing_sub": "Starte kostenlos und wechsle zu einem kostenpflichtigen Tarif, wenn du ihn brauchst. Zahlung per Karte oder in Kryptowährung.",
     "pricing_start": "Loslegen",
     "pricing_popular": "Beliebt",
-    "pricing_footnote": "Preise in US-Dollar, zuzüglich eventuell anfallender Steuern. „Unbegrenzt“ vorbehaltlich der technischen Grenzen der Plattform. Jeder Tarif ist auch für 6 Monate oder 1 Jahr verfügbar: Die Laufzeit wählst du nach der Anmeldung auf der Seite Abonnement.",
+    "pricing_footnote": "Preise in US-Dollar, zuzüglich eventuell anfallender Steuern. „Unbegrenzt“ vorbehaltlich der technischen Grenzen der Plattform.",
     "tier_basic": "Basis",
     "tier_medium": "Plus",
     "tier_pro": "Pro",
@@ -8346,16 +8536,33 @@ function t(key, vars) {
 }
 
 
+var landingPeriod = 'annual';
+function setLandingPeriod(p) {
+  landingPeriod = p;
+  renderLandingPrices(window.__lang || 'fr');
+}
 function renderLandingPrices(lang) {
   lang = lang || 'fr';
+  window.__lang = lang;
   var dict = TRANSLATIONS[lang] || TRANSLATIONS.fr;
   var fmt = function(n) { return n.toFixed(2).replace('.', lang === 'en' ? '.' : ','); };
+  var suffix = { monthly: dict.billing_total_for_monthly, semiannual: dict.billing_total_for_semiannual, annual: dict.billing_total_for_annual }[landingPeriod];
+  document.querySelectorAll('#lpPeriodToggle button').forEach(function(b) {
+    b.classList.toggle('is-active', b.getAttribute('data-period') === landingPeriod);
+    b.setAttribute('aria-selected', b.getAttribute('data-period') === landingPeriod ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-price-amount]').forEach(function(el) {
+    var p = TIER_PRICES[el.getAttribute('data-price-amount')];
+    if (!p) return;
+    el.innerHTML = fmt(p[landingPeriod]) + '$<span>' + suffix.replace(/^\s+/, '') + '</span>';
+  });
   document.querySelectorAll('[data-price-note]').forEach(function(el) {
     var p = TIER_PRICES[el.getAttribute('data-price-note')];
     if (!p) return;
-    var pct = Math.round((1 - p.annual / (p.monthly * 12)) * 100);
-    el.textContent = (dict.pricing_note_fmt || '')
-      .split('{six}').join(fmt(p.semiannual)).split('{sixm}').join(fmt(p.semiannual/6)).split('{yearm}').join(fmt(p.annual/12)).split('{year}').join(fmt(p.annual)).split('{pct}').join(pct);
+    if (landingPeriod === 'monthly') { el.textContent = dict.price_monthly_note || ''; return; }
+    var months = PERIOD_MONTHS[landingPeriod];
+    var pct = Math.round((1 - p[landingPeriod] / (p.monthly * months)) * 100);
+    el.textContent = (dict.price_equiv_fmt || '').split('{m}').join(fmt(p[landingPeriod] / months)).split('{pct}').join(pct);
   });
 }
 
